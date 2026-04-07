@@ -1,27 +1,86 @@
-/// Tile ids start at zero and work counter clockwise from the origin, starting at the tile directly beneath the origin.
-pub struct TileId(usize);
+use std::ops::{Add, Mul, Sub};
 
-/// "i" is north+/south-. "j" is northeast+/southwest-. "k" is northwest+/southeast-.
-#[derive(Debug)]
-pub struct HexVector {
-    i: i32,
-    j: i32,
-    k: i32,
-}
+/// Tile ids start at zero and work counter clockwise from the origin, starting at the tile directly beneath the origin.
+pub struct TileId(u32);
 
 impl TileId {
-    pub fn new(id: usize) -> Self {
+    pub fn new(id: u32) -> Self {
         TileId(id)
     }
-    pub fn id(&self) -> usize {
+    pub fn id(&self) -> u32 {
         self.0
     }
 }
 
-impl From<TileId> for HexVector {
+/// "i" is north+/south-. "j" is northeast+/southwest-. "k" is northwest+/southeast-.
+#[derive(Debug, Clone, Copy)]
+pub struct HexVector2d {
+    pub a: i32,
+    pub b: i32,
+}
+
+pub const NORTH: HexVector2d = HexVector2d { a: 1, b: 0 };
+pub const NORTH_EAST: HexVector2d = HexVector2d { a: 0, b: 1 };
+pub const NORTH_WEST: HexVector2d = HexVector2d { a: 1, b: -1 };
+pub const SOUTH: HexVector2d = HexVector2d { a: -1, b: 0 };
+pub const SOUTH_EAST: HexVector2d = HexVector2d { a: -1, b: 1 };
+pub const SOUTH_WEST: HexVector2d = HexVector2d { a: 0, b: -1 };
+
+impl HexVector2d {
+    pub fn scalar_mult(mut self, scalar: i32) {
+        self.a *= scalar;
+        self.b *= scalar;
+    }
+}
+
+impl Mul<i32> for HexVector2d {
+    type Output = Self;
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        HexVector2d {
+            a: self.a * rhs,
+            b: self.b * rhs,
+        }
+    }
+}
+
+impl Mul<HexVector2d> for i32 {
+    type Output = HexVector2d;
+
+    fn mul(self, rhs: HexVector2d) -> Self::Output {
+        HexVector2d {
+            a: rhs.a * self,
+            b: rhs.b * self,
+        }
+    }
+}
+
+impl Add for HexVector2d {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        HexVector2d {
+            a: self.a + rhs.a,
+            b: self.b + rhs.b,
+        }
+    }
+}
+
+impl Sub for HexVector2d {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        HexVector2d {
+            a: self.a - rhs.a,
+            b: self.b - rhs.b,
+        }
+    }
+}
+
+impl From<TileId> for HexVector2d {
     fn from(id: TileId) -> Self {
         if id.0 == 0 {
-            return HexVector { i: 0, j: 0, k: 0 };
+            return HexVector2d { a: 0, b: 0 };
         }
 
         let id = id.0 as i32;
@@ -35,44 +94,18 @@ impl From<TileId> for HexVector {
                 examined_ring += 1;
             }
         };
-
         let steps_on_ring = id - (3 * ring * (ring - 1) + 1);
 
-        let edges_traversed = steps_on_ring / ring; // because these are i32 divisions, the answer is rounded down.
-
-        let remaining_steps = steps_on_ring - edges_traversed * ring; // this math cannot be collapsed with the previous line, because we're dealing with integers.I know it looks weird.
+        let edges_traversed = steps_on_ring / ring;
+        let remaining_steps = steps_on_ring % ring;
 
         match edges_traversed {
-            0 => HexVector {
-                i: -ring,
-                j: remaining_steps,
-                k: 0,
-            },
-            1 => HexVector {
-                i: -ring + remaining_steps,
-                j: ring,
-                k: 0,
-            },
-            2 => HexVector {
-                i: 0,
-                j: ring,
-                k: -remaining_steps,
-            },
-            3 => HexVector {
-                i: ring,
-                j: -remaining_steps,
-                k: 0,
-            },
-            4 => HexVector {
-                i: -remaining_steps,
-                j: 0,
-                k: -ring,
-            },
-            5 => HexVector {
-                i: 0,
-                j: -ring,
-                k: remaining_steps,
-            },
+            0 => SOUTH * ring + NORTH_EAST * remaining_steps,
+            1 => SOUTH_EAST * ring + NORTH * remaining_steps,
+            2 => NORTH_EAST * ring + NORTH_WEST * remaining_steps,
+            3 => NORTH * ring + SOUTH_WEST * remaining_steps,
+            4 => NORTH_WEST * ring + SOUTH * remaining_steps,
+            5 => SOUTH_WEST * ring + SOUTH_EAST * remaining_steps,
             _ => panic!(),
         }
     }
