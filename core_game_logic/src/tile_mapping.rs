@@ -1,6 +1,10 @@
-use std::ops::{Add, Mul, Sub};
+use std::{
+    cmp::max,
+    ops::{Add, Mul, Sub},
+};
 
 /// Tile ids start at zero and work counter clockwise from the origin, starting at the tile directly beneath the origin.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct TileId(u32);
 
 impl TileId {
@@ -15,8 +19,8 @@ impl TileId {
 /// "i" is north+/south-. "j" is northeast+/southwest-. "k" is northwest+/southeast-.
 #[derive(Debug, Clone, Copy)]
 pub struct HexVector2d {
-    pub a: i32,
-    pub b: i32,
+    a: i32,
+    b: i32,
 }
 
 pub const NORTH: HexVector2d = HexVector2d { a: 1, b: 0 };
@@ -26,13 +30,6 @@ pub const SOUTH: HexVector2d = HexVector2d { a: -1, b: 0 };
 pub const SOUTH_EAST: HexVector2d = HexVector2d { a: -1, b: 1 };
 pub const SOUTH_WEST: HexVector2d = HexVector2d { a: 0, b: -1 };
 
-impl HexVector2d {
-    pub fn scalar_mult(mut self, scalar: i32) {
-        self.a *= scalar;
-        self.b *= scalar;
-    }
-}
-
 impl Mul<i32> for HexVector2d {
     type Output = Self;
 
@@ -40,17 +37,6 @@ impl Mul<i32> for HexVector2d {
         HexVector2d {
             a: self.a * rhs,
             b: self.b * rhs,
-        }
-    }
-}
-
-impl Mul<HexVector2d> for i32 {
-    type Output = HexVector2d;
-
-    fn mul(self, rhs: HexVector2d) -> Self::Output {
-        HexVector2d {
-            a: rhs.a * self,
-            b: rhs.b * self,
         }
     }
 }
@@ -106,7 +92,72 @@ impl From<TileId> for HexVector2d {
             3 => NORTH * ring + SOUTH_WEST * remaining_steps,
             4 => NORTH_WEST * ring + SOUTH * remaining_steps,
             5 => SOUTH_WEST * ring + SOUTH_EAST * remaining_steps,
-            _ => panic!(),
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<HexVector2d> for TileId {
+    fn from(vec: HexVector2d) -> Self {
+        if vec.a.signum() != vec.b.signum() {
+            let ring = max(vec.a.abs(), vec.b.abs());
+
+            if vec.a.abs() >= vec.b.abs() {
+                if vec.a > 0 {
+                    let tile_at_ring_top = (3 * ring * (ring - 1) + 1) + 3 * ring;
+                    TileId((tile_at_ring_top + vec.b.abs()) as u32)
+                } else {
+                    let tile_at_bottom = 3 * ring * (ring - 1) + 1;
+                    TileId((tile_at_bottom + vec.b) as u32)
+                }
+            } else if vec.b > 0 {
+                let tile_at_two_sixths = (3 * ring * (ring - 1) + 1) + 2 * ring;
+                TileId((tile_at_two_sixths + vec.a) as u32)
+            } else {
+                let tile_at_five_sixths = (3 * ring * (ring - 1) + 1) + 5 * ring;
+                TileId((tile_at_five_sixths - vec.a.abs()) as u32)
+            }
+        } else {
+            // The normal hex_vec has a blindspot, so if we're in the blindspot, we'll just pick a new coordinate system.
+            // The converted vec uses North/South and Southeast/Northwest.
+            let converted_vec = (vec.a + vec.b, vec.b);
+            let ring = converted_vec.0.abs();
+
+            if ring == 0 {
+                TileId(0)
+            } else if converted_vec.0 > 0 {
+                let tile_at_ring_top = (3 * ring * (ring - 1) + 1) + 3 * ring;
+                TileId((tile_at_ring_top - converted_vec.1) as u32)
+            } else {
+                let tile_at_bottom_with_offset = 3 * ring * (ring + 1) + 1;
+                TileId((tile_at_bottom_with_offset + converted_vec.1) as u32)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tile_conversions() {
+        for id in 0..1000 {
+            let start_id = TileId::new(id);
+
+            let end_id: TileId = HexVector2d::from(start_id).into();
+
+            assert_eq!(
+                start_id, end_id,
+                "Fail. Started with id {start_id:?}, ended with {end_id:?}"
+            );
+        }
+    }
+    #[test]
+    fn test_adjacencies() {
+        for id in 0..61 {
+            let northern_adjaceny: TileId = (HexVector2d::from(TileId::new(id)) + NORTH).into();
+            println!("The tile north of {id} is {}", northern_adjaceny.id());
         }
     }
 }
