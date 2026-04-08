@@ -71,15 +71,8 @@ impl From<TileId> for HexVector2d {
 
         let id = id.0 as i32;
 
-        let ring = {
-            let mut examined_ring = 1;
-            loop {
-                if id <= 3 * (examined_ring + 1) * examined_ring {
-                    break examined_ring;
-                }
-                examined_ring += 1;
-            }
-        };
+        let ring = (0.5 + ((4 * id - 1) as f32 / 12.0).powf(0.5)).floor() as i32;
+
         let steps_on_ring = id - (3 * ring * (ring - 1) + 1);
 
         let edges_traversed = steps_on_ring / ring;
@@ -142,7 +135,7 @@ mod tests {
 
     #[test]
     fn tile_conversions() {
-        for id in 0..1000 {
+        for id in 0..10000000 {
             let start_id = TileId::new(id);
 
             let end_id: TileId = HexVector2d::from(start_id).into();
