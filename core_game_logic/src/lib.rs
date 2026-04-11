@@ -1,6 +1,8 @@
+use bevy::asset::DirectAssetAccessExt;
 pub use bevy::*;
 
 use crate::tiles::initialize_tiles;
+pub mod game_events;
 pub mod tile_mapping;
 pub mod tiles;
 
