@@ -5,6 +5,8 @@ use bevy::ecs::{
     world::World,
 };
 
+use thiserror::Error;
+
 use crate::tile_mapping::TileId;
 
 pub fn initialize_tiles(world: &mut World, ring_count: u32) {
@@ -21,6 +23,19 @@ pub fn initialize_tiles(world: &mut World, ring_count: u32) {
 #[derive(Debug, Resource)]
 pub struct TileDirectory(Vec<Entity>);
 
+#[derive(Debug, Error)]
+#[error{"Tried to get a tile which was out of bounds for this board size."}]
+pub struct InvaildIDErr;
+
+impl TileDirectory {
+    pub fn get_entity(&self, tile_id: TileId) -> Result<Entity, InvaildIDErr> {
+        self.0
+            .get(tile_id.id() as usize)
+            .copied()
+            .ok_or(InvaildIDErr)
+    }
+}
+
 impl Component for TileId {
     const STORAGE_TYPE: bevy::ecs::component::StorageType = StorageType::Table;
 
@@ -29,6 +44,7 @@ impl Component for TileId {
 
 pub enum TileType {
     Basic,
+    Ex1,
 }
 
 impl Component for TileType {
