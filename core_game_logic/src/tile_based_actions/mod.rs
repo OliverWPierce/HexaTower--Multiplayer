@@ -1,49 +1,82 @@
-use std::ops::{Range, RangeBounds};
+use std::ops::Range;
 
 use bevy::ecs::world::World;
+use thiserror::Error;
 
 use crate::{player_actions::ChangeLog, tile_mapping::TileId};
 
-/// This stores data about a game action that relies on tile selections to define what it acts on.
-struct TileBasedGameAction<F: TileBasedActionFunctionality, M: TileBasedEligibilityMethod> {
-    functionality: F,
-    eligibility_critera: M,
+#[derive(Debug, Clone)]
+struct ValidTileBasedAction<A: TileBasedAction> {
+    game_design_bounds: Range<usize>,
+    tile_action: A,
 }
 
-trait TileBasedActionFunctionality {
-    const EXPECTED_TILE_COUNT: Range<u16>;
+trait TileBasedAction {
+    const EXECUTABLE_SELECTION_BOUNDS: Range<usize>;
+    /// If the selections are dependent, it means that the eligible tiles evolve with each tile that is selected. For example, chain lightning is dependent,
+    /// because selecting a tile determines influences the next set of eligible tiles. An "all pieces" critera is independent, because selecting a piece doesn't change
+    /// what other pieces can be selected afterwards.
+    const DEPENDENT_SELECTIONS: bool;
 
-    fn execute(&self, affected_tiles: &[TileId], world: &mut World);
+    /// This function has permission to actually modify the board. It should only run once all checks have happened. If an error occurs, the program will panic.
+    fn execute(&self, tiles: &[TileId], world: &mut World) -> ChangeLog;
 
-    fn expected_input_range(&self) -> Range<u16> {
-        Self::EXPECTED_TILE_COUNT
-    }
-}
-
-trait TileBasedEligibilityMethod {
-    // the inputs for this are a work in progress.
-    fn eligible_tiles(&self, selected_tiles: &[TileId], world: &World);
-}
-
-pub enum ActionFailReason {
-    IncorrectNumberOfTilesInputed,
-    TileSelectionSequenceNotAllowed,
-}
-
-impl<F: TileBasedActionFunctionality, M: TileBasedEligibilityMethod> TileBasedGameAction<F, M> {
-    pub fn try_execute(
+    /// When implementing this function, do not worry about handling when the player has selected the maximum amount of tiles. That is handled elsewhere.
+    fn calculate_eligible_tiles_using_method(
         &self,
-        on_tiles: &[TileId],
-        world: &mut World,
-    ) -> Result<ChangeLog, ActionFailReason> {
-        if !F::EXPECTED_TILE_COUNT.contains(&(on_tiles.len() as u16)) {
-            todo!()
-            //return an error.
+        selected_tiles: &[TileId],
+        world: &World,
+    ) -> &[TileId];
+}
+
+#[derive(Debug, Error)]
+#[error(
+    "Attempted to create a game_action, but the game design bounds were incompatible with the code's functionality."
+)]
+pub struct ContradictorySelectionBoundsError;
+
+impl<A: TileBasedAction> ValidTileBasedAction<A> {
+    fn new(
+        action: A,
+        selection_bounds: Range<usize>,
+    ) -> Result<Self, ContradictorySelectionBoundsError> {
+        if selection_bounds.start >= A::EXECUTABLE_SELECTION_BOUNDS.start
+            && selection_bounds.end <= A::EXECUTABLE_SELECTION_BOUNDS.end
+        {
+            Ok(Self {
+                game_design_bounds: selection_bounds,
+                tile_action: action,
+            })
+        } else {
+            Err(ContradictorySelectionBoundsError)
         }
-        todo!()
-
-        //we replay the selections. If the selection returns an error, we know the action was bad. This is the last "checks" phase.
-
-        // Last, we execute the action and return the ChangeLog.
     }
 }
+
+struct LoadedTileBasedAction<A: TileBasedAction> {
+    action: ValidTileBasedAction<A>,
+    validated_selections: Vec<TileId>,
+}
+
+impl<A: TileBasedAction + Clone> LoadedTileBasedAction<A> {
+    fn load(action: &ValidTileBasedAction<A>) -> Self {
+        Self {
+            action: action.clone(),
+            validated_selections: Vec::new(),
+        }
+    }
+
+    fn eligible_tiles(&self, world: &World) -> &[TileId] {
+        if self.validated_selections.len() >= self.action.game_design_bounds.end {
+            &[]
+        } else {
+            self.action
+                .tile_action
+                .calculate_eligible_tiles_using_method(&self.validated_selections, world)
+            // still need to handle when the player has selected the maximum number of tiles. Hold up, if its already a resource, just use the ECS like in the last version.
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {}
