@@ -1,4 +1,7 @@
-use std::ops::Range;
+use std::{
+    fmt::Display,
+    ops::{Deref, Range},
+};
 
 use bevy::ecs::world::World;
 use thiserror::Error;
@@ -52,29 +55,46 @@ impl<A: TileBasedAction> ValidTileBasedAction<A> {
         }
     }
 }
-
-struct LoadedTileBasedAction<A: TileBasedAction> {
-    action: ValidTileBasedAction<A>,
-    validated_selections: Vec<TileId>,
+#[derive(Debug, Clone, PartialEq)]
+enum SelectionState {
+    Selected,
+    Elligible,
+    Neither,
+}
+#[derive(Debug, Error)]
+enum LoadedActionError {
+    TileInelligibleForSelection,
+    InvalidTileId,
 }
 
-impl<A: TileBasedAction + Clone> LoadedTileBasedAction<A> {
-    fn load(action: &ValidTileBasedAction<A>) -> Self {
-        Self {
-            action: action.clone(),
-            validated_selections: Vec::new(),
+struct LoadedAction<A: TileBasedAction> {
+    action: A,
+    /// The index is the tile id that the state corresponds to.
+    tile_selection_states: Box<[SelectionState]>,
+}
+
+impl<A: TileBasedAction> LoadedAction<A> {
+    fn new(action: A, rings_in_board: u32) -> Self {
+        LoadedAction {
+            action,
+            tile_selection_states: vec![SelectionState::Neither; rings_in_board as usize]
+                .into_boxed_slice(),
         }
     }
 
-    fn eligible_tiles(&self, world: &World) -> &[TileId] {
-        if self.validated_selections.len() >= self.action.game_design_bounds.end {
-            &[]
-        } else {
-            self.action
-                .tile_action
-                .calculate_eligible_tiles_using_method(&self.validated_selections, world)
-            // still need to handle when the player has selected the maximum number of tiles. Hold up, if its already a resource, just use the ECS like in the last version.
+    fn try_select_tile(&mut self, tile: TileId) -> Result<(), LoadedActionError> {
+        let tile_state = self
+            .tile_selection_states
+            .get_mut(tile.id() as usize)
+            .ok_or(LoadedActionError::InvalidTileId)?;
+
+        if *tile_state != SelectionState::Elligible {
+            return Err(LoadedActionError::TileInelligibleForSelection);
         }
+
+        *tile_state = SelectionState::Selected;
+
+        Ok(())
     }
 }
 
