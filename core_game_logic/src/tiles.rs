@@ -25,14 +25,14 @@ pub struct TileDirectory(Vec<Entity>);
 
 #[derive(Debug, Error)]
 #[error{"Tried to get a tile which was out of bounds for this board size."}]
-pub struct InvaildIDErr;
+pub struct InvaildIDErr(pub TileId);
 
 impl TileDirectory {
     pub fn get_entity(&self, tile_id: TileId) -> Result<Entity, InvaildIDErr> {
         self.0
             .get(tile_id.id() as usize)
             .copied()
-            .ok_or(InvaildIDErr)
+            .ok_or(InvaildIDErr(tile_id))
     }
 }
 

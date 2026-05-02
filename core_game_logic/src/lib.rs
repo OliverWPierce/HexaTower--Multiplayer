@@ -1,10 +1,11 @@
 pub use bevy::*;
 
-use crate::tiles::initialize_tiles;
 pub mod player_actions;
 pub mod tile_based_actions;
 pub mod tile_mapping;
 pub mod tiles;
+
+use crate::tiles::initialize_tiles;
 
 pub struct CreationSettings {
     board_size: u32,
