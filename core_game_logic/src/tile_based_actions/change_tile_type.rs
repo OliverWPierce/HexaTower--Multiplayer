@@ -66,7 +66,7 @@ mod tests {
                 ConvertTileTo {
                     target_type: crate::tiles::TileType::Ex1,
                 },
-                1..3,
+                1..10,
             )
             .unwrap(),
             tiles_on_board(4) as usize,
@@ -78,18 +78,43 @@ mod tests {
             loaded_action.selections.get_states().len()
         );
 
+        println!(
+            "States for each tile {:?}",
+            loaded_action.view_selection_states()
+        );
+
         loaded_action
             .try_select_tile_and_update_elligibility(TileId::new(0), &world)
             .unwrap();
+
+        println!(
+            "States for each tile {:?}",
+            loaded_action.view_selection_states()
+        );
+
         loaded_action
             .try_select_tile_and_update_elligibility(TileId::new(2), &world)
             .unwrap();
+
+        println!(
+            "States for each tile {:?}",
+            loaded_action.view_selection_states()
+        );
+
         loaded_action
             .try_select_tile_and_update_elligibility(TileId::new(23), &world)
             .unwrap();
+        println!(
+            "States for each tile {:?}",
+            loaded_action.view_selection_states()
+        );
         loaded_action
             .try_select_tile_and_update_elligibility(TileId::new(60), &world)
             .unwrap();
+        println!(
+            "States for each tile {:?}",
+            loaded_action.view_selection_states()
+        );
 
         assert!(
             loaded_action
