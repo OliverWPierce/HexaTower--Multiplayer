@@ -1,10 +1,10 @@
 use crate::{tile_mapping::TileId, tiles::TileType};
-
+#[derive(Debug, PartialEq)]
 pub enum ActionEffect {
     DamagedPieceOnTile(TileId),
-    ConvertedTileType { tile: TileId, new_tile: TileType },
+    ConvertedTileType { tile: TileId, new_type: TileType },
 }
-
+#[derive(Default)]
 pub struct ChangeLog(Vec<ActionEffect>);
 
 impl ChangeLog {

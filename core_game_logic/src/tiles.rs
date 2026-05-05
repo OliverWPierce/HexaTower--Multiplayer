@@ -41,7 +41,7 @@ impl Component for TileId {
 
     type Mutability = Immutable;
 }
-
+#[derive(Debug, Clone, PartialEq)]
 pub enum TileType {
     Basic,
     Ex1,

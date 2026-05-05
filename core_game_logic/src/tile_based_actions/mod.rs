@@ -9,6 +9,7 @@ use crate::{
     tile_mapping::TileId,
 };
 
+mod change_tile_type;
 mod selection_mechanics;
 
 pub trait TileActionFunctionality: Clone {
@@ -34,7 +35,7 @@ impl<A: TileActionFunctionality> ValidTileAction<A> {
         action: A,
         game_design_selection_bounds: Range<usize>,
     ) -> Result<Self, InvalidSelectionBounds> {
-        if A::ACCEPTABLE_SELECTION_COUNTS.start >= game_design_selection_bounds.start
+        if A::ACCEPTABLE_SELECTION_COUNTS.start <= game_design_selection_bounds.start
             && A::ACCEPTABLE_SELECTION_COUNTS.end >= game_design_selection_bounds.end
         {
             Ok(Self {
@@ -53,10 +54,16 @@ pub struct LoadedTileAction<A: TileActionFunctionality> {
 }
 
 impl<A: TileActionFunctionality> LoadedTileAction<A> {
-    pub fn initialize(action: ValidTileAction<A>, tiles_on_board: usize) -> Self {
+    pub fn initialize(action: ValidTileAction<A>, tiles_on_board: usize, world: &World) -> Self {
+        let mut initial_selection_data = SelectionData::new(tiles_on_board);
+
+        action
+            .action_functionality
+            .update_eligibility(&mut initial_selection_data, world);
+
         LoadedTileAction {
             action,
-            selections: SelectionData::new(tiles_on_board),
+            selections: initial_selection_data,
         }
     }
 
@@ -65,7 +72,8 @@ impl<A: TileActionFunctionality> LoadedTileAction<A> {
         tile: TileId,
         world: &World,
     ) -> Result<(), SelectionError> {
-        self.selections.try_select(tile)?;
+        self.selections
+            .try_set_state(tile, selection_mechanics::State::Selected)?;
 
         if self.selections.selection_count() >= self.action.tile_range_for_execution.end {
             self.selections.clear_elligibles();
@@ -78,8 +86,8 @@ impl<A: TileActionFunctionality> LoadedTileAction<A> {
         Ok(())
     }
 
-    pub fn view_selection_states(&self) {
-        self.selections.
+    pub fn view_selection_states(&self) -> &[selection_mechanics::State] {
+        self.selections.get_states()
     }
 
     pub fn execute(self, world: &mut World) -> ChangeLog {
@@ -88,6 +96,3 @@ impl<A: TileActionFunctionality> LoadedTileAction<A> {
             .execute(self.selections.get_validated_ordered_selections(), world)
     }
 }
-
-#[cfg(test)]
-mod tests {}

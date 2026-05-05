@@ -9,29 +9,9 @@ pub enum State {
     #[default]
     Neither,
 }
-#[derive(Debug, Clone)]
-pub struct SelectionState(State);
-
-impl SelectionState {
-    pub fn state(&self) -> &State {
-        &self.0
-    }
-
-    pub fn try_set_elligble(&mut self) {
-        if self.0 != State::Selected {
-            self.0 = State::Elligible
-        }
-    }
-
-    pub fn try_set_inelligible(&mut self) {
-        if self.0 != State::Selected {
-            self.0 = State::Neither
-        }
-    }
-}
 
 pub struct SelectionData {
-    all_tiles: Box<[SelectionState]>,
+    all_tile_states: Box<[State]>,
     ordered_selections: Vec<TileId>,
 }
 #[derive(Debug, Error)]
@@ -45,24 +25,42 @@ pub enum SelectionError {
 impl SelectionData {
     pub fn new(tiles_on_board: usize) -> Self {
         SelectionData {
-            all_tiles: vec![SelectionState(State::Neither); tiles_on_board].into_boxed_slice(),
+            all_tile_states: vec![State::Neither; tiles_on_board].into_boxed_slice(),
             ordered_selections: Vec::new(),
         }
     }
 
-    pub fn try_select(&mut self, tile: TileId) -> Result<(), SelectionError> {
-        let state = &mut self
-            .all_tiles
+    /// If you try to select a tile that is either already selected or innelligible, it will error. If you try to change a tile which is already selected, nothing will happen. This function protects invalid data from being created. (ie: selecting an inelligible tile, or selecting a tile twice.)
+    pub fn try_set_state(&mut self, tile: TileId, target: State) -> Result<(), SelectionError> {
+        let state = self
+            .all_tile_states
             .get_mut(tile.id() as usize)
-            .ok_or(SelectionError::InvalidIdError(tiles::InvaildIDErr(tile)))?
-            .0;
+            .ok_or(SelectionError::InvalidIdError(tiles::InvaildIDErr(tile)))?;
 
-        if *state != State::Selected {
-            Err(SelectionError::AttemptedToSelectInelligibleTile)
-        } else {
-            *state = State::Selected;
-            self.ordered_selections.push(tile);
-            Ok(())
+        match target {
+            State::Elligible => {
+                if *state == State::Neither {
+                    *state = State::Elligible;
+                };
+                Ok(())
+            }
+
+            State::Selected => {
+                if *state != State::Elligible {
+                    Err(SelectionError::AttemptedToSelectInelligibleTile)
+                } else {
+                    *state = State::Selected;
+                    self.ordered_selections.push(tile);
+                    Ok(())
+                }
+            }
+
+            State::Neither => {
+                if *state == State::Elligible {
+                    *state = State::Neither;
+                };
+                Ok(())
+            }
         }
     }
 
@@ -70,21 +68,35 @@ impl SelectionData {
         self.ordered_selections.as_slice()
     }
 
-    fn get_states(&self) -> &[State] {
-        self.all_tiles
-            .iter()
-            .map(|s| s.0)
-            .collect::<Vec<State>>()
-            .as_slice();
+    pub fn get_states(&self) -> &[State] {
+        &self.all_tile_states
     }
 
     pub fn selection_count(&self) -> usize {
         self.ordered_selections.len()
     }
 
+    pub fn set_all_possible_elligible(&mut self) {
+        for tile in self.all_tile_states.iter_mut() {
+            if *tile != State::Selected {
+                *tile = State::Elligible
+            }
+        }
+    }
+
+    pub fn set_all_possible_inelligible(&mut self) {
+        for tile in self.all_tile_states.iter_mut() {
+            if *tile != State::Selected {
+                *tile = State::Neither
+            }
+        }
+    }
+
     pub fn clear_elligibles(&mut self) {
-        self.all_tiles
-            .iter_mut()
-            .for_each(|tile_status| tile_status.try_set_inelligible());
+        self.all_tile_states.iter_mut().for_each(|state| {
+            if *state == State::Elligible {
+                *state = State::Neither
+            }
+        });
     }
 }

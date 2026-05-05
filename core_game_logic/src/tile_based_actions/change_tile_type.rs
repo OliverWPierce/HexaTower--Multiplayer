@@ -1,0 +1,134 @@
+use crate::{
+    player_actions::{ActionEffect, ChangeLog},
+    tile_based_actions::TileActionFunctionality,
+    tile_mapping::TileId,
+    tiles::{TileDirectory, TileType},
+};
+#[derive(Debug, Clone)]
+pub struct ConvertTileTo {
+    pub target_type: TileType,
+}
+
+impl TileActionFunctionality for ConvertTileTo {
+    const ACCEPTABLE_SELECTION_COUNTS: std::ops::Range<usize> = 0..usize::MAX;
+
+    fn execute(
+        &self,
+        validated_selections: &[crate::tile_mapping::TileId],
+        world: &mut bevy::ecs::world::World,
+    ) -> crate::player_actions::ChangeLog {
+        let mut log = ChangeLog::default();
+
+        for tile in validated_selections {
+            let directory = world.resource::<TileDirectory>();
+
+            let Some(mut tile_type) = world
+                .entity_mut(directory.get_entity(*tile).unwrap())
+                .into_mut::<TileType>()
+            else {
+                panic!("A tile entity had no component indicating the type of tile it was.")
+            };
+
+            *tile_type = self.target_type.clone();
+            log.write(ActionEffect::ConvertedTileType {
+                tile: *tile,
+                new_type: self.target_type.clone(),
+            });
+        }
+
+        log
+    }
+
+    fn update_eligibility(
+        &self,
+        selection_status: &mut super::selection_mechanics::SelectionData,
+        _world: &bevy::ecs::world::World,
+    ) {
+        selection_status.set_all_possible_elligible();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        CreationSettings,
+        player_actions::ActionEffect,
+        tile_based_actions::{LoadedTileAction, ValidTileAction, change_tile_type::ConvertTileTo},
+        tile_mapping::{TileId, tiles_on_board},
+    };
+
+    #[test]
+    fn test_tile_conversion() {
+        let mut world = CreationSettings::new(4).create_board();
+
+        let mut loaded_action = LoadedTileAction::initialize(
+            ValidTileAction::new(
+                ConvertTileTo {
+                    target_type: crate::tiles::TileType::Ex1,
+                },
+                1..3,
+            )
+            .unwrap(),
+            tiles_on_board(4) as usize,
+            &world,
+        );
+
+        println!(
+            "Loaded action is aware of this many tiles existing: {}",
+            loaded_action.selections.get_states().len()
+        );
+
+        loaded_action
+            .try_select_tile_and_update_elligibility(TileId::new(0), &world)
+            .unwrap();
+        loaded_action
+            .try_select_tile_and_update_elligibility(TileId::new(2), &world)
+            .unwrap();
+        loaded_action
+            .try_select_tile_and_update_elligibility(TileId::new(23), &world)
+            .unwrap();
+        loaded_action
+            .try_select_tile_and_update_elligibility(TileId::new(60), &world)
+            .unwrap();
+
+        assert!(
+            loaded_action
+                .try_select_tile_and_update_elligibility(TileId::new(61), &world)
+                .is_err()
+        );
+        assert!(
+            loaded_action
+                .try_select_tile_and_update_elligibility(TileId::new(2), &world)
+                .is_err()
+        );
+
+        let exprected_change_log = [
+            ActionEffect::ConvertedTileType {
+                tile: TileId::new(0),
+                new_type: crate::tiles::TileType::Ex1,
+            },
+            ActionEffect::ConvertedTileType {
+                tile: TileId::new(2),
+                new_type: crate::tiles::TileType::Ex1,
+            },
+            ActionEffect::ConvertedTileType {
+                tile: TileId::new(23),
+                new_type: crate::tiles::TileType::Ex1,
+            },
+            ActionEffect::ConvertedTileType {
+                tile: TileId::new(60),
+                new_type: crate::tiles::TileType::Ex1,
+            },
+        ];
+
+        let created_change_log = loaded_action.execute(&mut world);
+
+        assert_eq!(created_change_log.read()[0], exprected_change_log[0]);
+
+        assert_eq!(created_change_log.read()[1], exprected_change_log[1]);
+
+        assert_eq!(created_change_log.read()[2], exprected_change_log[2]);
+
+        assert_eq!(created_change_log.read()[3], exprected_change_log[3]);
+    }
+}
