@@ -1,7 +1,8 @@
+use std::ops::Range;
+
 use crate::{
     player_actions::{ActionEffect, ChangeLog},
-    tile_based_actions::TileActionFunctionality,
-    tile_mapping::TileId,
+    tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
     tiles::{TileDirectory, TileType},
 };
 #[derive(Debug, Clone)]
@@ -9,9 +10,11 @@ pub struct ConvertTileTo {
     pub target_type: TileType,
 }
 
-impl TileActionFunctionality for ConvertTileTo {
-    const ACCEPTABLE_SELECTION_COUNTS: std::ops::Range<usize> = 0..usize::MAX;
+impl TileActionFunctionalityCapabilityConstants for ConvertTileTo {
+    const ACCEPTABLE_SELECTION_COUNTS: Range<usize> = 0..usize::MAX;
+}
 
+impl TileActionFunctionality for ConvertTileTo {
     fn execute(
         &self,
         validated_selections: &[crate::tile_mapping::TileId],
@@ -53,7 +56,7 @@ mod tests {
     use crate::{
         CreationSettings,
         player_actions::ActionEffect,
-        tile_based_actions::{LoadedTileAction, ValidTileAction, change_tile_type::ConvertTileTo},
+        tile_based_actions::{LoadedTileAction, TileAction, change_tile_type::ConvertTileTo},
         tile_mapping::{TileId, tiles_on_board},
     };
 
@@ -62,7 +65,7 @@ mod tests {
         let mut world = CreationSettings::new(4).create_board();
 
         let mut loaded_action = LoadedTileAction::initialize(
-            ValidTileAction::new(
+            TileAction::new(
                 ConvertTileTo {
                     target_type: crate::tiles::TileType::Ex1,
                 },

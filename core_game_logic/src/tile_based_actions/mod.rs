@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{fmt::Debug, ops::Range};
 
 use bevy::ecs::world::World;
 use thiserror::Error;
@@ -9,29 +9,33 @@ use crate::{
     tile_mapping::TileId,
 };
 
-mod change_tile_type;
+pub mod change_tile_type;
 mod selection_mechanics;
 
-pub trait TileActionFunctionality: Clone {
-    const ACCEPTABLE_SELECTION_COUNTS: Range<usize>;
-
+pub trait TileActionFunctionality: Debug {
     fn execute(&self, validated_selections: &[TileId], world: &mut World) -> ChangeLog;
 
     fn update_eligibility(&self, selection_status: &mut SelectionData, world: &World);
 }
-#[derive(Debug, Clone)]
-pub struct ValidTileAction<A: TileActionFunctionality> {
-    action_functionality: A,
+
+pub trait TileActionFunctionalityCapabilityConstants: TileActionFunctionality {
+    const ACCEPTABLE_SELECTION_COUNTS: Range<usize>;
+}
+
+#[derive(Debug)]
+pub struct TileAction {
+    action_functionality: Box<dyn TileActionFunctionality>,
     tile_range_for_execution: Range<usize>,
 }
+
 #[derive(Debug, Error)]
 #[error(
     "Tried to create a valid tile action, but its game design selection bounds did not match the functionality."
 )]
 pub struct InvalidSelectionBounds;
 
-impl<A: TileActionFunctionality> ValidTileAction<A> {
-    pub fn new(
+impl TileAction {
+    pub fn new<A: TileActionFunctionalityCapabilityConstants + 'static>(
         action: A,
         game_design_selection_bounds: Range<usize>,
     ) -> Result<Self, InvalidSelectionBounds> {
@@ -39,7 +43,7 @@ impl<A: TileActionFunctionality> ValidTileAction<A> {
             && A::ACCEPTABLE_SELECTION_COUNTS.end >= game_design_selection_bounds.end
         {
             Ok(Self {
-                action_functionality: action,
+                action_functionality: Box::new(action),
                 tile_range_for_execution: game_design_selection_bounds,
             })
         } else {
@@ -48,13 +52,13 @@ impl<A: TileActionFunctionality> ValidTileAction<A> {
     }
 }
 
-pub struct LoadedTileAction<A: TileActionFunctionality> {
-    action: ValidTileAction<A>,
+pub struct LoadedTileAction {
+    action: TileAction,
     selections: SelectionData,
 }
 
-impl<A: TileActionFunctionality> LoadedTileAction<A> {
-    pub fn initialize(action: ValidTileAction<A>, tiles_on_board: usize, world: &World) -> Self {
+impl LoadedTileAction {
+    pub fn initialize(action: TileAction, tiles_on_board: usize, world: &World) -> Self {
         let mut initial_selection_data = SelectionData::new(tiles_on_board);
 
         action
@@ -90,7 +94,7 @@ impl<A: TileActionFunctionality> LoadedTileAction<A> {
         self.selections.get_states()
     }
 
-    pub fn execute(self, world: &mut World) -> ChangeLog {
+    pub(crate) fn execute(self, world: &mut World) -> ChangeLog {
         self.action
             .action_functionality
             .execute(self.selections.get_validated_ordered_selections(), world)

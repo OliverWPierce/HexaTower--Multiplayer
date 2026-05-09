@@ -34,6 +34,11 @@ impl TileDirectory {
             .copied()
             .ok_or(InvaildIDErr(tile_id))
     }
+
+    // This is the total number of tiles on the board, as you would count them.
+    pub fn tile_count(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl Component for TileId {
