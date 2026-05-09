@@ -8,7 +8,7 @@ use crate::{
     tile_based_actions::{
         self, TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo,
     },
-    tiles::{TileDirectory, TileType},
+    tiles::TileType,
 };
 
 enum CardFunction {
@@ -34,23 +34,68 @@ impl CardFunction {
             CardFunction::TileConversionToSingleType {
                 selection_bounds,
                 target_type,
-            } => {
-                let tiles_on_board = world.resource::<TileDirectory>().tile_count();
-
-                ActionProcessCache::TileAction(TileActionProcessCache::initialize(
-                    TileAction::new(
-                        ConvertTileTo {
-                            target_type: target_type.clone(),
-                        },
-                        selection_bounds.clone(),
-                    )?,
-                    tiles_on_board,
-                    world,
-                ))
-            }
+            } => TileActionProcessCache::initialize(
+                TileAction::new(
+                    ConvertTileTo {
+                        target_type: target_type.clone(),
+                    },
+                    selection_bounds.clone(),
+                )?,
+                world,
+            )
+            .into(),
             CardFunction::Ex2 => todo!(),
         };
 
         Ok(cache)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        CreationSettings,
+        card_usage_logic::CardFunction,
+        tile_mapping::TileId,
+        tiles::{TileDirectory, TileType},
+    };
+
+    #[test]
+    fn convert_card_into_action_cache() {
+        let mut world = CreationSettings::new(4).create_board();
+
+        let card1 = CardFunction::TileConversionToSingleType {
+            selection_bounds: 1..4,
+            target_type: crate::tiles::TileType::Ex1,
+        };
+
+        let crate::player_actions::ActionProcessCache::TileAction(mut action) =
+            card1.action_cache(&world).unwrap();
+
+        action
+            .try_select_tile_and_update_elligibility(TileId::new(1), &world)
+            .unwrap();
+        action
+            .try_select_tile_and_update_elligibility(TileId::new(3), &world)
+            .unwrap();
+
+        action.execute(&mut world).unwrap();
+
+        let tile1 = world
+            .resource::<TileDirectory>()
+            .get_entity(TileId::new(1))
+            .unwrap();
+        let tile2 = world
+            .resource::<TileDirectory>()
+            .get_entity(TileId::new(2))
+            .unwrap();
+        let tile3 = world
+            .resource::<TileDirectory>()
+            .get_entity(TileId::new(3))
+            .unwrap();
+
+        assert_eq!(*world.get::<TileType>(tile1).unwrap(), TileType::Ex1);
+        assert_eq!(*world.get::<TileType>(tile2).unwrap(), TileType::Basic);
+        assert_eq!(*world.get::<TileType>(tile3).unwrap(), TileType::Ex1);
     }
 }

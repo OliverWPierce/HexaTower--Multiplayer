@@ -57,7 +57,7 @@ mod tests {
         CreationSettings,
         player_actions::ActionEffect,
         tile_based_actions::{TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo},
-        tile_mapping::{TileId, tiles_on_board},
+        tile_mapping::TileId,
     };
 
     #[test]
@@ -69,16 +69,19 @@ mod tests {
                 ConvertTileTo {
                     target_type: crate::tiles::TileType::Ex1,
                 },
-                1..10,
+                2..4,
             )
             .unwrap(),
-            tiles_on_board(4) as usize,
             &world,
         );
+
+        assert!(loaded_action.execute(&mut world).is_err());
 
         loaded_action
             .try_select_tile_and_update_elligibility(TileId::new(0), &world)
             .unwrap();
+
+        assert!(loaded_action.execute(&mut world).is_err());
 
         loaded_action
             .try_select_tile_and_update_elligibility(TileId::new(2), &world)
@@ -86,10 +89,6 @@ mod tests {
 
         loaded_action
             .try_select_tile_and_update_elligibility(TileId::new(23), &world)
-            .unwrap();
-
-        loaded_action
-            .try_select_tile_and_update_elligibility(TileId::new(60), &world)
             .unwrap();
 
         assert!(
@@ -100,6 +99,16 @@ mod tests {
         assert!(
             loaded_action
                 .try_select_tile_and_update_elligibility(TileId::new(2), &world)
+                .is_err()
+        );
+
+        loaded_action
+            .try_select_tile_and_update_elligibility(TileId::new(60), &world)
+            .unwrap();
+
+        assert!(
+            loaded_action
+                .try_select_tile_and_update_elligibility(TileId::new(27), &world)
                 .is_err()
         );
 
@@ -122,7 +131,7 @@ mod tests {
             },
         ];
 
-        let created_change_log = loaded_action.execute(&mut world);
+        let created_change_log = loaded_action.execute(&mut world).unwrap();
 
         assert_eq!(created_change_log.read()[0], exprected_change_log[0]);
 

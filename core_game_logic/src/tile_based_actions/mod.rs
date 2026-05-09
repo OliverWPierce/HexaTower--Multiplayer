@@ -7,6 +7,7 @@ use crate::{
     player_actions::ChangeLog,
     tile_based_actions::selection_mechanics::{SelectionData, SelectionError},
     tile_mapping::TileId,
+    tiles::TileDirectory,
 };
 
 pub mod change_tile_type;
@@ -58,7 +59,8 @@ pub struct TileActionProcessCache {
 }
 
 impl TileActionProcessCache {
-    pub fn initialize(action: TileAction, tiles_on_board: usize, world: &World) -> Self {
+    pub fn initialize(action: TileAction, world: &World) -> Self {
+        let tiles_on_board = world.resource::<TileDirectory>().tile_count();
         let mut initial_selection_data = SelectionData::new(tiles_on_board);
 
         action
@@ -94,9 +96,63 @@ impl TileActionProcessCache {
         self.selections.get_states()
     }
 
-    pub(crate) fn execute(self, world: &mut World) -> ChangeLog {
-        self.action
-            .action_functionality
-            .execute(self.selections.get_validated_ordered_selections(), world)
+    pub(crate) fn execute(&self, world: &mut World) -> Result<ChangeLog, SelectedTooFewTiles> {
+        if self.selections.selection_count() >= self.action.tile_range_for_execution.start {
+            Ok(self
+                .action
+                .action_functionality
+                .execute(self.selections.get_validated_ordered_selections(), world))
+        } else {
+            Err(SelectedTooFewTiles)
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("Tried to execute an action, but too few tiles were selected.")]
+pub struct SelectedTooFewTiles;
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        player_actions::ChangeLog,
+        tile_based_actions::{
+            TileAction, TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
+        },
+    };
+
+    #[test]
+    fn test_improper_tile_action_creation() {
+        #[derive(Debug, Clone, Copy)]
+        struct FailingAction;
+
+        impl TileActionFunctionalityCapabilityConstants for FailingAction {
+            const ACCEPTABLE_SELECTION_COUNTS: std::ops::Range<usize> = 2..3;
+        }
+
+        impl TileActionFunctionality for FailingAction {
+            fn execute(
+                &self,
+                _validated_selections: &[crate::tile_mapping::TileId],
+                _world: &mut bevy::ecs::world::World,
+            ) -> crate::player_actions::ChangeLog {
+                ChangeLog::default()
+            }
+
+            fn update_eligibility(
+                &self,
+                _selection_status: &mut super::selection_mechanics::SelectionData,
+                _world: &bevy::ecs::world::World,
+            ) {
+            }
+        }
+
+        let failing_action_functionality = FailingAction;
+
+        assert!(TileAction::new(failing_action_functionality, 1..2).is_err());
+        assert!(TileAction::new(failing_action_functionality, 2..2).is_ok());
+        assert!(TileAction::new(failing_action_functionality, 2..3).is_ok());
+        assert!(TileAction::new(failing_action_functionality, 3..4).is_err());
+        assert!(TileAction::new(failing_action_functionality, 0..usize::MAX).is_err());
     }
 }

@@ -20,3 +20,9 @@ impl ChangeLog {
 pub enum ActionProcessCache {
     TileAction(TileActionProcessCache),
 }
+
+impl From<TileActionProcessCache> for ActionProcessCache {
+    fn from(cache: TileActionProcessCache) -> Self {
+        ActionProcessCache::TileAction(cache)
+    }
+}
