@@ -52,12 +52,12 @@ impl TileAction {
     }
 }
 
-pub struct LoadedTileAction {
+pub struct TileActionProcessCache {
     action: TileAction,
     selections: SelectionData,
 }
 
-impl LoadedTileAction {
+impl TileActionProcessCache {
     pub fn initialize(action: TileAction, tiles_on_board: usize, world: &World) -> Self {
         let mut initial_selection_data = SelectionData::new(tiles_on_board);
 
@@ -65,7 +65,7 @@ impl LoadedTileAction {
             .action_functionality
             .update_eligibility(&mut initial_selection_data, world);
 
-        LoadedTileAction {
+        TileActionProcessCache {
             action,
             selections: initial_selection_data,
         }

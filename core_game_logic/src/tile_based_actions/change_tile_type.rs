@@ -56,7 +56,7 @@ mod tests {
     use crate::{
         CreationSettings,
         player_actions::ActionEffect,
-        tile_based_actions::{LoadedTileAction, TileAction, change_tile_type::ConvertTileTo},
+        tile_based_actions::{TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo},
         tile_mapping::{TileId, tiles_on_board},
     };
 
@@ -64,7 +64,7 @@ mod tests {
     fn test_tile_conversion() {
         let mut world = CreationSettings::new(4).create_board();
 
-        let mut loaded_action = LoadedTileAction::initialize(
+        let mut loaded_action = TileActionProcessCache::initialize(
             TileAction::new(
                 ConvertTileTo {
                     target_type: crate::tiles::TileType::Ex1,

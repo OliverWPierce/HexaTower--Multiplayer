@@ -1,4 +1,4 @@
-use crate::{tile_mapping::TileId, tiles::TileType};
+use crate::{tile_based_actions::TileActionProcessCache, tile_mapping::TileId, tiles::TileType};
 #[derive(Debug, PartialEq)]
 pub enum ActionEffect {
     DamagedPieceOnTile(TileId),
@@ -15,4 +15,8 @@ impl ChangeLog {
     pub fn write(&mut self, effect: ActionEffect) {
         self.0.push(effect);
     }
+}
+
+pub enum ActionProcessCache {
+    TileAction(TileActionProcessCache),
 }
