@@ -4,7 +4,7 @@ use bevy::ecs::world::World;
 use thiserror::Error;
 
 use crate::{
-    player_actions::ChangeLog,
+    requests::ChangeLog,
     tile_based_actions::selection_mechanics::{SelectionData, SelectionError},
     tile_mapping::TileId,
     tiles::TileDirectory,
@@ -115,7 +115,7 @@ pub struct SelectedTooFewTiles;
 #[cfg(test)]
 mod tests {
     use crate::{
-        player_actions::ChangeLog,
+        requests::ChangeLog,
         tile_based_actions::{
             TileAction, TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
         },
@@ -135,7 +135,7 @@ mod tests {
                 &self,
                 _validated_selections: &[crate::tile_mapping::TileId],
                 _world: &mut bevy::ecs::world::World,
-            ) -> crate::player_actions::ChangeLog {
+            ) -> crate::requests::ChangeLog {
                 ChangeLog::default()
             }
 

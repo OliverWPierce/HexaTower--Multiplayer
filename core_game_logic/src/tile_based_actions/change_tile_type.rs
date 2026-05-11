@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use crate::{
-    player_actions::{ActionEffect, ChangeLog},
+    requests::{ActionEffect, ChangeLog},
     tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
     tiles::{TileDirectory, TileType},
 };
@@ -19,7 +19,7 @@ impl TileActionFunctionality for ConvertTileTo {
         &self,
         validated_selections: &[crate::tile_mapping::TileId],
         world: &mut bevy::ecs::world::World,
-    ) -> crate::player_actions::ChangeLog {
+    ) -> crate::requests::ChangeLog {
         let mut log = ChangeLog::default();
 
         for tile in validated_selections {
@@ -55,7 +55,7 @@ impl TileActionFunctionality for ConvertTileTo {
 mod tests {
     use crate::{
         CreationSettings,
-        player_actions::ActionEffect,
+        requests::ActionEffect,
         tile_based_actions::{TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo},
         tile_mapping::TileId,
     };

@@ -7,7 +7,7 @@ mod card_storage;
 pub use card_storage::*;
 
 use crate::{
-    player_actions::ActionProcessCache,
+    requests::ActionProcessCache,
     tile_based_actions::{
         self, TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo,
     },
@@ -95,7 +95,7 @@ mod tests {
             target_type: crate::tiles::TileType::Ex1,
         };
 
-        let crate::player_actions::ActionProcessCache::TileAction(mut action) =
+        let crate::requests::ActionProcessCache::TileAction(mut action) =
             card1.action_cache(&world).unwrap()
         else {
             panic!()
