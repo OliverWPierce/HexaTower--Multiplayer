@@ -2,6 +2,7 @@ pub use bevy::*;
 
 pub mod cards;
 pub mod player_actions;
+pub mod players;
 pub mod tile_based_actions;
 pub mod tile_mapping;
 pub mod tiles;
@@ -10,11 +11,15 @@ use crate::{cards::initialize_cards, tiles::initialize_tiles};
 
 pub struct CreationSettings {
     board_size: u32,
+    player_count: u8,
 }
 
 impl CreationSettings {
-    pub fn new(board_size: u32) -> CreationSettings {
-        CreationSettings { board_size }
+    pub fn new(board_size: u32, player_count: u8) -> CreationSettings {
+        CreationSettings {
+            board_size,
+            player_count,
+        }
     }
 
     pub fn create_board(self) -> bevy::ecs::world::World {
