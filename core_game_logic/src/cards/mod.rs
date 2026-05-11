@@ -1,18 +1,12 @@
 use std::ops::Range;
 
-use bevy::ecs::{
-    component::{self, Component},
-    world::World,
-};
+use bevy::ecs::{component::Component, world::World};
 use thiserror::Error;
 
 mod card_storage;
+pub use card_storage::*;
 
 use crate::{
-    cards::{
-        self,
-        card_storage::{CardAsset, CardAssets, CardAssetsConstructor},
-    },
     player_actions::ActionProcessCache,
     tile_based_actions::{
         self, TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo,
@@ -21,7 +15,7 @@ use crate::{
 };
 
 #[derive(Debug, Component, PartialEq)]
-enum CardFunction {
+pub(crate) enum CardFunction {
     TileConversionToSingleType {
         selection_bounds: Range<usize>,
         target_type: TileType,
@@ -94,7 +88,7 @@ mod tests {
 
     #[test]
     fn convert_card_into_action_cache() {
-        let mut world = CreationSettings::new(4).create_board();
+        let mut world = CreationSettings::new(4, 1).create_logical_world();
 
         let card1 = CardFunction::TileConversionToSingleType {
             selection_bounds: 1..4,

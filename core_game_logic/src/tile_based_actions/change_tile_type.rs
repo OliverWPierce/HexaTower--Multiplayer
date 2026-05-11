@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn test_tile_conversion() {
-        let mut world = CreationSettings::new(4).create_board();
+        let mut world = CreationSettings::new(4, 5).create_logical_world();
 
         let mut loaded_action = TileActionProcessCache::initialize(
             TileAction::new(

@@ -1,5 +1,3 @@
-use std::default;
-
 use bevy::ecs::resource::Resource;
 use thiserror::Error;
 
@@ -8,10 +6,10 @@ use crate::cards::CardFunction;
 /// This struct contains all the data that makes one card fundamentally different from another card.
 #[derive(Debug, PartialEq)]
 pub struct CardAsset {
-    pub card_fxn: CardFunction,
+    pub(crate) card_fxn: CardFunction,
 }
 /// The index of a card in the card assets.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct CardId(pub u32);
 
 #[derive(Debug, Resource)]
