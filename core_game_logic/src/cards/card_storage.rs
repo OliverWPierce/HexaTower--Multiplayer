@@ -1,4 +1,5 @@
 use bevy::ecs::resource::Resource;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::cards::CardFunction;
@@ -9,7 +10,7 @@ pub struct CardAsset {
     pub(crate) card_fxn: CardFunction,
 }
 /// The index of a card in the card assets.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 pub struct CardId(pub u32);
 
 #[derive(Debug, Resource)]

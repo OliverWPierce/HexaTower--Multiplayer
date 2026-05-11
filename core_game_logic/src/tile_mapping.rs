@@ -3,8 +3,10 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
+use serde::{Deserialize, Serialize};
+
 /// Tile ids start at zero and work counter clockwise from the origin, starting at the tile directly beneath the origin.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 pub struct TileId(u32);
 
 impl TileId {

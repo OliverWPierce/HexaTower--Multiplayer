@@ -1,9 +1,10 @@
 use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::cards::CardId;
 
-#[derive(Debug, Component)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize, Component)]
 pub struct PlayerId(pub u8);
 
 #[derive(Debug, Resource)]
@@ -14,7 +15,7 @@ pub struct PlayerDirectory(Box<[Entity]>);
 pub struct InvalidIdErr(PlayerId);
 
 impl PlayerDirectory {
-    fn get_player(&self, id: PlayerId) -> Result<Entity, InvalidIdErr> {
+    pub fn get_player(&self, id: PlayerId) -> Result<Entity, InvalidIdErr> {
         self.0.get(id.0 as usize).copied().ok_or(InvalidIdErr(id))
     }
 }
@@ -37,7 +38,7 @@ pub fn initialize_players(world: &mut World, player_count: u8) {
 }
 
 #[derive(Debug, Component)]
-struct Inventory {
+pub struct Inventory {
     hand: Vec<CardId>,
     max_size: u8,
 }
@@ -49,7 +50,7 @@ pub enum InventoryError {
     #[error("The inventory did not have a card at that index.")]
     InvalidIndex(InventoryIndex),
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 pub struct InventoryIndex(pub u8);
 
 impl Inventory {

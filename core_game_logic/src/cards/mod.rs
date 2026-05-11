@@ -52,7 +52,7 @@ pub enum CardFunctionConversionError {
 }
 
 impl CardFunction {
-    fn action_cache(
+    pub fn action_cache(
         &self,
         world: &World,
     ) -> Result<ActionProcessCache, CardFunctionConversionError> {
@@ -96,7 +96,10 @@ mod tests {
         };
 
         let crate::player_actions::ActionProcessCache::TileAction(mut action) =
-            card1.action_cache(&world).unwrap();
+            card1.action_cache(&world).unwrap()
+        else {
+            panic!()
+        };
 
         action
             .try_select_tile_and_update_elligibility(TileId::new(1), &world)

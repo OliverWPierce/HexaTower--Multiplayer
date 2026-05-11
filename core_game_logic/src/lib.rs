@@ -1,4 +1,5 @@
 pub use bevy::*;
+use thiserror::Error;
 
 pub mod cards;
 pub mod player_actions;
@@ -13,6 +14,11 @@ pub struct CreationSettings {
     board_size: u32,
     player_count: u8,
 }
+#[derive(Debug, Error)]
+#[error(
+    "An entity was in a supposedly unreachable state. For example, this could be when a player lacks an inventory component."
+)]
+pub struct InvalidEntityState;
 
 impl CreationSettings {
     pub fn new(board_size: u32, player_count: u8) -> CreationSettings {
