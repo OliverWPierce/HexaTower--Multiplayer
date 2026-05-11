@@ -108,7 +108,7 @@ mod tests {
             .try_select_tile_and_update_elligibility(TileId::new(3), &world)
             .unwrap();
 
-        action.execute(&mut world).unwrap();
+        action.try_execute(&mut world).unwrap();
 
         let tile1 = world
             .resource::<TileDirectory>()

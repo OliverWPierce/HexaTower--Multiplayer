@@ -75,13 +75,13 @@ mod tests {
             &world,
         );
 
-        assert!(loaded_action.execute(&mut world).is_err());
+        assert!(loaded_action.try_execute(&mut world).is_err());
 
         loaded_action
             .try_select_tile_and_update_elligibility(TileId::new(0), &world)
             .unwrap();
 
-        assert!(loaded_action.execute(&mut world).is_err());
+        assert!(loaded_action.try_execute(&mut world).is_err());
 
         loaded_action
             .try_select_tile_and_update_elligibility(TileId::new(2), &world)
@@ -131,7 +131,7 @@ mod tests {
             },
         ];
 
-        let created_change_log = loaded_action.execute(&mut world).unwrap();
+        let created_change_log = loaded_action.try_execute(&mut world).unwrap();
 
         assert_eq!(created_change_log.read()[0], exprected_change_log[0]);
 

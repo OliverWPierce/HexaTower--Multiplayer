@@ -96,7 +96,7 @@ impl TileActionProcessCache {
         self.selections.get_states()
     }
 
-    pub(crate) fn execute(&self, world: &mut World) -> Result<ChangeLog, SelectedTooFewTiles> {
+    pub(crate) fn try_execute(&self, world: &mut World) -> Result<ChangeLog, SelectedTooFewTiles> {
         if self.selections.selection_count() >= self.action.tile_range_for_execution.start {
             Ok(self
                 .action

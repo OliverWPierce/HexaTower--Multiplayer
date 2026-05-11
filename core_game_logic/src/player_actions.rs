@@ -41,12 +41,12 @@ impl From<TileActionProcessCache> for ActionProcessCache {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct NetworkAction {
-    acting_player: PlayerId,
-    action: PlayerActionType,
+pub struct BackendRequest {
+    pub acting_player: PlayerId,
+    pub request: RequestType,
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
-enum PlayerActionType {
+pub enum RequestType {
     UseCard {
         inventory_index: InventoryIndex,
         input: InputData,
@@ -63,12 +63,12 @@ enum InputData {
 )]
 struct UnexpectedInputType;
 
-pub fn try_consume_action(
-    action_to_process: NetworkAction,
+pub fn try_consume_request(
+    action_to_process: BackendRequest,
     world: &mut World,
 ) -> anyhow::Result<ChangeLog> {
-    match action_to_process.action {
-        PlayerActionType::UseCard {
+    match action_to_process.request {
+        RequestType::UseCard {
             inventory_index,
             input,
         } => {
@@ -98,7 +98,7 @@ pub fn try_consume_action(
                             .try_select_tile_and_update_elligibility(id, world)?
                     }
 
-                    tile_action_process_cache.execute(world)?
+                    tile_action_process_cache.try_execute(world)?
                 }
                 ActionProcessCache::Ex1 => todo!(),
             };
