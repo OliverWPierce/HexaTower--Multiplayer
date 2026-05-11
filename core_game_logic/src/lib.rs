@@ -6,7 +6,7 @@ pub mod tile_based_actions;
 pub mod tile_mapping;
 pub mod tiles;
 
-use crate::tiles::initialize_tiles;
+use crate::{cards::initialize_cards, tiles::initialize_tiles};
 
 pub struct CreationSettings {
     board_size: u32,
@@ -21,7 +21,7 @@ impl CreationSettings {
         let mut logical_world = bevy::ecs::world::World::new();
 
         initialize_tiles(&mut logical_world, self.board_size);
-
+        initialize_cards(&mut logical_world);
         logical_world
     }
 }
