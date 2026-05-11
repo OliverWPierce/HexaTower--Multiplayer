@@ -1,6 +1,6 @@
 pub use bevy::*;
 
-pub mod card_usage_logic;
+pub mod cards;
 pub mod player_actions;
 pub mod tile_based_actions;
 pub mod tile_mapping;

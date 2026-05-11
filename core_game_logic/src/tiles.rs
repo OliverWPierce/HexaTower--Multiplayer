@@ -15,13 +15,14 @@ pub fn initialize_tiles(world: &mut World, ring_count: u32) {
             (0..(3 * (ring_count + 1) * ring_count + 1))
                 .map(|id| (TileId::new(id), TileType::Basic)),
         )
-        .collect::<Vec<Entity>>();
+        .collect::<Vec<Entity>>()
+        .into_boxed_slice();
 
     world.insert_resource(TileDirectory(ordered_tiles));
 }
 
 #[derive(Debug, Resource)]
-pub struct TileDirectory(Vec<Entity>);
+pub struct TileDirectory(Box<[Entity]>);
 
 #[derive(Debug, Error)]
 #[error{"Tried to get a tile which was out of bounds for this board size."}]

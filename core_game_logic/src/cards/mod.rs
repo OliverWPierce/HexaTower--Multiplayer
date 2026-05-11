@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use bevy::ecs::world::World;
+use bevy::ecs::{component::Component, world::World};
 use thiserror::Error;
 
 use crate::{
@@ -11,6 +11,7 @@ use crate::{
     tiles::TileType,
 };
 
+#[derive(Debug, Component)]
 enum CardFunction {
     TileConversionToSingleType {
         selection_bounds: Range<usize>,
@@ -55,7 +56,7 @@ impl CardFunction {
 mod tests {
     use crate::{
         CreationSettings,
-        card_usage_logic::CardFunction,
+        cards::CardFunction,
         tile_mapping::TileId,
         tiles::{TileDirectory, TileType},
     };
