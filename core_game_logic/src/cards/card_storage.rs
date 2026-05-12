@@ -14,13 +14,13 @@ pub struct CardAsset {
 pub struct CardId(pub u32);
 
 #[derive(Debug, Resource)]
-pub struct CardAssets(Box<[CardAsset]>);
+pub struct CardDirectory(Box<[CardAsset]>);
 
 #[derive(Debug, Error)]
 #[error{"Tried to retrieve card data using an invalid CardId."}]
 pub struct InvaildIDErr(pub CardId);
 
-impl CardAssets {
+impl CardDirectory {
     pub fn get_card(&self, id: CardId) -> Result<&CardAsset, InvaildIDErr> {
         self.0.get(id.0 as usize).ok_or(InvaildIDErr(id))
     }
@@ -28,9 +28,9 @@ impl CardAssets {
 #[derive(Debug, Default)]
 pub struct CardAssetsConstructor(Vec<CardAsset>);
 
-impl From<CardAssetsConstructor> for CardAssets {
+impl From<CardAssetsConstructor> for CardDirectory {
     fn from(value: CardAssetsConstructor) -> Self {
-        CardAssets(value.0.into_boxed_slice())
+        CardDirectory(value.0.into_boxed_slice())
     }
 }
 
@@ -56,7 +56,7 @@ impl CardAssetsConstructor {
 mod tests {
     use bevy::ecs::world::World;
 
-    use crate::cards::card_storage::{CardAsset, CardAssets, CardAssetsConstructor, CardId};
+    use crate::cards::card_storage::{CardAsset, CardAssetsConstructor, CardDirectory, CardId};
 
     #[test]
     fn add_cards_to_world() {
@@ -95,6 +95,6 @@ mod tests {
 
         let mut world = World::new();
 
-        world.insert_resource::<CardAssets>(constructor.into());
+        world.insert_resource::<CardDirectory>(constructor.into());
     }
 }

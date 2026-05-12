@@ -1,5 +1,5 @@
 [package]
-name = "core_game_logic"
+name = "hexatower_app"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,3 +8,4 @@ anyhow = "1.0"
 bevy = "0.18"
 thiserror = "2.0"
 serde = { version = "1", features = ["derive"] }
+core_game_logic = { path = ".././core_game_logic" }

@@ -42,7 +42,7 @@ pub fn initialize_cards(world: &mut World) {
         constructor.add_card(card);
     }
 
-    world.insert_resource::<CardAssets>(constructor.into());
+    world.insert_resource::<CardDirectory>(constructor.into());
 }
 
 #[derive(Debug, Error)]

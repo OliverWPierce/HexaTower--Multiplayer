@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["core_game_logic"]
+members = ["core_game_logic", "hexatower_app"]

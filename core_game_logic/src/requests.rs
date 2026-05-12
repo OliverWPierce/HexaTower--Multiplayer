@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{
     InvalidEntityState,
-    cards::CardAssets,
+    cards::CardDirectory,
     players::{Inventory, InventoryIndex, PlayerDirectory, PlayerId},
     tile_based_actions::TileActionProcessCache,
     tile_mapping::TileId,
@@ -82,7 +82,7 @@ pub fn try_consume_request(
                 .get_card(inventory_index)?;
 
             let action_cache = world
-                .resource::<CardAssets>()
+                .resource::<CardDirectory>()
                 .get_card(card)?
                 .card_fxn
                 .action_cache(world)?;
