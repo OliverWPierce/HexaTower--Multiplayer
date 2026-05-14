@@ -9,3 +9,4 @@ bevy = "0.18"
 thiserror = "2.0"
 serde = { version = "1", features = ["derive"] }
 core_game_logic = { path = ".././core_game_logic" }
+ron = "0.12"
