@@ -1,6 +1,9 @@
+use std::fmt::Debug;
+
 use thiserror::Error;
 
 pub mod cards;
+mod markets;
 pub mod players;
 pub mod requests;
 
@@ -8,11 +11,7 @@ pub mod tile_based_actions;
 pub mod tile_mapping;
 pub mod tiles;
 
-use crate::{
-    cards::{CardAsset, initialize_cards},
-    players::initialize_players,
-    tiles::initialize_tiles,
-};
+use crate::{cards::initialize_cards, players::initialize_players, tiles::initialize_tiles};
 
 pub struct CreationSettings {
     board_size: u32,
@@ -39,5 +38,24 @@ impl CreationSettings {
         initialize_cards(&mut logical_world);
         initialize_players(&mut logical_world, self.player_count);
         logical_world
+    }
+}
+
+mod directories {
+    use std::fmt::Debug;
+
+    use thiserror::Error;
+
+    pub trait DirectoryId: Debug {}
+
+    #[derive(Error, Debug)]
+    #[error("attempted to use an invalid id: {0:?}")]
+    pub struct InvalidIdErr<I: DirectoryId>(pub I);
+
+    pub trait Directory {
+        type Id: DirectoryId;
+        type Contains;
+
+        fn get(&self, id: Self::Id) -> Result<&Self::Contains, InvalidIdErr<Self::Id>>;
     }
 }

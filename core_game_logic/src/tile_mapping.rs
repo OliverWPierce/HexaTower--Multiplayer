@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 pub struct TileId(u32);
 
+impl crate::directories::DirectoryId for TileId {}
+
 impl TileId {
     pub fn new(id: u32) -> Self {
         TileId(id)
@@ -17,6 +19,7 @@ impl TileId {
         self.0
     }
 }
+
 /// The total number of tiles on the board, including the tile with id zero. This is based on the number of rings the board was created with, with tile zero counted as ring zero. (ie. the first ring to actually look like a ring is ring 1.)
 pub fn tiles_on_board(rings_on_board: u32) -> u32 {
     (3 * (rings_on_board + 1) * rings_on_board) + 1

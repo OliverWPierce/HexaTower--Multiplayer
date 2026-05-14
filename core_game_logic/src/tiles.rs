@@ -24,18 +24,22 @@ pub fn initialize_tiles(world: &mut World, ring_count: u32) {
 #[derive(Debug, Resource)]
 pub struct TileDirectory(Box<[Entity]>);
 
-#[derive(Debug, Error)]
-#[error{"Tried to get a tile which was out of bounds for this board size."}]
-pub struct InvaildIDErr(pub TileId);
+impl crate::directories::Directory for TileDirectory {
+    type Id = TileId;
+
+    type Contains = Entity;
+
+    fn get(
+        &self,
+        id: Self::Id,
+    ) -> Result<&Self::Contains, crate::directories::InvalidIdErr<Self::Id>> {
+        self.0
+            .get(id.id() as usize)
+            .ok_or(crate::directories::InvalidIdErr(id))
+    }
+}
 
 impl TileDirectory {
-    pub fn get_entity(&self, tile_id: TileId) -> Result<Entity, InvaildIDErr> {
-        self.0
-            .get(tile_id.id() as usize)
-            .copied()
-            .ok_or(InvaildIDErr(tile_id))
-    }
-
     // This is the total number of tiles on the board, as you would count them.
     pub fn tile_count(&self) -> usize {
         self.0.len()
