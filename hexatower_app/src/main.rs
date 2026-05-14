@@ -1,8 +1,8 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 
-use crate::logical_asset_loading::{LogicalAssetLoadingPlugin, PackPathsToLoad};
+use crate::asset_loading::{LogicalAssetLoadingPlugin, PackPathsToLoad};
 
-mod logical_asset_loading;
+mod asset_loading;
 
 fn main() {
     App::new()

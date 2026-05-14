@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Debug, Component, PartialEq)]
-pub(crate) enum CardFunction {
+pub enum CardFunction {
     TileConversionToSingleType {
         selection_bounds: Range<usize>,
         target_type: TileType,
@@ -25,11 +25,11 @@ pub(crate) enum CardFunction {
 
 pub fn initialize_cards(world: &mut World) {
     let example_cards = [
-        CardAsset {
-            card_fxn: CardFunction::Ex2,
+        LogicalCard {
+            functionality: CardFunction::Ex2,
         },
-        CardAsset {
-            card_fxn: CardFunction::TileConversionToSingleType {
+        LogicalCard {
+            functionality: CardFunction::TileConversionToSingleType {
                 selection_bounds: 1..2,
                 target_type: TileType::Ex1,
             },

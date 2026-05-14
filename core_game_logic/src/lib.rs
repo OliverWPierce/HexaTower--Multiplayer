@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 pub mod cards;
+pub mod markets;
 pub mod players;
 pub mod requests;
 
@@ -9,7 +10,7 @@ pub mod tile_mapping;
 pub mod tiles;
 
 use crate::{
-    cards::{CardAsset, initialize_cards},
+    cards::{LogicalCard, initialize_cards},
     players::initialize_players,
     tiles::initialize_tiles,
 };

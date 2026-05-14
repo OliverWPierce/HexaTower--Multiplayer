@@ -84,7 +84,7 @@ pub fn try_consume_request(
             let action_cache = world
                 .resource::<CardDirectory>()
                 .get_card(card)?
-                .card_fxn
+                .functionality
                 .action_cache(world)?;
 
             match action_cache {

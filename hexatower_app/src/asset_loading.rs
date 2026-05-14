@@ -1,5 +1,5 @@
 use bevy::{asset::AssetLoader, ecs::schedule::ScheduleLabel, prelude::*};
-use core_game_logic::cards::CardId;
+use core_game_logic::cards::{CardFunction, CardId, LogicalCard};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -18,8 +18,6 @@ impl Plugin for LogicalAssetLoadingPlugin {
         app.add_systems(PreSetUpBoard, syst_load_packs);
 
         app.init_schedule(AssetsFinishedLoading);
-
-        app.add_systems(AssetsFinishedLoading, syst_sort_cards);
     }
 }
 
@@ -28,20 +26,22 @@ struct ActivePackAssets(Box<[Handle<PackAsset>]>);
 
 #[derive(Debug, Asset, TypePath)]
 struct PackAsset {
-    starting_cards: Box<[Handle<CardAsset>]>,
-    starting_markets: Box<[Handle<MarketAsset>]>,
+    starting_cards: Box<[Handle<IntermediateCard>]>,
+    starting_markets: Box<[Handle<IntermediateMarket>]>,
 }
 
-#[derive(Debug, Asset, TypePath, Clone)]
-struct CardAsset {
+#[derive(Debug, Asset, TypePath)]
+struct IntermediateCard {
     name: String,
+    functionality: CardFunction,
 }
+
 #[derive(Debug)]
 struct CardPrice(u32);
 
 #[derive(Debug, Asset, TypePath)]
-struct MarketAsset {
-    offers: [(Handle<CardAsset>, CardPrice); 3],
+struct IntermediateMarket {
+    offers: [(Handle<IntermediateCard>, CardPrice); 3],
 }
 
 #[derive(Debug)]
@@ -85,45 +85,36 @@ fn syst_watch_for_pack_load(
 #[derive(Debug, ScheduleLabel, Hash, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct AssetsFinishedLoading;
 
+#[derive(Debug)]
+struct VisualCard {
+    name: String,
+}
 #[derive(Debug, Resource)]
-struct SortedCards(Box<[Handle<CardAsset>]>);
+struct VisCards(Box<[VisualCard]>);
 
-impl SortedCards {
-    pub fn get_id(&self, handle: Handle<CardAsset>) -> CardId {
-        CardId(
-            self.0
-                .iter()
-                .enumerate()
-                .find(|(_, card)| **card == handle)
-                .expect("Had a handle to a card asset which was not in the list of sorted cards.")
-                .0 as u32,
-        )
-    }
+struct BackendAssetData {
+    cards: Box<LogicalCard>,
 }
 
-fn syst_sort_cards(
-    mut card_events: MessageReader<AssetEvent<CardAsset>>,
-    mut cards: ResMut<Assets<CardAsset>>,
+fn sort_cards(
+    full_cards: Res<Assets<IntermediateCard>>,
     mut commands: Commands,
-) {
-    let mut list_to_sort = card_events
-        .read()
-        .filter_map(|event| match event {
-            AssetEvent::LoadedWithDependencies { id } => Some((
-                cards.get_strong_handle(*id).unwrap(),
-                cards.get(*id).unwrap().clone(),
-            )),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+) -> BackendAssetData {
+    let sorted_cards = {
+        let mut pre_sorted = full_cards.iter().collect::<Vec<_>>();
+        pre_sorted.sort_by_key(|(_, card_data)| card_data.name.clone());
+        pre_sorted
+    };
 
-    list_to_sort.sort_by_key(|(_, card_data)| card_data.name.clone());
-
-    commands.insert_resource(SortedCards(
-        list_to_sort
+    commands.insert_resource(VisCards(
+        sorted_cards
             .iter()
-            .map(|(handle, _)| handle.clone())
+            .map(|(_, card_data)| VisualCard {
+                name: card_data.name.clone(),
+            })
             .collect::<Vec<_>>()
             .into_boxed_slice(),
     ));
+
+    todo!()
 }
