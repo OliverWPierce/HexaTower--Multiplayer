@@ -2,29 +2,21 @@ use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world:
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{
-    cards::CardId,
-    directories::{Directory, DirectoryId, InvalidIdErr},
-};
+use crate::cards::CardId;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize, Component)]
 pub struct PlayerId(pub u8);
 
-impl DirectoryId for PlayerId {}
-
 #[derive(Debug, Resource)]
 pub struct PlayerDirectory(Box<[Entity]>);
 
-impl Directory for PlayerDirectory {
-    type Id = PlayerId;
+#[derive(Debug, Error)]
+#[error("Tried to get a player with an invalid id: {:?}", self.0.0)]
+pub struct InvalidIdErr(PlayerId);
 
-    type Contains = Entity;
-
-    fn get(
-        &self,
-        id: Self::Id,
-    ) -> Result<&Self::Contains, crate::directories::InvalidIdErr<Self::Id>> {
-        self.0.get(id.0 as usize).ok_or(InvalidIdErr(id))
+impl PlayerDirectory {
+    pub fn get_player(&self, id: PlayerId) -> Result<Entity, InvalidIdErr> {
+        self.0.get(id.0 as usize).copied().ok_or(InvalidIdErr(id))
     }
 }
 

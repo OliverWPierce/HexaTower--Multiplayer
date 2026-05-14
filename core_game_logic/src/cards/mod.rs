@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Debug, Component, PartialEq)]
-pub enum CardFunction {
+pub(crate) enum CardFunction {
     TileConversionToSingleType {
         selection_bounds: Range<usize>,
         target_type: TileType,
@@ -25,10 +25,10 @@ pub enum CardFunction {
 
 pub fn initialize_cards(world: &mut World) {
     let example_cards = [
-        LogicalCard {
+        CardAsset {
             card_fxn: CardFunction::Ex2,
         },
-        LogicalCard {
+        CardAsset {
             card_fxn: CardFunction::TileConversionToSingleType {
                 selection_bounds: 1..2,
                 target_type: TileType::Ex1,
@@ -82,7 +82,6 @@ mod tests {
     use crate::{
         CreationSettings,
         cards::CardFunction,
-        directories::Directory,
         tile_mapping::TileId,
         tiles::{TileDirectory, TileType},
     };
@@ -113,19 +112,19 @@ mod tests {
 
         let tile1 = world
             .resource::<TileDirectory>()
-            .get(TileId::new(1))
+            .get_entity(TileId::new(1))
             .unwrap();
         let tile2 = world
             .resource::<TileDirectory>()
-            .get(TileId::new(2))
+            .get_entity(TileId::new(2))
             .unwrap();
         let tile3 = world
             .resource::<TileDirectory>()
-            .get(TileId::new(3))
+            .get_entity(TileId::new(3))
             .unwrap();
 
-        assert_eq!(*world.get::<TileType>(*tile1).unwrap(), TileType::Ex1);
-        assert_eq!(*world.get::<TileType>(*tile2).unwrap(), TileType::Basic);
-        assert_eq!(*world.get::<TileType>(*tile3).unwrap(), TileType::Ex1);
+        assert_eq!(*world.get::<TileType>(tile1).unwrap(), TileType::Ex1);
+        assert_eq!(*world.get::<TileType>(tile2).unwrap(), TileType::Basic);
+        assert_eq!(*world.get::<TileType>(tile3).unwrap(), TileType::Ex1);
     }
 }

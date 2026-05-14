@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{directories::InvalidIdErr, tile_mapping::TileId};
+use crate::{tile_mapping::TileId, tiles};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum State {
@@ -19,7 +19,7 @@ pub enum SelectionError {
     #[error("Tried to select a tile which was not elligible for selection.")]
     AttemptedToSelectInelligibleTile,
     #[error("Attempted to select a tile of invalid id. Id number {0}")]
-    InvalidIdError(#[from] InvalidIdErr<TileId>),
+    InvalidIdError(#[from] tiles::InvaildIDErr),
 }
 
 impl SelectionData {
@@ -35,7 +35,7 @@ impl SelectionData {
         let state = self
             .all_tile_states
             .get_mut(tile.id() as usize)
-            .ok_or(SelectionError::InvalidIdError(InvalidIdErr(tile)))?;
+            .ok_or(SelectionError::InvalidIdError(tiles::InvaildIDErr(tile)))?;
 
         match target {
             State::Elligible => {

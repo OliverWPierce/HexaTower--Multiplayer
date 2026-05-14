@@ -5,7 +5,6 @@ use thiserror::Error;
 use crate::{
     InvalidEntityState,
     cards::CardDirectory,
-    directories::Directory,
     players::{Inventory, InventoryIndex, PlayerDirectory, PlayerId},
     tile_based_actions::TileActionProcessCache,
     tile_mapping::TileId,
@@ -75,16 +74,16 @@ pub fn try_consume_request(
         } => {
             let player_ent = world
                 .resource::<PlayerDirectory>()
-                .get(action_to_process.acting_player)?;
+                .get_player(action_to_process.acting_player)?;
 
             let card = world
-                .get::<Inventory>(*player_ent)
+                .get::<Inventory>(player_ent)
                 .ok_or(InvalidEntityState)?
                 .get_card(inventory_index)?;
 
             let action_cache = world
                 .resource::<CardDirectory>()
-                .get(card)?
+                .get_card(card)?
                 .card_fxn
                 .action_cache(world)?;
 

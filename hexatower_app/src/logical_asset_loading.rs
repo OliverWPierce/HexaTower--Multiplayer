@@ -1,5 +1,5 @@
 use bevy::{asset::AssetLoader, ecs::schedule::ScheduleLabel, prelude::*};
-use core_game_logic::cards::{CardFunction, CardId};
+use core_game_logic::cards::CardId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -28,21 +28,20 @@ struct ActivePackAssets(Box<[Handle<PackAsset>]>);
 
 #[derive(Debug, Asset, TypePath)]
 struct PackAsset {
-    starting_cards: Box<[Handle<IntermediateCard>]>,
+    starting_cards: Box<[Handle<CardAsset>]>,
     starting_markets: Box<[Handle<MarketAsset>]>,
 }
 
-#[derive(Debug, Asset, TypePath)]
-struct IntermediateCard {
+#[derive(Debug, Asset, TypePath, Clone)]
+struct CardAsset {
     name: String,
-    functionalitry: CardFunction,
 }
 #[derive(Debug)]
 struct CardPrice(u32);
 
 #[derive(Debug, Asset, TypePath)]
 struct MarketAsset {
-    offers: [(Handle<IntermediateCard>, CardPrice); 3],
+    offers: [(Handle<CardAsset>, CardPrice); 3],
 }
 
 #[derive(Debug)]
@@ -87,10 +86,10 @@ fn syst_watch_for_pack_load(
 struct AssetsFinishedLoading;
 
 #[derive(Debug, Resource)]
-struct SortedCards(Box<[Handle<IntermediateCard>]>);
+struct SortedCards(Box<[Handle<CardAsset>]>);
 
 impl SortedCards {
-    pub fn get_id(&self, handle: Handle<IntermediateCard>) -> CardId {
+    pub fn get_id(&self, handle: Handle<CardAsset>) -> CardId {
         CardId(
             self.0
                 .iter()
@@ -103,8 +102,8 @@ impl SortedCards {
 }
 
 fn syst_sort_cards(
-    mut card_events: MessageReader<AssetEvent<IntermediateCard>>,
-    mut cards: ResMut<Assets<IntermediateCard>>,
+    mut card_events: MessageReader<AssetEvent<CardAsset>>,
+    mut cards: ResMut<Assets<CardAsset>>,
     mut commands: Commands,
 ) {
     let mut list_to_sort = card_events

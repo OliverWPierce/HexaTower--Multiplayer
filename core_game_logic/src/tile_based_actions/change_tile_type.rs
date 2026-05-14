@@ -1,7 +1,6 @@
 use std::ops::Range;
 
 use crate::{
-    directories::Directory,
     requests::{ActionEffect, ChangeLog},
     tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
     tiles::{TileDirectory, TileType},
@@ -27,7 +26,7 @@ impl TileActionFunctionality for ConvertTileTo {
             let directory = world.resource::<TileDirectory>();
 
             let Some(mut tile_type) = world
-                .entity_mut(*directory.get(*tile).unwrap())
+                .entity_mut(directory.get_entity(*tile).unwrap())
                 .into_mut::<TileType>()
             else {
                 panic!("A tile entity had no component indicating the type of tile it was.")
