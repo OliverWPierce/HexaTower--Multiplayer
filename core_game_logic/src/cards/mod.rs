@@ -7,6 +7,7 @@ mod card_storage;
 pub use card_storage::*;
 
 use crate::{
+    markets::MarketId,
     requests::ActionProcessCache,
     tile_based_actions::{
         self, TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo,
@@ -21,6 +22,10 @@ pub enum CardFunction {
         target_type: TileType,
     },
     Ex2,
+    SpawnMarket {
+        selection_bounds: Range<usize>,
+        market: MarketId,
+    },
 }
 
 pub fn initialize_cards(world: &mut World) {
@@ -71,6 +76,10 @@ impl CardFunction {
             )
             .into(),
             CardFunction::Ex2 => todo!(),
+            CardFunction::SpawnMarket {
+                selection_bounds,
+                market,
+            } => todo!(),
         };
 
         Ok(cache)

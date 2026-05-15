@@ -1,5 +1,9 @@
 use bevy::{asset::AssetLoader, ecs::schedule::ScheduleLabel, prelude::*};
-use core_game_logic::cards::{CardFunction, CardId, LogicalCard};
+use core_game_logic::{
+    cards::{CardFunction, CardId, LogicalCard},
+    markets::{CardPrice, LogicalMarket},
+    tiles::TileType,
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -33,14 +37,17 @@ struct PackAsset {
 #[derive(Debug, Asset, TypePath)]
 struct IntermediateCard {
     name: String,
-    functionality: CardFunction,
+    functionality: IntermediateCardFunction,
 }
-
 #[derive(Debug)]
-struct CardPrice(u32);
+enum IntermediateCardFunction {
+    ConvertTileTo { target_tile: TileType },
+    SpawnMarket(Handle<IntermediateMarket>),
+}
 
 #[derive(Debug, Asset, TypePath)]
 struct IntermediateMarket {
+    name: String,
     offers: [(Handle<IntermediateCard>, CardPrice); 3],
 }
 
@@ -92,17 +99,29 @@ struct VisualCard {
 #[derive(Debug, Resource)]
 struct VisCards(Box<[VisualCard]>);
 
+#[derive(Debug, Resource)]
+struct VisMarkets(Box<[VisualMarket]>);
+
+#[derive(Debug)]
+struct VisualMarket {
+    name: String,
+}
+
 struct BackendAssetData {
-    cards: Box<LogicalCard>,
+    cards: Box<[LogicalCard]>,
+    initial_player_inventory: Box<[CardId]>,
+    markets: Box<[LogicalMarket]>,
 }
 
 fn sort_cards(
-    full_cards: Res<Assets<IntermediateCard>>,
+    all_cards: Res<Assets<IntermediateCard>>,
+    all_markets: Res<Assets<IntermediateMarket>>,
+    packs: Res<Assets<PackAsset>>,
     mut commands: Commands,
 ) -> BackendAssetData {
     let sorted_cards = {
-        let mut pre_sorted = full_cards.iter().collect::<Vec<_>>();
-        pre_sorted.sort_by_key(|(_, card_data)| card_data.name.clone());
+        let mut pre_sorted = all_cards.iter().collect::<Vec<_>>();
+        pre_sorted.sort_by(|(_, card1), (_, card2)| card1.name.cmp(&card2.name));
         pre_sorted
     };
 
@@ -116,5 +135,98 @@ fn sort_cards(
             .into_boxed_slice(),
     ));
 
-    todo!()
+    let sorted_markets = {
+        let mut pre_sorted = all_markets.iter().collect::<Vec<_>>();
+        pre_sorted.sort_by(|(_, card1), (_, card2)| card1.name.cmp(&card2.name));
+        pre_sorted
+    };
+
+    commands.insert_resource(VisMarkets(
+        sorted_markets
+            .iter()
+            .map(|(_, market_data)| VisualMarket {
+                name: market_data.name.clone(),
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+    ));
+
+    let mut logical_cards = Vec::new();
+
+    for (_, card) in sorted_cards.as_slice() {
+        let backend_function = match &card.functionality {
+            IntermediateCardFunction::ConvertTileTo { target_tile } => {
+                CardFunction::TileConversionToSingleType {
+                    selection_bounds: 1..2,
+                    target_type: target_tile.clone(),
+                }
+            }
+            IntermediateCardFunction::SpawnMarket(handle) => {
+                let market_asset_id = handle.id();
+                let market_id = core_game_logic::markets::MarketId(
+                    sorted_markets
+                        .iter()
+                        .enumerate()
+                        .find(|(_, (id, _))| *id == market_asset_id)
+                        .unwrap()
+                        .0 as u32,
+                );
+
+                CardFunction::SpawnMarket {
+                    selection_bounds: 1..2,
+                    market: market_id,
+                }
+            }
+        };
+
+        logical_cards.push(LogicalCard {
+            functionality: backend_function,
+        })
+    }
+
+    let mut logical_markets = Vec::new();
+
+    for (_, market) in sorted_markets {
+        let x = core_game_logic::markets::LogicalMarket(market.offers.clone().map(
+            |(card_handle, price)| {
+                let card_asset_id = card_handle.id();
+                let id_of_card_offered = CardId(
+                    sorted_cards
+                        .iter()
+                        .enumerate()
+                        .find(|(_, (asset_id, _))| *asset_id == card_asset_id)
+                        .unwrap()
+                        .0 as u32,
+                );
+
+                (id_of_card_offered, price)
+            },
+        ));
+
+        logical_markets.push(x);
+    }
+
+    let starting_cards = {
+        let mut card_ids = Vec::new();
+        for (_, PackAsset { starting_cards, .. }) in packs.iter() {
+            for card_handle in starting_cards {
+                card_ids.push(CardId(
+                    sorted_cards
+                        .iter()
+                        .enumerate()
+                        .find(|(_, (asset_id, _))| *asset_id == card_handle.id())
+                        .unwrap()
+                        .0 as u32,
+                ));
+            }
+        }
+
+        card_ids.into_boxed_slice()
+    };
+
+    BackendAssetData {
+        cards: logical_cards.into_boxed_slice(),
+        markets: logical_markets.into_boxed_slice(),
+        initial_player_inventory: starting_cards,
+    }
 }
