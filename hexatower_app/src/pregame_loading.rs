@@ -1,5 +1,7 @@
+use anyhow::Result;
 use bevy::{asset::AssetLoader, ecs::schedule::ScheduleLabel, prelude::*};
 use core_game_logic::{
+    CreationParameters,
     cards::{CardFunction, CardId, LogicalCard},
     markets::{CardPrice, LogicalMarket},
     tiles::TileType,
@@ -7,19 +9,19 @@ use core_game_logic::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{GameSetupInstructions, PreSetUpBoard};
+use crate::{AppState, GameSetupInstructions, LogicalWorld};
 
 /// This plugin handles loading and sorting all assets that have a functional impact on gameplay.
-pub struct LogicalAssetLoadingPlugin;
+pub struct PreGameLoadingPlugin;
 
-impl Plugin for LogicalAssetLoadingPlugin {
+impl Plugin for PreGameLoadingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            syst_watch_for_pack_load.run_if(resource_exists::<WaitingOnAssetsToLoad>),
+            syst_watch_for_pack_load.run_if(in_state(AppState::LoadingFunctionalAssets)),
         );
 
-        app.add_systems(PreSetUpBoard, syst_load_packs);
+        app.add_systems(OnEnter(AppState::LoadingFunctionalAssets), syst_load_packs);
 
         app.init_asset::<PackAsset>();
         app.init_asset_loader::<PackAssetLoader>();
@@ -30,7 +32,10 @@ impl Plugin for LogicalAssetLoadingPlugin {
         app.init_asset::<IntermediateMarket>();
         app.init_asset_loader::<IntermediateMarketAssetLoader>();
 
-        app.init_schedule(AssetsFinishedLoading);
+        app.add_systems(
+            OnExit(AppState::LoadingFunctionalAssets),
+            export_loaded_assets_to_front_and_backends,
+        );
     }
 }
 
@@ -61,7 +66,7 @@ struct IntermediateMarket {
 }
 
 #[derive(Debug)]
-pub struct PackPathsToLoad(Vec<String>);
+pub struct PackPathsToLoad(pub Vec<String>);
 
 fn syst_load_packs(
     mut commands: Commands,
@@ -77,57 +82,55 @@ fn syst_load_packs(
             .collect::<Vec<Handle<PackAsset>>>()
             .into_boxed_slice(),
     ));
-    commands.insert_resource(WaitingOnAssetsToLoad);
+
+    #[cfg(debug_assertions)]
+    info!("Began loading packs and their dependencies")
 }
-#[derive(Debug, Resource)]
-struct WaitingOnAssetsToLoad;
 
 fn syst_watch_for_pack_load(
     asset_server: Res<AssetServer>,
     packs_to_check: Res<ActivePackAssets>,
-    mut commands: Commands,
+    mut state_changer: ResMut<NextState<AppState>>,
 ) {
     let is_done = packs_to_check
         .0
         .iter()
         .all(|handle| asset_server.is_loaded_with_dependencies(handle));
 
+    #[cfg(debug_assertions)]
+    info!("still loading...");
+
     if is_done {
-        commands.remove_resource::<WaitingOnAssetsToLoad>();
-        commands.run_schedule(AssetsFinishedLoading);
+        state_changer.set(AppState::InGame);
+        #[cfg(debug_assertions)]
+        info!("Packs finished loading")
     }
 }
 
-#[derive(Debug, ScheduleLabel, Hash, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct AssetsFinishedLoading;
-
 #[derive(Debug)]
 struct VisualCard {
-    name: String,
+    pub name: String,
 }
 #[derive(Debug, Resource)]
-struct VisCards(Box<[VisualCard]>);
+pub struct VisCards(Box<[VisualCard]>);
 
 #[derive(Debug, Resource)]
 struct VisMarkets(Box<[VisualMarket]>);
 
 #[derive(Debug)]
 struct VisualMarket {
-    name: String,
+    pub name: String,
 }
 
-struct BackendAssetData {
-    cards: Box<[LogicalCard]>,
-    initial_player_inventory: Box<[CardId]>,
-    markets: Box<[LogicalMarket]>,
-}
-
-fn sort_cards(
+fn export_loaded_assets_to_front_and_backends(
     all_cards: Res<Assets<IntermediateCard>>,
     all_markets: Res<Assets<IntermediateMarket>>,
+    creation_settings: Res<GameSetupInstructions>,
     packs: Res<Assets<PackAsset>>,
     mut commands: Commands,
-) -> BackendAssetData {
+) {
+    #[cfg(debug_assertions)]
+    info!("Sorting and spliting functional assets into their backend and front end parts.");
     let sorted_cards = {
         let mut pre_sorted = all_cards.iter().collect::<Vec<_>>();
         pre_sorted.sort_by(|(_, card1), (_, card2)| card1.name.cmp(&card2.name));
@@ -231,11 +234,16 @@ fn sort_cards(
         card_ids.into_boxed_slice()
     };
 
-    BackendAssetData {
-        cards: logical_cards.into_boxed_slice(),
-        markets: logical_markets.into_boxed_slice(),
-        initial_player_inventory: starting_cards,
-    }
+    commands.insert_resource(LogicalWorld(
+        CreationParameters {
+            board_size: creation_settings.board_size,
+            player_count: creation_settings.ex_player_names.len() as u8,
+            all_cards: logical_cards.into_boxed_slice(),
+            all_markets: logical_markets.into_boxed_slice(),
+            starting_cards,
+        }
+        .create_logical_world(),
+    ));
 }
 
 #[non_exhaustive]

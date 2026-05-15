@@ -10,29 +10,27 @@ pub mod tile_mapping;
 pub mod tiles;
 
 use crate::{
-    cards::{LogicalCard, initialize_cards},
+    cards::{CardId, LogicalCard, initialize_cards},
+    markets::LogicalMarket,
     players::initialize_players,
     tiles::initialize_tiles,
 };
 
-pub struct CreationSettings {
-    board_size: u32,
-    player_count: u8,
+pub struct CreationParameters {
+    pub board_size: u32,
+    pub player_count: u8,
+    pub all_cards: Box<[LogicalCard]>,
+    pub all_markets: Box<[LogicalMarket]>,
+    pub starting_cards: Box<[CardId]>,
 }
+
 #[derive(Debug, Error)]
 #[error(
     "An entity was in a supposedly unreachable state. For example, this could be when a player lacks an inventory component."
 )]
 pub struct InvalidEntityState;
 
-impl CreationSettings {
-    pub fn new(board_size: u32, player_count: u8) -> CreationSettings {
-        CreationSettings {
-            board_size,
-            player_count,
-        }
-    }
-
+impl CreationParameters {
     pub fn create_logical_world(self) -> bevy::ecs::world::World {
         let mut logical_world = bevy::ecs::world::World::new();
 
