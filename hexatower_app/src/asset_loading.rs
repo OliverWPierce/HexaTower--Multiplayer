@@ -21,6 +21,15 @@ impl Plugin for LogicalAssetLoadingPlugin {
 
         app.add_systems(PreSetUpBoard, syst_load_packs);
 
+        app.init_asset::<PackAsset>();
+        app.init_asset_loader::<PackAssetLoader>();
+
+        app.init_asset::<IntermediateCard>();
+        app.init_asset_loader::<IntermediateCardAssetLoader>();
+
+        app.init_asset::<IntermediateMarket>();
+        app.init_asset_loader::<IntermediateMarketAssetLoader>();
+
         app.init_schedule(AssetsFinishedLoading);
     }
 }
@@ -131,8 +140,7 @@ fn sort_cards(
             .map(|(_, card_data)| VisualCard {
                 name: card_data.name.clone(),
             })
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
+            .collect::<Box<_>>(),
     ));
 
     let sorted_markets = {
@@ -147,8 +155,7 @@ fn sort_cards(
             .map(|(_, market_data)| VisualMarket {
                 name: market_data.name.clone(),
             })
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
+            .collect::<Box<_>>(),
     ));
 
     let mut logical_cards = Vec::new();
@@ -228,5 +235,167 @@ fn sort_cards(
         cards: logical_cards.into_boxed_slice(),
         markets: logical_markets.into_boxed_slice(),
         initial_player_inventory: starting_cards,
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Error)]
+pub enum AssetLoaderError {
+    /// An [IO](std::io) Error
+    #[error("Could not load asset: {0}")]
+    Io(#[from] std::io::Error),
+    /// A [RON](ron) Error
+    #[error("Could not parse RON: {0}")]
+    RonSpannedError(#[from] ron::error::SpannedError),
+}
+
+#[derive(Debug, Default, TypePath)]
+struct IntermediateCardAssetLoader;
+
+impl AssetLoader for IntermediateCardAssetLoader {
+    type Asset = IntermediateCard;
+    type Settings = ();
+    type Error = AssetLoaderError;
+
+    async fn load(
+        &self,
+        reader: &mut dyn bevy::asset::io::Reader,
+        _settings: &Self::Settings,
+        load_context: &mut bevy::asset::LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        let proxy = ron::de::from_bytes::<ProxyCard>(&bytes)?;
+
+        let functionality = match proxy.functionality {
+            ProxyCardFunction::ConvertTileTo { target_tile } => {
+                IntermediateCardFunction::ConvertTileTo {
+                    target_tile: match target_tile {
+                        ProxyTileType::Ex1 => TileType::Ex1,
+                        ProxyTileType::Basic => TileType::Basic,
+                    },
+                }
+            }
+            ProxyCardFunction::SpawnMarket { path } => {
+                IntermediateCardFunction::SpawnMarket(load_context.load(path))
+            }
+        };
+
+        Ok(IntermediateCard {
+            name: proxy.name,
+            functionality,
+        })
+    }
+
+    fn extensions(&self) -> &[&str] {
+        &["card.ron"]
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Deserialize, Serialize)]
+struct ProxyCard {
+    name: String,
+    functionality: ProxyCardFunction,
+}
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Deserialize, Serialize)]
+enum ProxyCardFunction {
+    ConvertTileTo { target_tile: ProxyTileType },
+    SpawnMarket { path: String },
+}
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Deserialize, Serialize)]
+enum ProxyTileType {
+    Ex1,
+    Basic,
+}
+
+#[derive(Debug, Default, TypePath)]
+struct IntermediateMarketAssetLoader;
+
+impl AssetLoader for IntermediateMarketAssetLoader {
+    type Asset = IntermediateMarket;
+
+    type Settings = ();
+
+    type Error = AssetLoaderError;
+
+    async fn load(
+        &self,
+        reader: &mut dyn bevy::asset::io::Reader,
+        _settings: &Self::Settings,
+        load_context: &mut bevy::asset::LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        let proxy = ron::de::from_bytes::<ProxyMarket>(&bytes)?;
+
+        Ok(IntermediateMarket {
+            name: proxy.name,
+            offers: [
+                (load_context.load(proxy.card1_path), CardPrice(proxy.price1)),
+                (load_context.load(proxy.card2_path), CardPrice(proxy.price2)),
+                (load_context.load(proxy.card3_path), CardPrice(proxy.price3)),
+            ],
+        })
+    }
+
+    fn extensions(&self) -> &[&str] {
+        &["market.ron"]
+    }
+}
+
+// while this could be made simpler in the code, this is easier for non-programmers to read in the asset files.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Deserialize, Serialize)]
+struct ProxyMarket {
+    name: String,
+    card1_path: String,
+    price1: u32,
+    card2_path: String,
+    price2: u32,
+    card3_path: String,
+    price3: u32,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Deserialize, Serialize)]
+struct ProxyPack {
+    paths_to_cards_in_initial_inventory: Vec<String>,
+    market_paths: Vec<String>,
+}
+
+#[derive(Debug, Default, TypePath)]
+struct PackAssetLoader;
+
+impl AssetLoader for PackAssetLoader {
+    type Asset = PackAsset;
+
+    type Settings = ();
+
+    type Error = AssetLoaderError;
+
+    async fn load(
+        &self,
+        reader: &mut dyn bevy::asset::io::Reader,
+        _settings: &Self::Settings,
+        load_context: &mut bevy::asset::LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        let proxy = ron::de::from_bytes::<ProxyPack>(&bytes)?;
+
+        Ok(PackAsset {
+            starting_cards: proxy
+                .paths_to_cards_in_initial_inventory
+                .iter()
+                .map(|path| load_context.load(path))
+                .collect::<Box<[_]>>(),
+            starting_markets: proxy
+                .market_paths
+                .iter()
+                .map(|path| load_context.load(path))
+                .collect::<Box<[_]>>(),
+        })
+    }
+
+    fn extensions(&self) -> &[&str] {
+        &["pack.ron"]
     }
 }

@@ -6,7 +6,7 @@ mod asset_loading;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, LogicalAssetLoadingPlugin))
+        .add_plugins((DefaultPlugins, StartGamePlugin, LogicalAssetLoadingPlugin))
         .run();
 }
 
