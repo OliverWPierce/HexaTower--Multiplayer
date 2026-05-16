@@ -1,4 +1,4 @@
-use bevy::{asset::LoadedAsset, ecs::schedule::ScheduleLabel, prelude::*, state::state};
+use bevy::prelude::*;
 
 use crate::pregame_loading::{PackPathsToLoad, PreGameLoadingPlugin};
 
@@ -31,7 +31,7 @@ pub struct GameSetupInstructions {
 
 fn tmp_startup(mut commands: Commands, mut state_changer: ResMut<NextState<AppState>>) {
     commands.insert_resource(GameSetupInstructions {
-        packs: PackPathsToLoad(vec![String::from("CorePack.pack.ron")]),
+        packs: PackPathsToLoad(vec![String::from("packs/core.pack.ron")]),
         board_size: 5,
         ex_player_names: vec![
             String::from("Samantha"),

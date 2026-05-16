@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bevy::{asset::AssetLoader, ecs::schedule::ScheduleLabel, prelude::*};
+use bevy::{asset::AssetLoader, prelude::*, time::Stopwatch};
 use core_game_logic::{
     CreationParameters,
     cards::{CardFunction, CardId, LogicalCard},
@@ -18,7 +18,8 @@ impl Plugin for PreGameLoadingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            syst_watch_for_pack_load.run_if(in_state(AppState::LoadingFunctionalAssets)),
+            (syst_watch_for_pack_load, asset_loading_timeout)
+                .run_if(in_state(AppState::LoadingFunctionalAssets)),
         );
 
         app.add_systems(OnEnter(AppState::LoadingFunctionalAssets), syst_load_packs);
@@ -83,6 +84,8 @@ fn syst_load_packs(
             .into_boxed_slice(),
     ));
 
+    commands.insert_resource(TimeOutTimer(Stopwatch::new()));
+
     #[cfg(debug_assertions)]
     info!("Began loading packs and their dependencies")
 }
@@ -96,9 +99,6 @@ fn syst_watch_for_pack_load(
         .0
         .iter()
         .all(|handle| asset_server.is_loaded_with_dependencies(handle));
-
-    #[cfg(debug_assertions)]
-    info!("still loading...");
 
     if is_done {
         state_changer.set(AppState::InGame);
@@ -120,6 +120,24 @@ struct VisMarkets(Box<[VisualMarket]>);
 #[derive(Debug)]
 struct VisualMarket {
     pub name: String,
+}
+#[derive(Debug, Resource)]
+struct TimeOutTimer(Stopwatch);
+
+fn asset_loading_timeout(time: Res<Time>, mut time_spent_loading: ResMut<TimeOutTimer>) {
+    const TIMEOUT_TIME_IN_RELEASE_MODE: f32 = 300.0;
+    const TIMEOUT_TIME_IN_DEBUG_MODE: f32 = 5.0;
+
+    let elapsed = time_spent_loading.0.tick(time.delta()).elapsed_secs();
+
+    if elapsed > TIMEOUT_TIME_IN_RELEASE_MODE {
+        panic!("Asset loading timed out. See emmited errors for more information.")
+    }
+
+    #[cfg(debug_assertions)]
+    if elapsed > TIMEOUT_TIME_IN_DEBUG_MODE {
+        panic!("Asset loading timed out. See emmited errors for more information.")
+    }
 }
 
 fn export_loaded_assets_to_front_and_backends(
@@ -197,21 +215,19 @@ fn export_loaded_assets_to_front_and_backends(
     let mut logical_markets = Vec::new();
 
     for (_, market) in sorted_markets {
-        let x = core_game_logic::markets::LogicalMarket(market.offers.clone().map(
-            |(card_handle, price)| {
-                let card_asset_id = card_handle.id();
-                let id_of_card_offered = CardId(
-                    sorted_cards
-                        .iter()
-                        .enumerate()
-                        .find(|(_, (asset_id, _))| *asset_id == card_asset_id)
-                        .unwrap()
-                        .0 as u32,
-                );
+        let x = LogicalMarket(market.offers.clone().map(|(card_handle, price)| {
+            let card_asset_id = card_handle.id();
+            let id_of_card_offered = CardId(
+                sorted_cards
+                    .iter()
+                    .enumerate()
+                    .find(|(_, (asset_id, _))| *asset_id == card_asset_id)
+                    .unwrap()
+                    .0 as u32,
+            );
 
-                (id_of_card_offered, price)
-            },
-        ));
+            (id_of_card_offered, price)
+        }));
 
         logical_markets.push(x);
     }
