@@ -18,7 +18,11 @@ impl Plugin for PreGameLoadingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (syst_watch_for_pack_load, asset_loading_timeout)
+            (
+                syst_watch_for_pack_load,
+                asset_loading_timeout,
+                tmp_test_load,
+            )
                 .run_if(in_state(AppState::LoadingFunctionalAssets)),
         );
 
@@ -126,7 +130,7 @@ struct TimeOutTimer(Stopwatch);
 
 fn asset_loading_timeout(time: Res<Time>, mut time_spent_loading: ResMut<TimeOutTimer>) {
     const TIMEOUT_TIME_IN_RELEASE_MODE: f32 = 300.0;
-    const TIMEOUT_TIME_IN_DEBUG_MODE: f32 = 5.0;
+    const TIMEOUT_TIME_IN_DEBUG_MODE: f32 = 60.0;
 
     let elapsed = time_spent_loading.0.tick(time.delta()).elapsed_secs();
 
@@ -287,6 +291,9 @@ impl AssetLoader for IntermediateCardAssetLoader {
         _settings: &Self::Settings,
         load_context: &mut bevy::asset::LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
+        #[cfg(debug_assertions)]
+        println!("began loading a card.");
+
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
         let proxy = ron::de::from_bytes::<ProxyCard>(&bytes)?;
@@ -348,6 +355,9 @@ impl AssetLoader for IntermediateMarketAssetLoader {
         _settings: &Self::Settings,
         load_context: &mut bevy::asset::LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
+        #[cfg(debug_assertions)]
+        println!("began loading a market.");
+
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
         let proxy = ron::de::from_bytes::<ProxyMarket>(&bytes)?;
@@ -401,6 +411,9 @@ impl AssetLoader for PackAssetLoader {
         _settings: &Self::Settings,
         load_context: &mut bevy::asset::LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
+        #[cfg(debug_assertions)]
+        println!("began loading a pack.");
+
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
         let proxy = ron::de::from_bytes::<ProxyPack>(&bytes)?;
@@ -421,5 +434,17 @@ impl AssetLoader for PackAssetLoader {
 
     fn extensions(&self) -> &[&str] {
         &["pack.ron"]
+    }
+}
+
+fn tmp_test_load(mut events: MessageReader<AssetEvent<PackAsset>>) {
+    for e in events.read() {
+        match e {
+            AssetEvent::Added { id } => println!("pack added"),
+            AssetEvent::Modified { id } => print!("pack modified"),
+            AssetEvent::Removed { id } => print!("pack removed"),
+            AssetEvent::Unused { id } => print!("pack unused"),
+            AssetEvent::LoadedWithDependencies { id } => print!("pack fully loaded"),
+        }
     }
 }

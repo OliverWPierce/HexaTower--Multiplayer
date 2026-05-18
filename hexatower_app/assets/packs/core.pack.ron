@@ -1,4 +1,4 @@
 ProxyPack (
-    paths_to_cards_in_initial_inventory: ["my_card1.card.ron",],
-    market_paths: ["my_market_1.card.ron",],
+    paths_to_cards_in_initial_inventory: ["cards/ex1.card.ron",],
+    market_paths: ["markets/ex1.market.ron",],
 )

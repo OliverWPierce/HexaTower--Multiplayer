@@ -1,0 +1,6 @@
+ProxyCard (
+    name: "Example Card 2",
+    functionality: ConvertTileTo(
+        target_tile: Basic
+    ),
+)
