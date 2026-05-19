@@ -18,11 +18,7 @@ impl Plugin for PreGameLoadingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (
-                syst_watch_for_pack_load,
-                asset_loading_timeout,
-                tmp_test_load,
-            )
+            (syst_watch_for_pack_load, asset_loading_timeout)
                 .run_if(in_state(AppState::LoadingFunctionalAssets)),
         );
 
@@ -434,17 +430,5 @@ impl AssetLoader for PackAssetLoader {
 
     fn extensions(&self) -> &[&str] {
         &["pack.ron"]
-    }
-}
-
-fn tmp_test_load(mut events: MessageReader<AssetEvent<PackAsset>>) {
-    for e in events.read() {
-        match e {
-            AssetEvent::Added { id } => println!("pack added"),
-            AssetEvent::Modified { id } => print!("pack modified"),
-            AssetEvent::Removed { id } => print!("pack removed"),
-            AssetEvent::Unused { id } => print!("pack unused"),
-            AssetEvent::LoadedWithDependencies { id } => print!("pack fully loaded"),
-        }
     }
 }
