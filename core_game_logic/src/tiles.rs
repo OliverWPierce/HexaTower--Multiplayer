@@ -1,13 +1,8 @@
-use bevy::ecs::{
-    component::{Component, Immutable, Mutable, StorageType},
-    entity::Entity,
-    resource::Resource,
-    world::World,
-};
+use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
 
 use thiserror::Error;
 
-use crate::tile_mapping::TileId;
+use crate::{markets::MarketId, tile_mapping::TileId};
 
 pub fn initialize_tiles(world: &mut World, ring_count: u32) {
     let ordered_tiles = world
@@ -42,19 +37,12 @@ impl TileDirectory {
     }
 }
 
-impl Component for TileId {
-    const STORAGE_TYPE: bevy::ecs::component::StorageType = StorageType::Table;
-
-    type Mutability = Immutable;
-}
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Component, Clone, PartialEq)]
 pub enum TileType {
     Basic,
     Ex1,
 }
 
-impl Component for TileType {
-    const STORAGE_TYPE: bevy::ecs::component::StorageType = StorageType::Table;
-
-    type Mutability = Mutable;
-}
+#[derive(Debug, Component)]
+#[component(storage = "SparseSet")]
+pub struct MarketTile(pub MarketId);

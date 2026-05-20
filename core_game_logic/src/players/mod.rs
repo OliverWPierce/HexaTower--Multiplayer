@@ -20,13 +20,13 @@ impl PlayerDirectory {
     }
 }
 
-pub fn initialize_players(world: &mut World, player_count: u8) {
+pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &[CardId]) {
     let players = world
         .spawn_batch((0..player_count).map(|id| {
             (
                 PlayerId(id),
                 Inventory {
-                    hand: Vec::new(),
+                    hand: starting_cards.to_vec(),
                     max_size: 5,
                 },
             )

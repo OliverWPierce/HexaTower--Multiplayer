@@ -28,26 +28,8 @@ pub enum CardFunction {
     },
 }
 
-pub fn initialize_cards(world: &mut World) {
-    let example_cards = [
-        LogicalCard {
-            functionality: CardFunction::Ex2,
-        },
-        LogicalCard {
-            functionality: CardFunction::TileConversionToSingleType {
-                selection_bounds: 1..2,
-                target_type: TileType::Ex1,
-            },
-        },
-    ];
-
-    let mut constructor = CardAssetsConstructor::default();
-
-    for card in example_cards {
-        constructor.add_card(card);
-    }
-
-    world.insert_resource::<CardDirectory>(constructor.into());
+pub fn initialize_cards(world: &mut World, cards: Box<[LogicalCard]>) {
+    world.insert_resource::<CardDirectory>(CardDirectory::new(cards));
 }
 
 #[derive(Debug, Error)]
@@ -86,54 +68,54 @@ impl CardFunction {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::{
-//         CreationParameters,
-//         cards::CardFunction,
-//         tile_mapping::TileId,
-//         tiles::{TileDirectory, TileType},
-//     };
+#[cfg(test)]
+mod tests {
+    use crate::{
+        CreationParameters,
+        cards::CardFunction,
+        tile_mapping::TileId,
+        tiles::{TileDirectory, TileType},
+    };
 
-//     #[test]
-//     fn convert_card_into_action_cache() {
-//         let mut world = CreationParameters::new(4, 1).create_logical_world();
+    #[test]
+    fn convert_card_into_action_cache() {
+        let mut world = CreationParameters::testing_default();
 
-//         let card1 = CardFunction::TileConversionToSingleType {
-//             selection_bounds: 1..4,
-//             target_type: crate::tiles::TileType::Ex1,
-//         };
+        let card1 = CardFunction::TileConversionToSingleType {
+            selection_bounds: 1..4,
+            target_type: crate::tiles::TileType::Ex1,
+        };
 
-//         let crate::requests::ActionProcessCache::TileAction(mut action) =
-//             card1.action_cache(&world).unwrap()
-//         else {
-//             panic!()
-//         };
+        let crate::requests::ActionProcessCache::TileAction(mut action) =
+            card1.action_cache(&world).unwrap()
+        else {
+            panic!()
+        };
 
-//         action
-//             .try_select_tile_and_update_elligibility(TileId::new(1), &world)
-//             .unwrap();
-//         action
-//             .try_select_tile_and_update_elligibility(TileId::new(3), &world)
-//             .unwrap();
+        action
+            .try_select_tile_and_update_elligibility(TileId::new(1), &world)
+            .unwrap();
+        action
+            .try_select_tile_and_update_elligibility(TileId::new(3), &world)
+            .unwrap();
 
-//         action.try_execute(&mut world).unwrap();
+        action.try_execute(&mut world).unwrap();
 
-//         let tile1 = world
-//             .resource::<TileDirectory>()
-//             .get_entity(TileId::new(1))
-//             .unwrap();
-//         let tile2 = world
-//             .resource::<TileDirectory>()
-//             .get_entity(TileId::new(2))
-//             .unwrap();
-//         let tile3 = world
-//             .resource::<TileDirectory>()
-//             .get_entity(TileId::new(3))
-//             .unwrap();
+        let tile1 = world
+            .resource::<TileDirectory>()
+            .get_entity(TileId::new(1))
+            .unwrap();
+        let tile2 = world
+            .resource::<TileDirectory>()
+            .get_entity(TileId::new(2))
+            .unwrap();
+        let tile3 = world
+            .resource::<TileDirectory>()
+            .get_entity(TileId::new(3))
+            .unwrap();
 
-//         assert_eq!(*world.get::<TileType>(tile1).unwrap(), TileType::Ex1);
-//         assert_eq!(*world.get::<TileType>(tile2).unwrap(), TileType::Basic);
-//         assert_eq!(*world.get::<TileType>(tile3).unwrap(), TileType::Ex1);
-//     }
-// }
+        assert_eq!(*world.get::<TileType>(tile1).unwrap(), TileType::Ex1);
+        assert_eq!(*world.get::<TileType>(tile2).unwrap(), TileType::Basic);
+        assert_eq!(*world.get::<TileType>(tile3).unwrap(), TileType::Ex1);
+    }
+}

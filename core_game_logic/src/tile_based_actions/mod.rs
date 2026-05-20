@@ -11,6 +11,7 @@ use crate::{
 };
 
 pub mod change_tile_type;
+pub mod make_market_tile;
 mod selection_mechanics;
 
 pub trait TileActionFunctionality: Debug {

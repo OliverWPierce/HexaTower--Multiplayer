@@ -1,9 +1,0 @@
-ProxyMarket (
-    name: "Example Market 1",
-    card1_path: "cards/ex1.card.ron",
-    price1: 5,
-    card2_path: "cards/ex2.card.ron",
-    price2: 2,
-    card3_path: "cards/ex3.card.ron",
-    price3: 4,
-)

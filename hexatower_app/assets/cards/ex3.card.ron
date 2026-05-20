@@ -1,4 +1,0 @@
-ProxyCard (
-    name: "Example Card 3",
-    functionality: SpawnMarket(path: "markets/ex1.market.ron"),
-)

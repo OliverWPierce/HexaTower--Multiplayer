@@ -5,6 +5,7 @@ use thiserror::Error;
 use crate::{
     InvalidEntityState,
     cards::CardDirectory,
+    markets::MarketId,
     players::{Inventory, InventoryIndex, PlayerDirectory, PlayerId},
     tile_based_actions::TileActionProcessCache,
     tile_mapping::TileId,
@@ -15,6 +16,7 @@ use crate::{
 pub enum ActionEffect {
     DamagedPieceOnTile(TileId),
     ConvertedTileType { tile: TileId, new_type: TileType },
+    SpawnedNewMarket { tile: TileId, market: MarketId },
 }
 #[derive(Default)]
 pub struct ChangeLog(Vec<ActionEffect>);
@@ -26,6 +28,12 @@ impl ChangeLog {
 
     pub fn write(&mut self, effect: ActionEffect) {
         self.0.push(effect);
+    }
+}
+
+impl From<Vec<ActionEffect>> for ChangeLog {
+    fn from(effects: Vec<ActionEffect>) -> Self {
+        Self(effects)
     }
 }
 
@@ -53,7 +61,7 @@ pub enum RequestType {
     },
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
-enum InputData {
+pub enum InputData {
     AffectedTiles(Box<[TileId]>),
     Ex1,
 }

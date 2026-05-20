@@ -3,10 +3,12 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
+use bevy::ecs::component::Component;
 use serde::{Deserialize, Serialize};
 
 /// Tile ids start at zero and work counter clockwise from the origin, starting at the tile directly beneath the origin.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Component, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
+#[component(immutable)]
 pub struct TileId(u32);
 
 impl TileId {
