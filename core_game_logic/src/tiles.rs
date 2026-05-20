@@ -31,6 +31,17 @@ impl TileDirectory {
             .ok_or(InvaildIDErr(tile_id))
     }
 
+    pub fn tile_entities(&self) -> &[Entity] {
+        &self.0
+    }
+
+    pub fn id_entity_pairs(&self) -> impl Iterator<Item = (TileId, Entity)> {
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(id, ent)| (TileId::new(id as u32), *ent))
+    }
+
     // This is the total number of tiles on the board, as you would count them.
     pub fn tile_count(&self) -> usize {
         self.0.len()

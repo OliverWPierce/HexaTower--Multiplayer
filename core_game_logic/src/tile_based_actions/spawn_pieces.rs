@@ -1,0 +1,82 @@
+use crate::{
+    pieces::{self, Health, LogPieceOwnedByPlayer, OccupiedByPiece, OccupiesTile},
+    players::{PlayerDirectory, PlayerId},
+    requests::{ActionEffect, ChangeLog},
+    tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
+    tile_mapping::TileId,
+    tiles::TileDirectory,
+};
+#[derive(Debug)]
+struct SpawnPieces {
+    archetype: crate::pieces::ArchetypeId,
+    owner: PlayerId,
+}
+
+impl TileActionFunctionalityCapabilityConstants for SpawnPieces {
+    const ACCEPTABLE_SELECTION_COUNTS: std::ops::Range<usize> = 0..usize::MAX;
+}
+impl TileActionFunctionality for SpawnPieces {
+    fn execute(
+        &self,
+        validated_selections: &[crate::tile_mapping::TileId],
+        world: &mut bevy::ecs::world::World,
+    ) -> crate::requests::ChangeLog {
+        let piece_blueprint = world
+            .resource::<pieces::ArchetypeDirectory>()
+            .get_archetype(self.archetype)
+            .unwrap()
+            .clone();
+
+        let player_entity = world
+            .resource::<PlayerDirectory>()
+            .get_player(self.owner)
+            .unwrap();
+
+        let tile_entities = world.resource::<TileDirectory>();
+
+        let mut log = ChangeLog::default();
+
+        for (id, tile) in validated_selections
+            .iter()
+            .map(|id| (*id, tile_entities.get_entity(*id).unwrap()))
+            .collect::<Box<[(TileId, bevy::ecs::entity::Entity)]>>()
+        {
+            world.spawn((
+                Health {
+                    max: piece_blueprint.max_health,
+                    current: piece_blueprint.max_health,
+                },
+                LogPieceOwnedByPlayer(player_entity),
+                OccupiesTile(tile),
+            ));
+
+            log.write(ActionEffect::SpawnedPiece {
+                tile: id,
+                player: self.owner,
+                archetype: self.archetype,
+            });
+        }
+
+        log
+    }
+
+    fn update_eligibility(
+        &self,
+        selection_status: &mut super::selection_mechanics::SelectionData,
+        world: &bevy::ecs::world::World,
+    ) {
+        for (id, ent) in world.resource::<TileDirectory>().id_entity_pairs() {
+            if world.get::<OccupiedByPiece>(ent).is_some() {
+                selection_status
+                    .try_set_state(id, super::selection_mechanics::State::Neither)
+                    .unwrap();
+            } else {
+                selection_status
+                    .try_set_state(id, super::selection_mechanics::State::Elligible)
+                    .unwrap();
+            }
+
+            // ignoring errors is fine, since we're not trying to select anything and we already know the tile ids are within the game's bounds.
+        }
+    }
+}

@@ -13,6 +13,7 @@ use crate::{
 pub mod change_tile_type;
 pub mod make_market_tile;
 mod selection_mechanics;
+pub mod spawn_pieces;
 
 pub trait TileActionFunctionality: Debug {
     fn execute(&self, validated_selections: &[TileId], world: &mut World) -> ChangeLog;

@@ -14,9 +14,19 @@ use crate::{
 
 #[derive(Debug, PartialEq)]
 pub enum ActionEffect {
-    DamagedPieceOnTile(TileId),
-    ConvertedTileType { tile: TileId, new_type: TileType },
-    SpawnedNewMarket { tile: TileId, market: MarketId },
+    ConvertedTileType {
+        tile: TileId,
+        new_type: TileType,
+    },
+    SpawnedNewMarket {
+        tile: TileId,
+        market: MarketId,
+    },
+    SpawnedPiece {
+        tile: TileId,
+        player: PlayerId,
+        archetype: crate::pieces::ArchetypeId,
+    },
 }
 #[derive(Default)]
 pub struct ChangeLog(Vec<ActionEffect>);

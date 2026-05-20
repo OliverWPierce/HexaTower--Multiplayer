@@ -6,6 +6,7 @@ pub mod markets;
 pub mod players;
 pub mod requests;
 
+pub mod pieces;
 pub mod tile_based_actions;
 pub mod tile_mapping;
 pub mod tiles;
