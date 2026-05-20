@@ -14,6 +14,7 @@ pub mod tiles;
 use crate::{
     cards::{CardId, LogicalCard, initialize_cards},
     markets::LogicalMarket,
+    pieces::{LogicalPieceArchetype, initialize_pieces},
     players::initialize_players,
     tiles::initialize_tiles,
 };
@@ -23,6 +24,7 @@ pub struct CreationParameters {
     pub player_count: u8,
     pub all_cards: Box<[LogicalCard]>,
     pub all_markets: Box<[LogicalMarket]>,
+    pub piece_archetypes: Box<[LogicalPieceArchetype]>,
     pub starting_cards: Box<[CardId]>,
 }
 
@@ -39,6 +41,7 @@ impl CreationParameters {
         initialize_tiles(&mut logical_world, self.board_size);
         initialize_cards(&mut logical_world, self.all_cards);
         initialize_players(&mut logical_world, self.player_count, &self.starting_cards);
+        initialize_pieces(&mut logical_world, self.piece_archetypes);
         logical_world
     }
 
@@ -51,6 +54,7 @@ impl CreationParameters {
             all_cards: logical_testing_assets::LOGICAL_CARDS_FOR_TESTING.into(),
             all_markets: logical_testing_assets::LOGICAL_MARKETS_FOR_TESTING.into(),
             starting_cards: logical_testing_assets::STARTING_CARDS_FOR_TESTING.into(),
+            piece_archetypes: logical_testing_assets::LOGICAL_PIECES_FOR_TESTING.into(),
         };
         parameters.create_logical_world()
     }

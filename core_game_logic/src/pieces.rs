@@ -1,8 +1,12 @@
-use bevy::ecs::{component::Component, entity::Entity, resource::Resource};
+use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
 use thiserror::Error;
 
 #[derive(Debug, Resource)]
-pub struct ArchetypeDirectory(Vec<LogicalPieceArchetype>);
+pub struct ArchetypeDirectory(Box<[LogicalPieceArchetype]>);
+
+pub fn initialize_pieces(world: &mut World, piece_archetypes: Box<[LogicalPieceArchetype]>) {
+    world.insert_resource(ArchetypeDirectory(piece_archetypes));
+}
 
 #[derive(Debug, Clone)]
 pub struct LogicalPieceArchetype {
