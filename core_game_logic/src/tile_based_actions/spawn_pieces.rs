@@ -7,9 +7,9 @@ use crate::{
     tiles::TileDirectory,
 };
 #[derive(Debug)]
-struct SpawnPieces {
-    archetype: crate::pieces::ArchetypeId,
-    owner: PlayerId,
+pub struct SpawnPieces {
+    pub archetype: crate::pieces::ArchetypeId,
+    pub owner: PlayerId,
 }
 
 impl TileActionFunctionalityCapabilityConstants for SpawnPieces {
@@ -76,7 +76,7 @@ impl TileActionFunctionality for SpawnPieces {
                     .unwrap();
             }
 
-            // ignoring errors is fine, since we're not trying to select anything and we already know the tile ids are within the game's bounds.
+            // unwrap is fine, since we're not trying to select anything and we already know the tile ids are within the game's bounds.
         }
     }
 }

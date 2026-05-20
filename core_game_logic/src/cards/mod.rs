@@ -8,9 +8,12 @@ pub use card_storage::*;
 
 use crate::{
     markets::MarketId,
+    pieces::ArchetypeId,
+    players::PlayerId,
     requests::ActionProcessCache,
     tile_based_actions::{
         self, TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo,
+        make_market_tile::MakeMarketTile, spawn_pieces::SpawnPieces,
     },
     tiles::TileType,
 };
@@ -21,7 +24,10 @@ pub enum CardFunction {
         selection_bounds: Range<usize>,
         target_type: TileType,
     },
-    Ex2,
+    SpawnPiece {
+        selection_bounds: Range<usize>,
+        piece_archetype: ArchetypeId,
+    },
     SpawnMarket {
         selection_bounds: Range<usize>,
         market: MarketId,
@@ -57,11 +63,29 @@ impl CardFunction {
                 world,
             )
             .into(),
-            CardFunction::Ex2 => todo!(),
             CardFunction::SpawnMarket {
                 selection_bounds,
                 market,
-            } => todo!(),
+            } => TileActionProcessCache::initialize(
+                TileAction::new(MakeMarketTile { market: *market }, selection_bounds.clone())?,
+                world,
+            )
+            .into(),
+            CardFunction::SpawnPiece {
+                selection_bounds,
+                piece_archetype,
+            } => TileActionProcessCache::initialize(
+                TileAction::new(
+                    SpawnPieces {
+                        archetype: *piece_archetype,
+                        // FIX THIS: replace the hardcoded PlayerId with something proper.
+                        owner: PlayerId(0),
+                    },
+                    selection_bounds.clone(),
+                )?,
+                world,
+            )
+            .into(),
         };
 
         Ok(cache)
