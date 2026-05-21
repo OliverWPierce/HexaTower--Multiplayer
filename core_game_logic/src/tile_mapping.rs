@@ -24,7 +24,6 @@ pub fn tiles_on_board(rings_on_board: u32) -> u32 {
     (3 * (rings_on_board + 1) * rings_on_board) + 1
 }
 
-/// "i" is north+/south-. "j" is northeast+/southwest-. "k" is northwest+/southeast-.
 #[derive(Debug, Clone, Copy)]
 pub struct HexVector2d {
     a: i32,

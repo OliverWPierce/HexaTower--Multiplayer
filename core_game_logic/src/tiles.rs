@@ -42,7 +42,7 @@ impl TileDirectory {
             .map(|(id, ent)| (TileId::new(id as u32), *ent))
     }
 
-    // This is the total number of tiles on the board, as you would count them.
+    /// This is the total number of tiles on the board, as you would count them (not programmer counting where we start at zero).
     pub fn tile_count(&self) -> usize {
         self.0.len()
     }

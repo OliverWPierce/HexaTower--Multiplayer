@@ -40,7 +40,7 @@ pub fn initialize_cards(world: &mut World, cards: Box<[LogicalCard]>) {
 
 #[derive(Debug, Error)]
 pub enum CardFunctionConversionError {
-    #[error("Attempted to select a tile of invalid id. Id number {0}")]
+    #[error("Card function had an invalid selection bounds for this tile action.")]
     CouldNotConvertToTileAction(#[from] tile_based_actions::InvalidSelectionBounds),
 }
 
@@ -57,6 +57,7 @@ impl CardFunction {
                 TileAction::new(
                     ConvertTileTo {
                         target_type: target_type.clone(),
+                        restrictions: None,
                     },
                     selection_bounds.clone(),
                 )?,

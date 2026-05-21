@@ -3,10 +3,10 @@ use thiserror::Error;
 pub mod cards;
 mod logical_testing_assets;
 pub mod markets;
+pub mod orders;
+pub mod pieces;
 pub mod players;
 pub mod requests;
-
-pub mod pieces;
 pub mod tile_based_actions;
 pub mod tile_mapping;
 pub mod tiles;
@@ -14,6 +14,7 @@ pub mod tiles;
 use crate::{
     cards::{CardId, LogicalCard, initialize_cards},
     markets::LogicalMarket,
+    orders::{LogicalOrder, initialize_orders},
     pieces::{LogicalPieceArchetype, initialize_pieces},
     players::{ActivePlayer, PlayerId, initialize_players},
     requests::ChangeLog,
@@ -27,6 +28,7 @@ pub struct CreationParameters {
     pub all_markets: Box<[LogicalMarket]>,
     pub piece_archetypes: Box<[LogicalPieceArchetype]>,
     pub starting_cards: Box<[CardId]>,
+    pub orders: Box<[LogicalOrder]>,
 }
 
 #[derive(Debug, Error)]
@@ -42,6 +44,7 @@ impl CreationParameters {
         initialize_tiles(&mut logical_world, self.board_size);
         initialize_cards(&mut logical_world, self.all_cards);
         initialize_players(&mut logical_world, self.player_count, &self.starting_cards);
+        initialize_orders(&mut logical_world, self.orders);
         initialize_pieces(&mut logical_world, self.piece_archetypes);
 
         logical_world.insert_resource(ActivePlayer(PlayerId(0)));
@@ -60,6 +63,7 @@ impl CreationParameters {
             all_markets: logical_testing_assets::LOGICAL_MARKETS_FOR_TESTING.into(),
             starting_cards: logical_testing_assets::STARTING_CARDS_FOR_TESTING.into(),
             piece_archetypes: logical_testing_assets::LOGICAL_PIECES_FOR_TESTING.into(),
+            orders: logical_testing_assets::LOGICAL_ORDERS_FOR_TESTING.into(),
         };
         parameters.create_logical_world().0
     }

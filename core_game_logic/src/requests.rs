@@ -45,6 +45,9 @@ pub enum ActionEffect {
         player: PlayerId,
         index: InventoryIndex,
     },
+    GaveOrderToPiece {
+        tile_of_piece: TileId,
+    },
 }
 #[derive(Default)]
 pub struct ChangeLog(Vec<ActionEffect>);
@@ -231,7 +234,7 @@ pub fn try_consume_request(
 
             change_log.write(ActionEffect::EndedTurn(exiting_player));
 
-            change_log.append(&mut players::apply_end_turn_effects(world, exiting_player));
+            change_log.append(&mut players::apply_end_turn_effects(world, exiting_player).unwrap());
 
             let next_player = {
                 let (preceding_players, next_players) = world

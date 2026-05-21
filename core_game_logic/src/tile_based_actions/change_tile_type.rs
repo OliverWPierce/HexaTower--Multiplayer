@@ -3,11 +3,17 @@ use std::ops::Range;
 use crate::{
     requests::{ActionEffect, ChangeLog},
     tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
+    tile_mapping::TileId,
     tiles::{TileDirectory, TileType},
 };
 #[derive(Debug, Clone)]
 pub struct ConvertTileTo {
     pub target_type: TileType,
+    pub restrictions: Option<AdjecentRestriction>,
+}
+#[derive(Debug, Clone)]
+pub struct AdjecentRestriction {
+    pub adjacent_to: TileId,
 }
 
 impl TileActionFunctionalityCapabilityConstants for ConvertTileTo {
@@ -45,9 +51,38 @@ impl TileActionFunctionality for ConvertTileTo {
     fn update_eligibility(
         &self,
         selection_status: &mut super::selection_mechanics::SelectionData,
-        _world: &bevy::ecs::world::World,
+        world: &bevy::ecs::world::World,
     ) {
-        selection_status.set_all_possible_elligible();
+        if self.restrictions.is_none() {
+            selection_status.set_all_possible_elligible();
+            return;
+        }
+
+        selection_status.clear_elligibles();
+
+        use crate::tile_mapping::*;
+        let basis_vector: HexVector2d = self.restrictions.as_ref().unwrap().adjacent_to.into();
+
+        let maximum_id_on_board =
+            TileId::new(world.resource::<TileDirectory>().tile_count() as u32 - 1);
+
+        let directions = [NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST];
+
+        for id in directions.iter().filter_map(|direction| {
+            let id: TileId = (basis_vector + *direction).into();
+            if id > maximum_id_on_board {
+                None
+            } else {
+                Some(id)
+            }
+        }) {
+            selection_status
+                .try_set_state(
+                    id,
+                    crate::tile_based_actions::selection_mechanics::State::Elligible,
+                )
+                .unwrap(); // Since we already made sure the TileId is valid for this board size, and we're not trying to select a tile, this is fine.
+        }
     }
 }
 
@@ -68,6 +103,7 @@ mod tests {
             TileAction::new(
                 ConvertTileTo {
                     target_type: crate::tiles::TileType::Ex1,
+                    restrictions: None,
                 },
                 2..4,
             )

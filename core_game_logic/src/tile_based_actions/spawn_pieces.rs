@@ -1,5 +1,5 @@
 use crate::{
-    pieces::{self, Health, OccupiedByPiece, OccupiesTile, PieceOwnedByPlayer},
+    pieces::{self, Health, OccupiedByPiece, OccupiesTile, OrdersPerRound, PieceOwnedByPlayer},
     players::{PlayerDirectory, PlayerId},
     requests::{ActionEffect, ChangeLog},
     tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
@@ -48,6 +48,11 @@ impl TileActionFunctionality for SpawnPieces {
                 },
                 PieceOwnedByPlayer(player_entity),
                 OccupiesTile(tile),
+                OrdersPerRound {
+                    per_round: piece_blueprint.starting_orders_per_round,
+                    currently: 0,
+                },
+                piece_blueprint.orders.clone(),
             ));
 
             log.write(ActionEffect::SpawnedPiece {

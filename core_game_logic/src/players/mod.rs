@@ -2,7 +2,12 @@ use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world:
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{cards::CardId, requests::ChangeLog};
+use crate::{
+    cards::CardId,
+    pieces::{OccupiesTile, OrdersPerRound, OwnsLogPieces},
+    requests::{ActionEffect, ChangeLog},
+    tile_mapping::TileId,
+};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize, Component)]
 pub struct PlayerId(pub u8);
@@ -96,8 +101,41 @@ pub fn apply_start_turn_effects(world: &mut World, player: PlayerId) -> ChangeLo
     ChangeLog::default()
 }
 
-pub fn apply_end_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog {
-    ChangeLog::default()
+pub fn apply_end_turn_effects(
+    world: &mut World,
+    player: PlayerId,
+) -> Result<ChangeLog, InvalidIdErr> {
+    let player_ent = world.resource::<PlayerDirectory>().get_player(player)?;
+
+    let mut log = ChangeLog::default();
+
+    if let Some(owned_pieces) = world.get::<OwnsLogPieces>(player_ent) {
+        for piece in owned_pieces.list().clone() {
+            let tile_id = world
+                .get::<TileId>(
+                    world
+                        .get::<OccupiesTile>(piece)
+                        .expect("all pieces should have an id.")
+                        .0,
+                )
+                .expect("all tile entities must have a TileId")
+                .clone();
+
+            let mut order_information = world.get_mut::<OrdersPerRound>(piece).expect(
+                "Pieces should always have information about how many orders they can use.",
+            );
+
+            for _ in 0..(order_information.per_round - order_information.currently) {
+                log.write(ActionEffect::GaveOrderToPiece {
+                    tile_of_piece: tile_id,
+                });
+            }
+
+            order_information.currently = order_information.per_round;
+        }
+    }
+
+    Ok(ChangeLog::default())
 }
 #[derive(Debug, Component, PartialEq, Eq)]
 pub enum PlayerState {

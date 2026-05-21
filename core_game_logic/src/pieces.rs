@@ -1,6 +1,8 @@
 use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
 use thiserror::Error;
 
+use crate::orders::OrderId;
+
 #[derive(Debug, Resource)]
 pub struct ArchetypeDirectory(Box<[LogicalPieceArchetype]>);
 
@@ -11,6 +13,8 @@ pub fn initialize_pieces(world: &mut World, piece_archetypes: Box<[LogicalPieceA
 #[derive(Debug, Clone)]
 pub struct LogicalPieceArchetype {
     pub max_health: u32,
+    pub starting_orders_per_round: u8,
+    pub orders: Orders,
 }
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -62,4 +66,13 @@ pub struct PieceOwnedByPlayer(pub Entity);
 pub struct Health {
     pub max: u32,
     pub current: u32,
+}
+
+#[derive(Debug, Component, Clone)]
+pub struct Orders(pub [Option<OrderId>; 5]);
+
+#[derive(Debug, Component)]
+pub struct OrdersPerRound {
+    pub per_round: u8,
+    pub currently: u8,
 }

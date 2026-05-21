@@ -91,7 +91,7 @@ impl SelectionData {
             }
         }
     }
-
+    /// Does not clear selected tiles, just elligible ones.
     pub fn clear_elligibles(&mut self) {
         self.all_tile_states.iter_mut().for_each(|state| {
             if *state == State::Elligible {
