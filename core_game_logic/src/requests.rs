@@ -41,6 +41,10 @@ pub enum ActionEffect {
     },
     EndedTurn(PlayerId),
     BeganTurn(PlayerId),
+    RemovedCardFromInventory {
+        player: PlayerId,
+        index: InventoryIndex,
+    },
 }
 #[derive(Default)]
 pub struct ChangeLog(Vec<ActionEffect>);
@@ -140,7 +144,7 @@ pub fn try_consume_request(
                 .functionality
                 .action_cache(world)?;
 
-            match action_cache {
+            let mut log = match action_cache {
                 ActionProcessCache::TileAction(mut tile_action_process_cache) => {
                     let InputData::AffectedTiles(tiles) = input else {
                         return Result::Err(UnexpectedInputType.into());
@@ -151,10 +155,22 @@ pub fn try_consume_request(
                             .try_select_tile_and_update_elligibility(id, world)?
                     }
 
-                    Ok(tile_action_process_cache.try_execute(world)?)
+                    tile_action_process_cache.try_execute(world)?
                 }
                 ActionProcessCache::Ex1 => todo!(),
-            }
+            };
+
+            world
+                .get_mut::<Inventory>(player_ent)
+                .unwrap()
+                .remove_card(inventory_index);
+
+            log.write(ActionEffect::RemovedCardFromInventory {
+                player: action_to_process.acting_player,
+                index: inventory_index,
+            });
+
+            Ok(log)
         }
         RequestType::PurchaseCard {
             market_tile,
