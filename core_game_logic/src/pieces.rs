@@ -39,13 +39,13 @@ pub struct OccupiesTile(pub Entity);
 pub struct OccupiedByPiece(Entity);
 
 impl OccupiedByPiece {
-    pub fn log_piece(&self) -> Entity {
+    pub fn piece(&self) -> Entity {
         self.0
     }
 }
 
 #[derive(Component)]
-#[relationship_target(relationship = LogPieceOwnedByPlayer, linked_spawn)]
+#[relationship_target(relationship = PieceOwnedByPlayer, linked_spawn)]
 pub struct OwnsLogPieces(Vec<Entity>);
 
 impl OwnsLogPieces {
@@ -56,7 +56,7 @@ impl OwnsLogPieces {
 
 #[derive(Component)]
 #[relationship(relationship_target = OwnsLogPieces)]
-pub struct LogPieceOwnedByPlayer(pub Entity);
+pub struct PieceOwnedByPlayer(pub Entity);
 
 #[derive(Component)]
 pub struct Health {

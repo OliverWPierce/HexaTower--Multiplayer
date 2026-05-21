@@ -29,6 +29,7 @@ pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &
                     hand: starting_cards.to_vec(),
                     max_size: 5,
                 },
+                Coins(25),
             )
         }))
         .collect::<Vec<Entity>>()
@@ -50,6 +51,7 @@ pub enum InventoryError {
     #[error("The inventory did not have a card at that index.")]
     InvalidIndex(InventoryIndex),
 }
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 pub struct InventoryIndex(pub u8);
 
@@ -75,3 +77,6 @@ impl Inventory {
         self.hand.remove(index_in_inventory.0 as usize);
     }
 }
+
+#[derive(Debug, Component)]
+pub struct Coins(pub u32);

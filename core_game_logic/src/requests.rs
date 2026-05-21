@@ -4,12 +4,13 @@ use thiserror::Error;
 
 use crate::{
     InvalidEntityState,
-    cards::CardDirectory,
-    markets::MarketId,
-    players::{Inventory, InventoryIndex, PlayerDirectory, PlayerId},
+    cards::{CardDirectory, CardId},
+    markets::{MarketDirectory, MarketId},
+    pieces::{OccupiedByPiece, PieceOwnedByPlayer},
+    players::{Coins, Inventory, InventoryIndex, PlayerDirectory, PlayerId},
     tile_based_actions::TileActionProcessCache,
     tile_mapping::TileId,
-    tiles::TileType,
+    tiles::{MarketTile, TileDirectory, TileType},
 };
 
 #[derive(Debug, PartialEq)]
@@ -26,6 +27,14 @@ pub enum ActionEffect {
         tile: TileId,
         player: PlayerId,
         archetype: crate::pieces::ArchetypeId,
+    },
+    AddedCardToInventory {
+        player: PlayerId,
+        card: CardId,
+    },
+    AlteredCoins {
+        player: PlayerId,
+        delta_coins: i32,
     },
 }
 #[derive(Default)]
@@ -69,6 +78,10 @@ pub enum RequestType {
         inventory_index: InventoryIndex,
         input: InputData,
     },
+    PurchaseCard {
+        market_tile: TileId,
+        index_of_card: u8,
+    },
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum InputData {
@@ -80,6 +93,18 @@ pub enum InputData {
     "The request contained a certain type of additional input data, but it did not match the input expected by the action."
 )]
 struct UnexpectedInputType;
+
+#[derive(Debug, Error)]
+pub enum PurchaseCardError {
+    #[error("Tile {0:?} is not a market tile.")]
+    TileIsNotMarket(TileId),
+    #[error("The player does not have a piece occupying tile {0:?}.")]
+    PlayerDoesNotOccupyTile(TileId),
+    #[error("The player cannot afford this card.")]
+    NotEnoughCoins,
+    #[error("No card availible at this index at the market tile.")]
+    IndexOutOfBounds,
+}
 
 pub fn try_consume_request(
     action_to_process: BackendRequest,
@@ -116,12 +141,62 @@ pub fn try_consume_request(
                             .try_select_tile_and_update_elligibility(id, world)?
                     }
 
-                    tile_action_process_cache.try_execute(world)?
+                    Ok(tile_action_process_cache.try_execute(world)?)
                 }
                 ActionProcessCache::Ex1 => todo!(),
-            };
+            }
         }
-    };
+        RequestType::PurchaseCard {
+            market_tile,
+            index_of_card,
+        } => {
+            let tile_entity = world.resource::<TileDirectory>().get_entity(market_tile)?;
+            let player_ent = world
+                .resource::<PlayerDirectory>()
+                .get_player(action_to_process.acting_player)?;
 
-    todo!()
+            if let Some(occupying_piece) = world.get::<OccupiedByPiece>(tile_entity)
+                && let Some(owner) = world.get::<PieceOwnedByPlayer>(occupying_piece.piece())
+                && player_ent == owner.0
+            {
+                let market = world
+                    .get::<MarketTile>(tile_entity)
+                    .ok_or(PurchaseCardError::TileIsNotMarket(market_tile))?
+                    .0;
+
+                let (card, price) = *world
+                    .resource::<MarketDirectory>()
+                    .get_market(market)?
+                    .0
+                    .get(index_of_card as usize)
+                    .ok_or(PurchaseCardError::IndexOutOfBounds)?;
+
+                if world.get::<Coins>(player_ent).unwrap().0 >= price.0 {
+                    world
+                        .get_mut::<Inventory>(player_ent)
+                        .unwrap()
+                        .try_add_card(card)?;
+                    world.get_mut::<Coins>(player_ent).unwrap().0 -= price.0;
+
+                    let mut log = ChangeLog::default();
+
+                    log.write(ActionEffect::AddedCardToInventory {
+                        player: action_to_process.acting_player,
+                        card,
+                    });
+
+                    log.write(ActionEffect::AlteredCoins {
+                        player: action_to_process.acting_player,
+                        delta_coins: -(price.0 as i32),
+                    });
+
+                    Ok(log)
+                } else {
+                    Err(PurchaseCardError::NotEnoughCoins)?
+                }
+            } else {
+                Err(PurchaseCardError::PlayerDoesNotOccupyTile(market_tile))?
+            }
+        }
+    }
 }

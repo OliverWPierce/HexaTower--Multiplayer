@@ -1,3 +1,4 @@
+use bevy::ecs::resource::Resource;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -5,6 +6,7 @@ use crate::cards::CardId;
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 pub struct MarketId(pub u32);
 
+#[derive(Debug, Resource)]
 pub struct MarketDirectory(Box<[LogicalMarket]>);
 
 #[derive(Debug, Clone, Copy)]
@@ -18,7 +20,7 @@ pub struct LogicalMarket(pub [(CardId, CardPrice); 3]);
 pub struct InvaildIDErr(pub MarketId);
 
 impl MarketDirectory {
-    fn get_market(&self, id: MarketId) -> Result<&LogicalMarket, InvaildIDErr> {
+    pub fn get_market(&self, id: MarketId) -> Result<&LogicalMarket, InvaildIDErr> {
         self.0.get(id.0 as usize).ok_or(InvaildIDErr(id))
     }
 }

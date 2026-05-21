@@ -1,5 +1,5 @@
 use crate::{
-    pieces::{self, Health, LogPieceOwnedByPlayer, OccupiedByPiece, OccupiesTile},
+    pieces::{self, Health, OccupiedByPiece, OccupiesTile, PieceOwnedByPlayer},
     players::{PlayerDirectory, PlayerId},
     requests::{ActionEffect, ChangeLog},
     tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
@@ -46,7 +46,7 @@ impl TileActionFunctionality for SpawnPieces {
                     max: piece_blueprint.max_health,
                     current: piece_blueprint.max_health,
                 },
-                LogPieceOwnedByPlayer(player_entity),
+                PieceOwnedByPlayer(player_entity),
                 OccupiesTile(tile),
             ));
 
