@@ -2,7 +2,7 @@ use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world:
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::cards::CardId;
+use crate::{cards::CardId, requests::ChangeLog};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize, Component)]
 pub struct PlayerId(pub u8);
@@ -18,7 +18,14 @@ impl PlayerDirectory {
     pub fn get_player(&self, id: PlayerId) -> Result<Entity, InvalidIdErr> {
         self.0.get(id.0 as usize).copied().ok_or(InvalidIdErr(id))
     }
+
+    pub fn read(&self) -> &[Entity] {
+        &self.0
+    }
 }
+
+pub const STARTING_COINS: u32 = 25;
+pub const INVENTORY_MAX_SIZE: u8 = 5;
 
 pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &[CardId]) {
     let players = world
@@ -27,9 +34,10 @@ pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &
                 PlayerId(id),
                 Inventory {
                     hand: starting_cards.to_vec(),
-                    max_size: 5,
+                    max_size: INVENTORY_MAX_SIZE,
                 },
-                Coins(25),
+                Coins(STARTING_COINS),
+                PlayerState::HasNoWinConditionYet,
             )
         }))
         .collect::<Vec<Entity>>()
@@ -80,3 +88,20 @@ impl Inventory {
 
 #[derive(Debug, Component)]
 pub struct Coins(pub u32);
+
+#[derive(Debug, Resource)]
+pub struct ActivePlayer(pub PlayerId);
+
+pub fn apply_start_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog {
+    ChangeLog::default()
+}
+
+pub fn apply_end_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog {
+    ChangeLog::default()
+}
+#[derive(Debug, Component, PartialEq, Eq)]
+pub enum PlayerState {
+    HasNoWinConditionYet,
+    Alive,
+    Dead,
+}

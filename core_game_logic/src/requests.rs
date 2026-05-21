@@ -7,7 +7,10 @@ use crate::{
     cards::{CardDirectory, CardId},
     markets::{MarketDirectory, MarketId},
     pieces::{OccupiedByPiece, PieceOwnedByPlayer},
-    players::{Coins, Inventory, InventoryIndex, PlayerDirectory, PlayerId},
+    players::{
+        self, ActivePlayer, Coins, Inventory, InventoryIndex, PlayerDirectory, PlayerId,
+        PlayerState,
+    },
     tile_based_actions::TileActionProcessCache,
     tile_mapping::TileId,
     tiles::{MarketTile, TileDirectory, TileType},
@@ -36,6 +39,8 @@ pub enum ActionEffect {
         player: PlayerId,
         delta_coins: i32,
     },
+    EndedTurn(PlayerId),
+    BeganTurn(PlayerId),
 }
 #[derive(Default)]
 pub struct ChangeLog(Vec<ActionEffect>);
@@ -47,6 +52,10 @@ impl ChangeLog {
 
     pub fn write(&mut self, effect: ActionEffect) {
         self.0.push(effect);
+    }
+
+    pub fn append(&mut self, second_log: &mut ChangeLog) {
+        self.0.append(&mut second_log.0);
     }
 }
 
@@ -82,6 +91,7 @@ pub enum RequestType {
         market_tile: TileId,
         index_of_card: u8,
     },
+    EndTurn,
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum InputData {
@@ -197,6 +207,32 @@ pub fn try_consume_request(
             } else {
                 Err(PurchaseCardError::PlayerDoesNotOccupyTile(market_tile))?
             }
+        }
+        RequestType::EndTurn => {
+            let exiting_player = world.resource::<ActivePlayer>().0;
+
+            let mut change_log = ChangeLog::default();
+
+            change_log.write(ActionEffect::EndedTurn(exiting_player));
+
+            change_log.append(&mut players::apply_end_turn_effects(world, exiting_player));
+
+            let next_player = {
+                let (preceding_players, next_players) = world
+                    .resource::<PlayerDirectory>()
+                    .read()
+                    .split_at(exiting_player.0 as usize);
+
+                *world.get::<PlayerId>(*next_players.iter().skip(1).chain(preceding_players).find(|player| *world.get::<PlayerState>(**player).unwrap() != PlayerState::Dead).expect("Tried to end turn, but all players were dead (except perhaps the active player.) This indicates the game is over, which should have been handled by another system. (Players cannot end their turn when the game is over).")).ok_or(InvalidEntityState)?
+            };
+
+            world.resource_mut::<ActivePlayer>().0 = next_player;
+
+            change_log.write(ActionEffect::BeganTurn(next_player));
+
+            change_log.append(&mut players::apply_start_turn_effects(world, next_player));
+
+            Ok(change_log)
         }
     }
 }

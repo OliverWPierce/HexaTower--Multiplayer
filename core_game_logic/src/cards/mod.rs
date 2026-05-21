@@ -9,7 +9,7 @@ pub use card_storage::*;
 use crate::{
     markets::MarketId,
     pieces::ArchetypeId,
-    players::PlayerId,
+    players::ActivePlayer,
     requests::ActionProcessCache,
     tile_based_actions::{
         self, TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo,
@@ -78,8 +78,7 @@ impl CardFunction {
                 TileAction::new(
                     SpawnPieces {
                         archetype: *piece_archetype,
-                        // FIX THIS: replace the hardcoded PlayerId with something proper.
-                        owner: PlayerId(0),
+                        owner: world.resource::<ActivePlayer>().0,
                     },
                     selection_bounds.clone(),
                 )?,

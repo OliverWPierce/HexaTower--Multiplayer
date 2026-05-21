@@ -15,7 +15,8 @@ use crate::{
     cards::{CardId, LogicalCard, initialize_cards},
     markets::LogicalMarket,
     pieces::{LogicalPieceArchetype, initialize_pieces},
-    players::initialize_players,
+    players::{ActivePlayer, PlayerId, initialize_players},
+    requests::ChangeLog,
     tiles::initialize_tiles,
 };
 
@@ -35,14 +36,18 @@ pub struct CreationParameters {
 pub struct InvalidEntityState;
 
 impl CreationParameters {
-    pub fn create_logical_world(self) -> bevy::ecs::world::World {
+    pub fn create_logical_world(self) -> (bevy::ecs::world::World, ChangeLog) {
         let mut logical_world = bevy::ecs::world::World::new();
 
         initialize_tiles(&mut logical_world, self.board_size);
         initialize_cards(&mut logical_world, self.all_cards);
         initialize_players(&mut logical_world, self.player_count, &self.starting_cards);
         initialize_pieces(&mut logical_world, self.piece_archetypes);
-        logical_world
+
+        logical_world.insert_resource(ActivePlayer(PlayerId(0)));
+        let log = players::apply_start_turn_effects(&mut logical_world, PlayerId(0));
+
+        (logical_world, log)
     }
 
     // this is only used in testing; nevertheless, I don't want to duplicate this code everywhere so I'm putting it here.
@@ -56,6 +61,6 @@ impl CreationParameters {
             starting_cards: logical_testing_assets::STARTING_CARDS_FOR_TESTING.into(),
             piece_archetypes: logical_testing_assets::LOGICAL_PIECES_FOR_TESTING.into(),
         };
-        parameters.create_logical_world()
+        parameters.create_logical_world().0
     }
 }
