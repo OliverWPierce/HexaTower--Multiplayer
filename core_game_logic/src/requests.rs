@@ -53,7 +53,10 @@ pub enum ActionEffect {
         tile_of_piece: TileId,
     },
     ReducedRemaingOrdersOfPlayer(PlayerId),
-    IncreasedRemainingOrdersOfPlayer(PlayerId),
+    IncreasedRemainingOrdersOfPlayer {
+        receipient: PlayerId,
+        source: Option<TileId>,
+    },
 }
 #[derive(Default)]
 pub struct ChangeLog(Vec<ActionEffect>);
@@ -275,7 +278,7 @@ pub fn try_consume_request(
 
             change_log.write(ActionEffect::BeganTurn(next_player));
 
-            change_log.append(&mut players::apply_start_turn_effects(world, next_player));
+            change_log.append(&mut players::apply_start_turn_effects(world, next_player)?);
 
             Ok(change_log)
         }
@@ -324,7 +327,10 @@ pub fn try_consume_request(
 
             let mut change_log = ChangeLog::default();
 
-            // We haven't actually made this change yet, but we want it to appear to the player before the action actually fires. If the action somehow fails, the changelog isn't emitted, so this doesn't introduce a visual bug.
+            // We haven't actually made these changes yet, but we want them to appear to the player before the action actually fires. If the action somehow fails, the changelog isn't emitted, so this doesn't introduce a visual bug.
+            change_log.write(ActionEffect::ReducedRemaingOrdersOfPlayer(
+                request_to_process.acting_player,
+            ));
             change_log.write(ActionEffect::ReducedRemainingOrdersOfPiece {
                 tile_of_piece: tile,
             });
@@ -351,10 +357,6 @@ pub fn try_consume_request(
                 .get_mut::<PlayerOrdersRemaining>(acting_player)
                 .unwrap()
                 .remaining -= 1;
-
-            change_log.write(ActionEffect::ReducedRemaingOrdersOfPlayer(
-                request_to_process.acting_player,
-            ));
 
             Ok(change_log)
         }

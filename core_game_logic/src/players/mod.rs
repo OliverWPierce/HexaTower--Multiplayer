@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{
     cards::CardId,
-    pieces::{OccupiesTile, OrdersReceivable, OwnsLogPieces},
+    pieces::{GivesExtraPlayerOrder, OccupiesTile, OrdersReceivable, OwnsPieces},
     requests::{ActionEffect, ChangeLog},
     tile_mapping::TileId,
 };
@@ -98,8 +98,47 @@ pub struct Coins(pub u32);
 #[derive(Debug, Resource)]
 pub struct ActivePlayer(pub PlayerId);
 
-pub fn apply_start_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog {
-    ChangeLog::default()
+pub fn apply_start_turn_effects(
+    world: &mut World,
+    player: PlayerId,
+) -> Result<ChangeLog, InvalidIdErr> {
+    let player_ent = world.resource::<PlayerDirectory>().get_player(player)?;
+
+    let players_pieces = world.get::<OwnsPieces>(player_ent).unwrap();
+
+    let mut orders_to_give = 2;
+    let mut log = ChangeLog::default();
+
+    log.write(ActionEffect::IncreasedRemainingOrdersOfPlayer {
+        receipient: player,
+        source: None,
+    });
+    log.write(ActionEffect::IncreasedRemainingOrdersOfPlayer {
+        receipient: player,
+        source: None,
+    });
+
+    for piece in players_pieces.list() {
+        if world.get::<GivesExtraPlayerOrder>(*piece).is_some() {
+            orders_to_give += 1;
+            log.write(ActionEffect::IncreasedRemainingOrdersOfPlayer {
+                receipient: player,
+                source: Some(
+                    *world
+                        .get::<TileId>(world.get::<OccupiesTile>(*piece).unwrap().0)
+                        .unwrap(),
+                ),
+            });
+        }
+    }
+
+    world
+        .get_mut::<PlayerOrdersRemaining>(player_ent)
+        .unwrap()
+        .remaining += orders_to_give;
+    // we add instead of simply setting so that it is easy to allow other players to "gift" an order later on in development, if playtesting finds that beneficial. This also avoids visual bugs.
+
+    Ok(ChangeLog::default())
 }
 
 pub fn apply_end_turn_effects(
@@ -110,7 +149,16 @@ pub fn apply_end_turn_effects(
 
     let mut log = ChangeLog::default();
 
-    if let Some(owned_pieces) = world.get::<OwnsLogPieces>(player_ent) {
+    {
+        let mut player_orders = world.get_mut::<PlayerOrdersRemaining>(player_ent).unwrap();
+
+        for _ in 0..player_orders.remaining {
+            log.write(ActionEffect::ReducedRemaingOrdersOfPlayer(player));
+        }
+        player_orders.remaining = 0;
+    }
+
+    if let Some(owned_pieces) = world.get::<OwnsPieces>(player_ent) {
         for piece in owned_pieces.list().clone() {
             let tile_id = *world
                 .get::<TileId>(
@@ -125,18 +173,32 @@ pub fn apply_end_turn_effects(
                 "Pieces should always have information about how many orders they can use.",
             );
 
-            // FIX BUG: if the current orders exceed the amount the piece gets per round, the game crashes!!
-            for _ in 0..(order_information.per_round - order_information.currently) {
-                log.write(ActionEffect::IncreasedRemainingOrdersOfPiece {
-                    tile_of_piece: tile_id,
-                });
+            let difference_in_orders =
+                order_information.per_round as i8 - order_information.currently as i8;
+
+            match difference_in_orders.signum() {
+                1 => {
+                    for _ in 0..difference_in_orders.abs() {
+                        log.write(ActionEffect::IncreasedRemainingOrdersOfPiece {
+                            tile_of_piece: tile_id,
+                        });
+                    }
+                }
+                -1 => {
+                    for _ in 0..difference_in_orders.abs() {
+                        log.write(ActionEffect::ReducedRemainingOrdersOfPiece {
+                            tile_of_piece: tile_id,
+                        });
+                    }
+                }
+                _ => (),
             }
 
             order_information.currently = order_information.per_round;
         }
     }
 
-    Ok(ChangeLog::default())
+    Ok(log)
 }
 #[derive(Debug, Component, PartialEq, Eq)]
 pub enum PlayerState {

@@ -76,6 +76,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
             None,
             None,
         ]),
+        gives_extra_player_order: false,
     },
     LogicalPieceArchetype {
         max_health: 1,
@@ -87,11 +88,13 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
             None,
             None,
         ]),
+        gives_extra_player_order: false,
     },
     LogicalPieceArchetype {
         max_health: 12,
         starting_orders_per_round: 1,
         orders: Orders([Some(OrderId(1)), None, None, None, None]),
+        gives_extra_player_order: true,
     },
 ];
 

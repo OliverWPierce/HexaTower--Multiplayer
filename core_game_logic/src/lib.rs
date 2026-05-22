@@ -48,7 +48,7 @@ impl CreationParameters {
         initialize_pieces(&mut logical_world, self.piece_archetypes);
 
         logical_world.insert_resource(ActivePlayer(PlayerId(0)));
-        let log = players::apply_start_turn_effects(&mut logical_world, PlayerId(0));
+        let log = players::apply_start_turn_effects(&mut logical_world, PlayerId(0)).unwrap();
 
         (logical_world, log)
     }

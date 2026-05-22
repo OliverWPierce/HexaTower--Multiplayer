@@ -15,6 +15,7 @@ pub struct LogicalPieceArchetype {
     pub max_health: u32,
     pub starting_orders_per_round: u8,
     pub orders: Orders,
+    pub gives_extra_player_order: bool,
 }
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -50,16 +51,16 @@ impl OccupiedByPiece {
 
 #[derive(Component)]
 #[relationship_target(relationship = PieceOwnedByPlayer, linked_spawn)]
-pub struct OwnsLogPieces(Vec<Entity>);
+pub struct OwnsPieces(Vec<Entity>);
 
-impl OwnsLogPieces {
+impl OwnsPieces {
     pub fn list(&self) -> &Vec<Entity> {
         &self.0
     }
 }
 
 #[derive(Component)]
-#[relationship(relationship_target = OwnsLogPieces)]
+#[relationship(relationship_target = OwnsPieces)]
 pub struct PieceOwnedByPlayer(pub Entity);
 
 #[derive(Component)]
@@ -76,3 +77,6 @@ pub struct OrdersReceivable {
     pub per_round: u8,
     pub currently: u8,
 }
+#[derive(Debug, Component)]
+#[component(storage = "SparseSet")]
+pub struct GivesExtraPlayerOrder;
