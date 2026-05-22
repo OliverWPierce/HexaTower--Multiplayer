@@ -72,7 +72,7 @@ pub struct Health {
 pub struct Orders(pub [Option<OrderId>; 5]);
 
 #[derive(Debug, Component)]
-pub struct OrdersPerRound {
+pub struct OrdersReceivable {
     pub per_round: u8,
     pub currently: u8,
 }

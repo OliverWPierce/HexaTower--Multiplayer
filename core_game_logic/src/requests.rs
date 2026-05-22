@@ -6,10 +6,11 @@ use crate::{
     InvalidEntityState,
     cards::{CardDirectory, CardId},
     markets::{MarketDirectory, MarketId},
-    pieces::{OccupiedByPiece, PieceOwnedByPlayer},
+    orders::OrderDirectory,
+    pieces::{OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
     players::{
         self, ActivePlayer, Coins, Inventory, InventoryIndex, PlayerDirectory, PlayerId,
-        PlayerState,
+        PlayerOrdersRemaining, PlayerState,
     },
     tile_based_actions::TileActionProcessCache,
     tile_mapping::TileId,
@@ -45,9 +46,14 @@ pub enum ActionEffect {
         player: PlayerId,
         index: InventoryIndex,
     },
-    GaveOrderToPiece {
+    IncreasedRemainingOrdersOfPiece {
         tile_of_piece: TileId,
     },
+    ReducedRemainingOrdersOfPiece {
+        tile_of_piece: TileId,
+    },
+    ReducedRemaingOrdersOfPlayer(PlayerId),
+    IncreasedRemainingOrdersOfPlayer(PlayerId),
 }
 #[derive(Default)]
 pub struct ChangeLog(Vec<ActionEffect>);
@@ -99,6 +105,11 @@ pub enum RequestType {
         index_of_card: u8,
     },
     EndTurn,
+    UseOrder {
+        tile: TileId,
+        input: InputData,
+        index_of_order: u8,
+    },
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum InputData {
@@ -122,23 +133,38 @@ pub enum PurchaseCardError {
     #[error("No card availible at this index at the market tile.")]
     IndexOutOfBounds,
 }
+#[derive(Debug, Error)]
+pub enum ExecuteOrderError {
+    #[error("Tile {0:?} is vacant, so it cannot be used to specify an order.")]
+    NoPieceOnTile(TileId),
+    #[error("The peice has no orders remaining for this round.")]
+    PieceHasNoRemainingOrders,
+    #[error("The acting player is out of orders for this roudn.")]
+    PlayerHasNoRemainingOrders,
+    #[error("The piece does not belong to the acting player.")]
+    PieceNotOwnedByPlayer,
+    #[error(
+        "Tried and failed to find an order on the piece at index {0:?}. This could be because it was an option of None, or because the index was greater than the array of orders could hold."
+    )]
+    PieceHasNoOrderAtIndex(u8),
+}
 
 pub fn try_consume_request(
-    action_to_process: BackendRequest,
+    request_to_process: BackendRequest,
     world: &mut World,
 ) -> anyhow::Result<ChangeLog> {
-    match action_to_process.request {
+    match request_to_process.request {
         RequestType::UseCard {
             inventory_index,
             input,
         } => {
             let player_ent = world
                 .resource::<PlayerDirectory>()
-                .get_player(action_to_process.acting_player)?;
+                .get_player(request_to_process.acting_player)?;
 
             let card = world
                 .get::<Inventory>(player_ent)
-                .ok_or(InvalidEntityState)?
+                .unwrap()
                 .get_card(inventory_index)?;
 
             let action_cache = world
@@ -169,7 +195,7 @@ pub fn try_consume_request(
                 .remove_card(inventory_index);
 
             log.write(ActionEffect::RemovedCardFromInventory {
-                player: action_to_process.acting_player,
+                player: request_to_process.acting_player,
                 index: inventory_index,
             });
 
@@ -182,7 +208,7 @@ pub fn try_consume_request(
             let tile_entity = world.resource::<TileDirectory>().get_entity(market_tile)?;
             let player_ent = world
                 .resource::<PlayerDirectory>()
-                .get_player(action_to_process.acting_player)?;
+                .get_player(request_to_process.acting_player)?;
 
             if let Some(occupying_piece) = world.get::<OccupiedByPiece>(tile_entity)
                 && let Some(owner) = world.get::<PieceOwnedByPlayer>(occupying_piece.piece())
@@ -210,12 +236,12 @@ pub fn try_consume_request(
                     let mut log = ChangeLog::default();
 
                     log.write(ActionEffect::AddedCardToInventory {
-                        player: action_to_process.acting_player,
+                        player: request_to_process.acting_player,
                         card,
                     });
 
                     log.write(ActionEffect::AlteredCoins {
-                        player: action_to_process.acting_player,
+                        player: request_to_process.acting_player,
                         delta_coins: -(price.0 as i32),
                     });
 
@@ -250,6 +276,85 @@ pub fn try_consume_request(
             change_log.write(ActionEffect::BeganTurn(next_player));
 
             change_log.append(&mut players::apply_start_turn_effects(world, next_player));
+
+            Ok(change_log)
+        }
+        RequestType::UseOrder {
+            tile,
+            input,
+            index_of_order,
+        } => {
+            let piece = world
+                .get::<OccupiedByPiece>(world.resource::<TileDirectory>().get_entity(tile)?)
+                .ok_or(ExecuteOrderError::NoPieceOnTile(tile))?
+                .piece();
+
+            if world.get::<OrdersReceivable>(piece).unwrap().currently < 1 {
+                return Err(ExecuteOrderError::PieceHasNoRemainingOrders.into());
+            }
+
+            let acting_player = world
+                .resource::<PlayerDirectory>()
+                .get_player(request_to_process.acting_player)?;
+
+            if world
+                .get::<PlayerOrdersRemaining>(acting_player)
+                .unwrap()
+                .remaining
+                < 1
+            {
+                return Err(ExecuteOrderError::PlayerHasNoRemainingOrders.into());
+            }
+
+            if world.get::<PieceOwnedByPlayer>(piece).unwrap().0 != acting_player {
+                return Err(ExecuteOrderError::PieceNotOwnedByPlayer.into());
+            }
+
+            let desired_order = world.resource::<OrderDirectory>().get_order(
+                world
+                    .get::<Orders>(piece)
+                    .unwrap()
+                    .0
+                    .get(index_of_order as usize)
+                    .ok_or(ExecuteOrderError::PieceHasNoOrderAtIndex(index_of_order))?
+                    .ok_or(ExecuteOrderError::PieceHasNoOrderAtIndex(index_of_order))?,
+            )?;
+
+            let action = desired_order.functionality.action_cache(tile, world)?;
+
+            let mut change_log = ChangeLog::default();
+
+            // We haven't actually made this change yet, but we want it to appear to the player before the action actually fires. If the action somehow fails, the changelog isn't emitted, so this doesn't introduce a visual bug.
+            change_log.write(ActionEffect::ReducedRemainingOrdersOfPiece {
+                tile_of_piece: tile,
+            });
+
+            match action {
+                ActionProcessCache::TileAction(mut tile_action_process_cache) => {
+                    let InputData::AffectedTiles(tiles_to_use_order_on) = input else {
+                        return Err(UnexpectedInputType.into());
+                    };
+
+                    for id in tiles_to_use_order_on {
+                        tile_action_process_cache
+                            .try_select_tile_and_update_elligibility(id, world)?
+                    }
+
+                    change_log.append(&mut tile_action_process_cache.try_execute(world)?);
+                }
+                ActionProcessCache::Ex1 => todo!(),
+            }
+
+            world.get_mut::<OrdersReceivable>(piece).unwrap().currently -= 1;
+
+            world
+                .get_mut::<PlayerOrdersRemaining>(acting_player)
+                .unwrap()
+                .remaining -= 1;
+
+            change_log.write(ActionEffect::ReducedRemaingOrdersOfPlayer(
+                request_to_process.acting_player,
+            ));
 
             Ok(change_log)
         }

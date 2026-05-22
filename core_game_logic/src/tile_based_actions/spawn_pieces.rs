@@ -1,5 +1,5 @@
 use crate::{
-    pieces::{self, Health, OccupiedByPiece, OccupiesTile, OrdersPerRound, PieceOwnedByPlayer},
+    pieces::{self, Health, OccupiedByPiece, OccupiesTile, OrdersReceivable, PieceOwnedByPlayer},
     players::{PlayerDirectory, PlayerId},
     requests::{ActionEffect, ChangeLog},
     tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
@@ -48,7 +48,7 @@ impl TileActionFunctionality for SpawnPieces {
                 },
                 PieceOwnedByPlayer(player_entity),
                 OccupiesTile(tile),
-                OrdersPerRound {
+                OrdersReceivable {
                     per_round: piece_blueprint.starting_orders_per_round,
                     currently: 0,
                 },

@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{
     cards::CardId,
-    pieces::{OccupiesTile, OrdersPerRound, OwnsLogPieces},
+    pieces::{OccupiesTile, OrdersReceivable, OwnsLogPieces},
     requests::{ActionEffect, ChangeLog},
     tile_mapping::TileId,
 };
@@ -43,6 +43,7 @@ pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &
                 },
                 Coins(STARTING_COINS),
                 PlayerState::HasNoWinConditionYet,
+                PlayerOrdersRemaining { remaining: 2 },
             )
         }))
         .collect::<Vec<Entity>>()
@@ -111,22 +112,22 @@ pub fn apply_end_turn_effects(
 
     if let Some(owned_pieces) = world.get::<OwnsLogPieces>(player_ent) {
         for piece in owned_pieces.list().clone() {
-            let tile_id = world
+            let tile_id = *world
                 .get::<TileId>(
                     world
                         .get::<OccupiesTile>(piece)
                         .expect("all pieces should have an id.")
                         .0,
                 )
-                .expect("all tile entities must have a TileId")
-                .clone();
+                .expect("all tile entities must have a TileId");
 
-            let mut order_information = world.get_mut::<OrdersPerRound>(piece).expect(
+            let mut order_information = world.get_mut::<OrdersReceivable>(piece).expect(
                 "Pieces should always have information about how many orders they can use.",
             );
 
+            // FIX BUG: if the current orders exceed the amount the piece gets per round, the game crashes!!
             for _ in 0..(order_information.per_round - order_information.currently) {
-                log.write(ActionEffect::GaveOrderToPiece {
+                log.write(ActionEffect::IncreasedRemainingOrdersOfPiece {
                     tile_of_piece: tile_id,
                 });
             }
@@ -142,4 +143,9 @@ pub enum PlayerState {
     HasNoWinConditionYet,
     Alive,
     Dead,
+}
+
+#[derive(Debug, Component)]
+pub struct PlayerOrdersRemaining {
+    pub remaining: u8,
 }

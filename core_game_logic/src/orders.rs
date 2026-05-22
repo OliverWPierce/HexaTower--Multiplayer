@@ -72,7 +72,7 @@ pub struct OrderDirectory(Box<[LogicalOrder]>);
 pub struct InvaildIDErr(pub OrderId);
 
 impl OrderDirectory {
-    pub fn get_card(&self, id: OrderId) -> Result<&LogicalOrder, InvaildIDErr> {
+    pub fn get_order(&self, id: OrderId) -> Result<&LogicalOrder, InvaildIDErr> {
         self.0.get(id.0 as usize).ok_or(InvaildIDErr(id))
     }
     pub fn new(orders: Box<[LogicalOrder]>) -> Self {
