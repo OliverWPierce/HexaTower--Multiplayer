@@ -1,13 +1,14 @@
-use bevy::ecs::world::World;
+use bevy::ecs::{entity::Entity, world::World};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    InvalidEntityState,
     cards::{CardDirectory, CardId},
     markets::{MarketDirectory, MarketId},
     orders::OrderDirectory,
-    pieces::{OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
+    pieces::{
+        IsWinCondition, OccupiedByPiece, Orders, OrdersReceivable, OwnsPieces, PieceOwnedByPlayer,
+    },
     players::{
         self, ActivePlayer, Coins, Inventory, InventoryIndex, PlayerDirectory, PlayerId,
         PlayerOrdersRemaining, PlayerState,
@@ -39,6 +40,7 @@ pub enum ActionEffect {
     AlteredCoins {
         player: PlayerId,
         delta_coins: i32,
+        from_tile: Option<TileId>,
     },
     EndedTurn(PlayerId),
     BeganTurn(PlayerId),
@@ -57,7 +59,18 @@ pub enum ActionEffect {
         receipient: PlayerId,
         source: Option<TileId>,
     },
+    DamagedPiece {
+        on_tile: TileId,
+        hp_removed: u32,
+    },
+    PieceKilled {
+        on_tile: TileId,
+    },
+    GameOver {
+        winner: Option<PlayerId>,
+    },
 }
+
 #[derive(Default)]
 pub struct ChangeLog(Vec<ActionEffect>);
 
@@ -126,6 +139,10 @@ pub enum InputData {
 struct UnexpectedInputType;
 
 #[derive(Debug, Error)]
+#[error("It is not player {0:?}'s turn.")]
+struct NotPlayersTurn(PlayerId);
+
+#[derive(Debug, Error)]
 pub enum PurchaseCardError {
     #[error("Tile {0:?} is not a market tile.")]
     TileIsNotMarket(TileId),
@@ -156,7 +173,11 @@ pub fn try_consume_request(
     request_to_process: BackendRequest,
     world: &mut World,
 ) -> anyhow::Result<ChangeLog> {
-    match request_to_process.request {
+    if request_to_process.acting_player != world.resource::<ActivePlayer>().0 {
+        return Err(NotPlayersTurn(request_to_process.acting_player).into());
+    }
+
+    let mut log = match request_to_process.request {
         RequestType::UseCard {
             inventory_index,
             input,
@@ -202,7 +223,7 @@ pub fn try_consume_request(
                 index: inventory_index,
             });
 
-            Ok(log)
+            log
         }
         RequestType::PurchaseCard {
             market_tile,
@@ -246,9 +267,10 @@ pub fn try_consume_request(
                     log.write(ActionEffect::AlteredCoins {
                         player: request_to_process.acting_player,
                         delta_coins: -(price.0 as i32),
+                        from_tile: None,
                     });
 
-                    Ok(log)
+                    log
                 } else {
                     Err(PurchaseCardError::NotEnoughCoins)?
                 }
@@ -271,7 +293,9 @@ pub fn try_consume_request(
                     .read()
                     .split_at(exiting_player.0 as usize);
 
-                *world.get::<PlayerId>(*next_players.iter().skip(1).chain(preceding_players).find(|player| *world.get::<PlayerState>(**player).unwrap() != PlayerState::Dead).expect("Tried to end turn, but all players were dead (except perhaps the active player.) This indicates the game is over, which should have been handled by another system. (Players cannot end their turn when the game is over).")).ok_or(InvalidEntityState)?
+                *world.get::<PlayerId>(*next_players.iter().skip(1).chain(preceding_players).find(|player| *world.get::<PlayerState>(**player).unwrap() != PlayerState::Dead)
+                    .expect("Tried to end turn, but all players were dead (except perhaps the active player.) This indicates the game is over, which should have been handled by another system. (Players cannot end their turn when the game is over)."))
+                    .unwrap()
             };
 
             world.resource_mut::<ActivePlayer>().0 = next_player;
@@ -280,7 +304,7 @@ pub fn try_consume_request(
 
             change_log.append(&mut players::apply_start_turn_effects(world, next_player)?);
 
-            Ok(change_log)
+            change_log
         }
         RequestType::UseOrder {
             tile,
@@ -358,7 +382,55 @@ pub fn try_consume_request(
                 .unwrap()
                 .remaining -= 1;
 
-            Ok(change_log)
+            change_log
         }
+    };
+
+    let living_players = {
+        let mut alive = 0;
+
+        for player in world
+            .resource::<PlayerDirectory>()
+            .list()
+            .iter()
+            .copied()
+            .collect::<Box<[Entity]>>()
+        {
+            if world
+                .get::<OwnsPieces>(player)
+                .unwrap()
+                .list()
+                .iter()
+                .any(|piece| world.get::<IsWinCondition>(*piece).is_some())
+            {
+                *world.get_mut::<PlayerState>(player).unwrap() = PlayerState::Alive;
+                alive += 1;
+            } else {
+                let mut state = world.get_mut::<PlayerState>(player).unwrap();
+
+                match *state {
+                    PlayerState::HasNoWinConditionYet => (),
+                    PlayerState::Alive => *state = PlayerState::Dead,
+                    PlayerState::Dead => (),
+                }
+            }
+        }
+        alive
+    };
+
+    if living_players == 0 {
+        log.write(ActionEffect::GameOver { winner: None });
+    } else if living_players == 1 {
+        let winner = world
+            .resource::<PlayerDirectory>()
+            .list()
+            .iter()
+            .find(|player| *world.get::<PlayerState>(**player).unwrap() == PlayerState::Alive)
+            .unwrap();
+        log.write(ActionEffect::GameOver {
+            winner: Some(*world.get::<PlayerId>(*winner).unwrap()),
+        });
     }
+
+    Ok(log)
 }

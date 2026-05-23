@@ -27,6 +27,10 @@ impl PlayerDirectory {
     pub fn read(&self) -> &[Entity] {
         &self.0
     }
+
+    pub fn list(&self) -> &[Entity] {
+        &self.0
+    }
 }
 
 pub const STARTING_COINS: u32 = 25;

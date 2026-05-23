@@ -1,5 +1,3 @@
-use thiserror::Error;
-
 pub mod cards;
 mod logical_testing_assets;
 pub mod markets;
@@ -30,12 +28,6 @@ pub struct CreationParameters {
     pub starting_cards: Box<[CardId]>,
     pub orders: Box<[LogicalOrder]>,
 }
-
-#[derive(Debug, Error)]
-#[error(
-    "An entity was in a supposedly unreachable state. For example, this could be when a player lacks an inventory component."
-)]
-pub struct InvalidEntityState;
 
 impl CreationParameters {
     pub fn create_logical_world(self) -> (bevy::ecs::world::World, ChangeLog) {

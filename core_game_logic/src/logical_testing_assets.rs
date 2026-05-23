@@ -77,6 +77,8 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
             None,
         ]),
         gives_extra_player_order: false,
+        default_monetary_value: 5,
+        is_win_condition: false,
     },
     LogicalPieceArchetype {
         max_health: 1,
@@ -89,12 +91,16 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
             None,
         ]),
         gives_extra_player_order: false,
+        default_monetary_value: 4,
+        is_win_condition: true,
     },
     LogicalPieceArchetype {
         max_health: 12,
         starting_orders_per_round: 1,
         orders: Orders([Some(OrderId(1)), None, None, None, None]),
         gives_extra_player_order: true,
+        default_monetary_value: 8,
+        is_win_condition: false,
     },
 ];
 

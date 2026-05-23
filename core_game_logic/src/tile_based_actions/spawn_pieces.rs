@@ -1,6 +1,9 @@
 use crate::{
-    pieces::{self, Health, OccupiedByPiece, OccupiesTile, OrdersReceivable, PieceOwnedByPlayer},
-    players::{PlayerDirectory, PlayerId},
+    pieces::{
+        self, GivesExtraPlayerOrder, Health, IsWinCondition, OccupiedByPiece, OccupiesTile,
+        OrdersReceivable, PieceOwnedByPlayer,
+    },
+    players::{PlayerDirectory, PlayerId, PlayerState},
     requests::{ActionEffect, ChangeLog},
     tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
     tile_mapping::TileId,
@@ -21,7 +24,7 @@ impl TileActionFunctionality for SpawnPieces {
         validated_selections: &[crate::tile_mapping::TileId],
         world: &mut bevy::ecs::world::World,
     ) -> crate::requests::ChangeLog {
-        let piece_blueprint = world
+        let blueprint = world
             .resource::<pieces::ArchetypeDirectory>()
             .get_archetype(self.archetype)
             .unwrap()
@@ -41,19 +44,27 @@ impl TileActionFunctionality for SpawnPieces {
             .map(|id| (*id, tile_entities.get_entity(*id).unwrap()))
             .collect::<Box<[(TileId, bevy::ecs::entity::Entity)]>>()
         {
-            world.spawn((
+            let mut piece = world.spawn((
                 Health {
-                    max: piece_blueprint.max_health,
-                    current: piece_blueprint.max_health,
+                    max: blueprint.max_health,
+                    current: blueprint.max_health,
                 },
                 PieceOwnedByPlayer(player_entity),
                 OccupiesTile(tile),
                 OrdersReceivable {
-                    per_round: piece_blueprint.starting_orders_per_round,
+                    per_round: blueprint.starting_orders_per_round,
                     currently: 0,
                 },
-                piece_blueprint.orders.clone(),
+                blueprint.orders.clone(),
             ));
+
+            if blueprint.gives_extra_player_order {
+                piece.insert(GivesExtraPlayerOrder);
+            }
+
+            if blueprint.is_win_condition {
+                piece.insert(IsWinCondition);
+            }
 
             log.write(ActionEffect::SpawnedPiece {
                 tile: id,

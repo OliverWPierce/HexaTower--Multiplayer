@@ -1,7 +1,12 @@
 use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
 use thiserror::Error;
 
-use crate::orders::OrderId;
+use crate::{
+    orders::OrderId,
+    players::{Coins, PlayerId},
+    requests::{ActionEffect, ChangeLog},
+    tile_mapping::TileId,
+};
 
 #[derive(Debug, Resource)]
 pub struct ArchetypeDirectory(Box<[LogicalPieceArchetype]>);
@@ -16,6 +21,8 @@ pub struct LogicalPieceArchetype {
     pub starting_orders_per_round: u8,
     pub orders: Orders,
     pub gives_extra_player_order: bool,
+    pub default_monetary_value: u32,
+    pub is_win_condition: bool,
 }
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -80,3 +87,51 @@ pub struct OrdersReceivable {
 #[derive(Debug, Component)]
 #[component(storage = "SparseSet")]
 pub struct GivesExtraPlayerOrder;
+
+#[derive(Debug, Component)]
+pub struct MonetaryValue(u32);
+
+pub fn kill_piece(
+    piece: Entity,
+    killing_player: Option<Entity>,
+    changelog: &mut ChangeLog,
+    world: &mut World,
+) {
+    let tile_piece_was_on = *world
+        .get::<TileId>(world.get::<OccupiesTile>(piece).unwrap().0)
+        .unwrap();
+
+    changelog.write(ActionEffect::PieceKilled {
+        on_tile: tile_piece_was_on,
+    });
+
+    if let Some(player) = killing_player {
+        let coins_to_give_killer = world.get::<MonetaryValue>(piece).unwrap().0;
+        world.get_mut::<Coins>(player).unwrap().0 += coins_to_give_killer;
+        changelog.write(ActionEffect::AlteredCoins {
+            player: *world.get::<PlayerId>(player).unwrap(),
+            delta_coins: coins_to_give_killer as i32,
+            from_tile: Some(tile_piece_was_on),
+        });
+    }
+}
+
+pub enum AlterHealthMethod {
+    Constant(i32),
+    FractionOfMissing(f32),
+    FractionOfMax(f32),
+}
+
+pub fn get_delta_health(health: Health, method: AlterHealthMethod) -> i32 {
+    let base_damage = match method {
+        AlterHealthMethod::Constant(damage) => damage as f32,
+        AlterHealthMethod::FractionOfMissing(fraction) => {
+            (health.max.saturating_sub(health.current)) as f32 * fraction
+        }
+        AlterHealthMethod::FractionOfMax(fraction) => health.max as f32 * fraction,
+    };
+
+    base_damage as i32
+}
+#[derive(Debug, Component)]
+pub struct IsWinCondition;
