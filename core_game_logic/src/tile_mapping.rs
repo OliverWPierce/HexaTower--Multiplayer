@@ -1,9 +1,10 @@
 use std::{
     cmp::max,
+    f32,
     ops::{Add, Mul, Sub},
 };
 
-use bevy::ecs::component::Component;
+use bevy::{ecs::component::Component, math::Vec2};
 use serde::{Deserialize, Serialize};
 
 /// Tile ids start at zero and work counter clockwise from the origin, starting at the tile directly beneath the origin.
@@ -141,6 +142,24 @@ impl From<HexVector2d> for TileId {
                 TileId((tile_at_bottom_with_offset + converted_vec.1) as u32)
             }
         }
+    }
+}
+
+impl From<HexVector2d> for Vec2 {
+    fn from(hex_vec: HexVector2d) -> Self {
+        const SQRT_3: f32 = 1.7320508;
+
+        // the "a"component lies soley on the "y" axis, so:
+        let vec_from_a = Vec2 {
+            x: 0.0,
+            y: hex_vec.a as f32 * SQRT_3,
+        };
+        let vec_from_b = Vec2 {
+            x: 2.0 * hex_vec.b as f32,
+            y: 2.0 * SQRT_3 / 3.0 * hex_vec.b as f32,
+        };
+
+        vec_from_a + vec_from_b
     }
 }
 

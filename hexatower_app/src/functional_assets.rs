@@ -1,11 +1,34 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
+use core_game_logic::cards::LogicalCard;
 
-struct StartupPlugin;
+use crate::vis_tiles::BoardSize;
+
+pub struct StartupPlugin;
 
 impl Plugin for StartupPlugin {
     fn build(&self, app: &mut App) {
-        todo!()
+        app.add_systems(Startup, tmp_startup);
     }
 }
 #[derive(Debug, ScheduleLabel, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct SetUpBoard;
+pub struct SetUpBoard;
+
+fn tmp_startup(mut commands: Commands) {
+    commands.insert_resource(GameCreationSettings {
+        board_size: BoardSize::Standard,
+    });
+}
+
+pub struct LogicalWorld(pub World);
+
+#[derive(Debug, Resource)]
+pub struct GameCreationSettings {
+    pub board_size: BoardSize,
+}
+
+struct HolisticCard {
+    logical: LogicalCard,
+    name: String,
+    tooltip: String,
+    image_path: String,
+}
