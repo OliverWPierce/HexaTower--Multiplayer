@@ -32,8 +32,22 @@ impl Plugin for VisTilesPlugin {
 
 #[derive(Debug, Resource)]
 struct VisualTileDirectory(Box<[Entity]>);
+#[derive(Debug, Resource, Clone)]
+struct TileModels {
+    basic: Handle<Scene>,
+}
 
-fn sys_spawn_tiles(mut commands: Commands, settings: Res<GameCreationSettings>) {
+fn sys_spawn_tiles(
+    mut commands: Commands,
+    settings: Res<GameCreationSettings>,
+    asset_server: ResMut<AssetServer>,
+) {
+    let models = TileModels {
+        basic: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/basic_tile.glb")),
+    };
+
+    commands.insert_resource(models.clone());
+
     let rings_to_spawn = settings.board_size.into_ring_count();
 
     let mut vis_tiles = Vec::new();
@@ -50,6 +64,7 @@ fn sys_spawn_tiles(mut commands: Commands, settings: Res<GameCreationSettings>) 
                     y: 0.0,
                     z: horizontal_location.y,
                 }),
+                SceneRoot(models.basic.clone()),
             ))
             .id();
 

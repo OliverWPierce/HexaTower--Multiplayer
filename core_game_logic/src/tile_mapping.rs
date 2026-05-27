@@ -149,14 +149,13 @@ impl From<HexVector2d> for Vec2 {
     fn from(hex_vec: HexVector2d) -> Self {
         const SQRT_3: f32 = 1.7320508;
 
-        // the "a"component lies soley on the "y" axis, so:
         let vec_from_a = Vec2 {
             x: 0.0,
             y: hex_vec.a as f32 * SQRT_3,
         };
         let vec_from_b = Vec2 {
-            x: 2.0 * hex_vec.b as f32,
-            y: 2.0 * SQRT_3 / 3.0 * hex_vec.b as f32,
+            x: 1.5 * hex_vec.b as f32,
+            y: SQRT_3 / 2.0 * hex_vec.b as f32, // FIX ME
         };
 
         vec_from_a + vec_from_b

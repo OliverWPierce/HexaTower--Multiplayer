@@ -17,6 +17,8 @@ fn tmp_startup(mut commands: Commands) {
     commands.insert_resource(GameCreationSettings {
         board_size: BoardSize::Standard,
     });
+
+    commands.run_schedule(SetUpBoard);
 }
 
 pub struct LogicalWorld(pub World);
