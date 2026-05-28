@@ -1,17 +1,20 @@
 use bevy::prelude::*;
 use core_game_logic::{
-    players::{InventoryIndex, PlayerId},
-    requests::{ActionEffect, BackendRequest, InputData, RequestType, try_consume_request},
+    cards::{CardDirectory, CardId},
+    requests::{ActionEffect, ActionProcessCache},
     tile_mapping::TileId,
 };
 
-use crate::{functional_assets::LogicalWorld, vis_tiles::TileTypeConverted};
+use crate::{
+    functional_assets::LogicalWorld,
+    vis_tiles::{TileActionProcess, TileTypeConverted},
+};
 
 pub struct InputInterfacePlugin;
 
 impl Plugin for InputInterfacePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, tmp_change_tile);
+        app.add_systems(Update, tmp_show_selection_indicators);
     }
 }
 
@@ -26,30 +29,34 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
     }
 }
 
-fn tmp_change_tile(
+fn tmp_show_selection_indicators(
     inputs: Res<ButtonInput<KeyCode>>,
-    mut log_world: ResMut<LogicalWorld>,
+    log_world: Res<LogicalWorld>,
+    res: Option<ResMut<TileActionProcess>>,
     mut commands: Commands,
 ) {
-    if !inputs.just_pressed(KeyCode::Space) {
-        return;
-    }
+    if inputs.just_pressed(KeyCode::KeyA) {
+        let process_cache = log_world
+            .0
+            .resource::<CardDirectory>()
+            .get_card(CardId(0))
+            .unwrap()
+            .functionality
+            .action_cache(&log_world.0)
+            .unwrap();
 
-    let Ok(change_log) = try_consume_request(
-        BackendRequest {
-            acting_player: PlayerId(0),
-            request: RequestType::UseCard {
-                inventory_index: InventoryIndex(1),
-                input: InputData::AffectedTiles(Box::new([TileId::new(0)])),
-            },
-        },
-        &mut log_world.0,
-    ) else {
-        error!("could not make it happen.");
-        return;
-    };
-
-    for effect in change_log.read() {
-        write_message(effect.clone(), &mut commands);
+        match process_cache {
+            ActionProcessCache::TileAction(tile_action_process_cache) => {
+                commands.insert_resource(TileActionProcess(tile_action_process_cache))
+            }
+            ActionProcessCache::Ex1 => unimplemented!(),
+        }
+    } else if inputs.just_pressed(KeyCode::KeyB) {
+        commands.remove_resource::<TileActionProcess>();
+    } else if inputs.pressed(KeyCode::KeyC) {
+        let Some(mut res) = res else { return };
+        _ = res
+            .0
+            .try_select_tile_and_update_elligibility(TileId::new(5), &log_world.0);
     }
 }

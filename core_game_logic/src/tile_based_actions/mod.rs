@@ -15,7 +15,9 @@ pub mod make_market_tile;
 mod selection_mechanics;
 pub mod spawn_pieces;
 
-pub trait TileActionFunctionality: Debug {
+pub use selection_mechanics::State;
+
+pub trait TileActionFunctionality: Debug + Send + Sync {
     fn execute(&self, validated_selections: &[TileId], world: &mut World) -> ChangeLog;
 
     fn update_eligibility(&self, selection_status: &mut SelectionData, world: &World);
@@ -55,6 +57,7 @@ impl TileAction {
     }
 }
 
+#[derive(Debug)]
 pub struct TileActionProcessCache {
     action: TileAction,
     selections: SelectionData,

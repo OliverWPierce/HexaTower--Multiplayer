@@ -9,7 +9,7 @@ pub enum State {
     #[default]
     Neither,
 }
-
+#[derive(Debug)]
 pub struct SelectionData {
     all_tile_states: Box<[State]>,
     ordered_selections: Vec<TileId>,
