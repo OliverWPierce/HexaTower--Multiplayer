@@ -18,7 +18,7 @@ use crate::{
     tiles::{MarketTile, TileDirectory, TileType},
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ActionEffect {
     ConvertedTileType {
         tile: TileId,
@@ -75,7 +75,7 @@ pub enum ActionEffect {
 pub struct ChangeLog(Vec<ActionEffect>);
 
 impl ChangeLog {
-    pub fn read(&self) -> &Vec<ActionEffect> {
+    pub fn read(&self) -> &[ActionEffect] {
         &self.0
     }
 
@@ -396,12 +396,13 @@ pub fn try_consume_request(
             .copied()
             .collect::<Box<[Entity]>>()
         {
-            if world
-                .get::<OwnsPieces>(player)
-                .unwrap()
-                .list()
-                .iter()
-                .any(|piece| world.get::<IsWinCondition>(*piece).is_some())
+            if (*world.get::<PlayerState>(player).unwrap() == PlayerState::HasNoWinConditionYet)
+                || (world
+                    .get::<OwnsPieces>(player)
+                    .unwrap()
+                    .list()
+                    .iter()
+                    .any(|piece| world.get::<IsWinCondition>(*piece).is_some()))
             {
                 *world.get_mut::<PlayerState>(player).unwrap() = PlayerState::Alive;
                 alive += 1;

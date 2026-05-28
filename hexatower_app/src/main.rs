@@ -4,15 +4,22 @@ use bevy::{post_process::bloom::Bloom, prelude::*};
 
 use crate::{
     functional_assets::{GameCreationSettings, SetUpBoard, StartupPlugin},
+    inputs_interface::InputInterfacePlugin,
     vis_tiles::{BoardSize, VisTilesPlugin},
 };
 
 mod functional_assets;
+mod inputs_interface;
 mod vis_tiles;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, StartupPlugin, VisTilesPlugin))
+        .add_plugins((
+            DefaultPlugins,
+            StartupPlugin,
+            VisTilesPlugin,
+            InputInterfacePlugin,
+        ))
         .add_systems(SetUpBoard, (cam_3d, lights))
         .add_systems(Update, move_3d_cam)
         .run();

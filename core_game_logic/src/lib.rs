@@ -47,7 +47,7 @@ impl CreationParameters {
 
     // this is only used in testing; nevertheless, I don't want to duplicate this code everywhere so I'm putting it here.
     #[allow(unused)]
-    fn testing_default() -> bevy::ecs::world::World {
+    pub fn testing_default() -> bevy::ecs::world::World {
         let parameters = CreationParameters {
             board_size: 4,
             player_count: 3,

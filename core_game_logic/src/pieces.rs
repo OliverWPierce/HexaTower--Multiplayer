@@ -61,8 +61,11 @@ impl OccupiedByPiece {
 pub struct OwnsPieces(Vec<Entity>);
 
 impl OwnsPieces {
-    pub fn list(&self) -> &Vec<Entity> {
+    pub fn list(&self) -> &[Entity] {
         &self.0
+    }
+    pub fn new() -> Self {
+        OwnsPieces(Vec::new())
     }
 }
 

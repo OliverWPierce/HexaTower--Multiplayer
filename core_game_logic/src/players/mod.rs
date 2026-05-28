@@ -108,8 +108,6 @@ pub fn apply_start_turn_effects(
 ) -> Result<ChangeLog, InvalidIdErr> {
     let player_ent = world.resource::<PlayerDirectory>().get_player(player)?;
 
-    let players_pieces = world.get::<OwnsPieces>(player_ent).unwrap();
-
     let mut orders_to_give = 2;
     let mut log = ChangeLog::default();
 
@@ -122,17 +120,19 @@ pub fn apply_start_turn_effects(
         source: None,
     });
 
-    for piece in players_pieces.list() {
-        if world.get::<GivesExtraPlayerOrder>(*piece).is_some() {
-            orders_to_give += 1;
-            log.write(ActionEffect::IncreasedRemainingOrdersOfPlayer {
-                receipient: player,
-                source: Some(
-                    *world
-                        .get::<TileId>(world.get::<OccupiesTile>(*piece).unwrap().0)
-                        .unwrap(),
-                ),
-            });
+    if let Some(players_pieces) = world.get::<OwnsPieces>(player_ent) {
+        for piece in players_pieces.list() {
+            if world.get::<GivesExtraPlayerOrder>(*piece).is_some() {
+                orders_to_give += 1;
+                log.write(ActionEffect::IncreasedRemainingOrdersOfPlayer {
+                    receipient: player,
+                    source: Some(
+                        *world
+                            .get::<TileId>(world.get::<OccupiesTile>(*piece).unwrap().0)
+                            .unwrap(),
+                    ),
+                });
+            }
         }
     }
 
@@ -163,7 +163,7 @@ pub fn apply_end_turn_effects(
     }
 
     if let Some(owned_pieces) = world.get::<OwnsPieces>(player_ent) {
-        for piece in owned_pieces.list().clone() {
+        for piece in owned_pieces.list().iter().copied().collect::<Box<[_]>>() {
             let tile_id = *world
                 .get::<TileId>(
                     world

@@ -1,5 +1,5 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
-use core_game_logic::cards::LogicalCard;
+use core_game_logic::{CreationParameters, cards::LogicalCard};
 
 use crate::vis_tiles::BoardSize;
 
@@ -18,9 +18,12 @@ fn tmp_startup(mut commands: Commands) {
         board_size: BoardSize::Standard,
     });
 
+    commands.insert_resource(LogicalWorld(CreationParameters::testing_default()));
+
     commands.run_schedule(SetUpBoard);
 }
 
+#[derive(Resource, Debug)]
 pub struct LogicalWorld(pub World);
 
 #[derive(Debug, Resource)]

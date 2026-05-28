@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use core_game_logic::tile_mapping::*;
+use core_game_logic::{tile_mapping::*, tiles::TileType};
 
 use crate::functional_assets::{GameCreationSettings, SetUpBoard};
 
@@ -27,6 +27,9 @@ pub struct VisTilesPlugin;
 impl Plugin for VisTilesPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(SetUpBoard, sys_spawn_tiles);
+        // switch this to a custom schedule later.
+        app.add_systems(Update, swap_tile_mesh);
+        app.add_message::<TileTypeConverted>();
     }
 }
 
@@ -35,6 +38,7 @@ struct VisualTileDirectory(Box<[Entity]>);
 #[derive(Debug, Resource, Clone)]
 struct TileModels {
     basic: Handle<Scene>,
+    ex1: Handle<Scene>,
 }
 
 fn sys_spawn_tiles(
@@ -44,6 +48,7 @@ fn sys_spawn_tiles(
 ) {
     let models = TileModels {
         basic: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/basic_tile.glb")),
+        ex1: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/example_tile.glb")),
     };
 
     commands.insert_resource(models.clone());
@@ -64,7 +69,8 @@ fn sys_spawn_tiles(
                     y: 0.0,
                     z: horizontal_location.y,
                 }),
-                SceneRoot(models.basic.clone()),
+                InheritedVisibility::VISIBLE,
+                children![SceneRoot(models.basic.clone()),],
             ))
             .id();
 
@@ -72,4 +78,32 @@ fn sys_spawn_tiles(
     }
 
     commands.insert_resource(VisualTileDirectory(vis_tiles.into_boxed_slice()));
+}
+
+#[derive(Debug, Message)]
+pub struct TileTypeConverted {
+    pub tile: TileId,
+    pub new_type: TileType,
+}
+
+fn swap_tile_mesh(
+    mut change_information: MessageReader<TileTypeConverted>,
+    parents_of_vis_tiles: Res<VisualTileDirectory>,
+    mut commands: Commands,
+    models: Res<TileModels>,
+) -> Result<(), BevyError> {
+    for event in change_information.read() {
+        let parent = parents_of_vis_tiles
+            .0
+            .get(event.tile.id() as usize)
+            .ok_or("No visual tile for this id")?;
+
+        commands.entity(*parent).despawn_children();
+        commands.spawn(SceneRoot(match event.new_type {
+            TileType::Basic => models.basic.clone(),
+            TileType::Ex1 => models.ex1.clone(),
+        }));
+    }
+
+    Ok(())
 }
