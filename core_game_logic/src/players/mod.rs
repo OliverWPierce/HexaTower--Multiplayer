@@ -94,6 +94,14 @@ impl Inventory {
     pub(crate) fn remove_card(&mut self, index_in_inventory: InventoryIndex) {
         self.hand.remove(index_in_inventory.0 as usize);
     }
+
+    pub fn all_cards(&self) -> &[CardId] {
+        &self.hand
+    }
+
+    pub fn max_card_capacity(&self) -> u8 {
+        self.max_size
+    }
 }
 
 #[derive(Debug, Component)]
