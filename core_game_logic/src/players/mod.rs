@@ -41,7 +41,7 @@ pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &
         .spawn_batch((0..player_count).map(|id| {
             (
                 PlayerId(id),
-                Inventory {
+                PlayerCardInventory {
                     hand: starting_cards.to_vec(),
                     max_size: INVENTORY_MAX_SIZE,
                 },
@@ -57,7 +57,7 @@ pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &
 }
 
 #[derive(Debug, Component)]
-pub struct Inventory {
+pub struct PlayerCardInventory {
     hand: Vec<CardId>,
     max_size: u8,
 }
@@ -73,7 +73,7 @@ pub enum InventoryError {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 pub struct InventoryIndex(pub u8);
 
-impl Inventory {
+impl PlayerCardInventory {
     pub(crate) fn try_add_card(&mut self, card: CardId) -> Result<(), InventoryError> {
         if (self.hand.len() as u8) < self.max_size {
             self.hand.push(card);

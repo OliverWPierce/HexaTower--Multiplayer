@@ -10,7 +10,7 @@ use crate::{
         IsWinCondition, OccupiedByPiece, Orders, OrdersReceivable, OwnsPieces, PieceOwnedByPlayer,
     },
     players::{
-        self, ActivePlayer, Coins, Inventory, InventoryIndex, PlayerDirectory, PlayerId,
+        self, ActivePlayer, Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory, PlayerId,
         PlayerOrdersRemaining, PlayerState,
     },
     tile_based_actions::TileActionProcessCache,
@@ -187,7 +187,7 @@ pub fn try_consume_request(
                 .get_player(request_to_process.acting_player)?;
 
             let card = world
-                .get::<Inventory>(player_ent)
+                .get::<PlayerCardInventory>(player_ent)
                 .unwrap()
                 .get_card(inventory_index)?;
 
@@ -214,7 +214,7 @@ pub fn try_consume_request(
             };
 
             world
-                .get_mut::<Inventory>(player_ent)
+                .get_mut::<PlayerCardInventory>(player_ent)
                 .unwrap()
                 .remove_card(inventory_index);
 
@@ -252,7 +252,7 @@ pub fn try_consume_request(
 
                 if world.get::<Coins>(player_ent).unwrap().0 >= price.0 {
                     world
-                        .get_mut::<Inventory>(player_ent)
+                        .get_mut::<PlayerCardInventory>(player_ent)
                         .unwrap()
                         .try_add_card(card)?;
                     world.get_mut::<Coins>(player_ent).unwrap().0 -= price.0;

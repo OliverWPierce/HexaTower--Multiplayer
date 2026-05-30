@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 
-use bevy::{post_process::bloom::Bloom, prelude::*};
+use bevy::{math::VectorSpace, post_process::bloom::Bloom, prelude::*};
+use core_game_logic::players::PlayerId;
 
 use crate::{
     functional_assets::{GameCreationSettings, SetUpBoard, StartupPlugin},
@@ -28,29 +29,27 @@ fn main() {
         .run();
 }
 
-fn cam_3d(settings: Res<GameCreationSettings>, mut commands: Commands) {
-    let distance = match settings.board_size {
-        BoardSize::Small => 16.0,
-        BoardSize::Standard => 22.0,
-        BoardSize::Large => 25.0,
-        BoardSize::ExtraLarge => 38.0,
-    };
+/// The player whom the screen should be rendered for. Most likely, this is the player using this device.
+#[derive(Debug, Resource)]
+pub struct DisplayPlayer(pub PlayerId);
 
-    let angle = match settings.board_size {
-        BoardSize::Small => PI / 3.0,
-        BoardSize::Standard => PI / 2.9,
-        BoardSize::Large => PI / 2.8,
-        BoardSize::ExtraLarge => PI / 5.0,
-    };
+fn cam_3d(mut commands: Commands) {
+    let desired_transform = Transform::default()
+        .with_translation(Vec3 {
+            x: 0.0,
+            z: 2.0,
+            y: 20.0,
+        })
+        .looking_at(Vec3::ZERO, Dir3::Y);
 
     commands.spawn((
-        Transform::default()
-            .with_translation(
-                Vec3::default()
-                    .with_z(angle.cos() * distance)
-                    .with_y(angle.sin() * distance),
-            )
-            .looking_at(Vec3::ZERO, Vec3::Y),
+        // Transform::default()
+        //     .with_translation(
+        //         Vec3::default()
+        //             .with_z(angle.cos() * distance)
+        //             .with_y(angle.sin() * distance),
+        //     ),
+        desired_transform,
         Camera3d::default(),
         Bloom::NATURAL,
     ));
