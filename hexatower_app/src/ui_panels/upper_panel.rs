@@ -1,9 +1,9 @@
-use bevy::{color::palettes::tailwind, prelude::*};
+use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::players::{PlayerCardInventory, PlayerDirectory};
 
 use crate::{
     DisplayPlayer,
-    functional_assets::{LogicalWorld, SetUpBoard},
+    functional_assets::{LogicalWorld, SetUpBoard, VisCardDirectory},
     ui_panels::LEFT_SIDE_HEADER_PARAMS,
 };
 
@@ -20,11 +20,12 @@ impl Plugin for VisualInventoryPlugin {
 struct Header;
 
 /// This is not a mathematical constant, its just shows how many squares to draw, even when there is nothing in the inventory.
-pub const SLOTS_IN_INVENTORY: u8 = 6;
+pub const SLOTS_IN_INVENTORY: u8 = 8;
 
 fn render_inventory(
     mut commands: Commands,
     panel: Single<Entity, With<InventoryPanel>>,
+    vis_cards: Res<VisCardDirectory>,
     log_world: Res<LogicalWorld>,
     display_player: Res<DisplayPlayer>,
 ) -> Result<(), BevyError> {
@@ -39,6 +40,7 @@ fn render_inventory(
         },
         BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
         BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+        Header,
         Text::new("Inventory"),
         TextFont {
             font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
@@ -88,20 +90,35 @@ fn render_inventory(
             commands.spawn((
                 Node {
                     aspect_ratio: Some(1.0),
-                    height: Val::Percent(40.0),
+                    height: Val::Percent(30.0),
+                    border_radius: BorderRadius::all(Val::Percent(10.0)),
+                    border: UiRect::all(Val::Px(3.0)),
                     ..default()
                 },
-                BackgroundColor(tailwind::BLUE_600.into()),
+                BackgroundColor(SLATE_600.into()),
+                BorderColor::all(SLATE_700),
                 ChildOf(container_for_item_icons),
+                ImageNode {
+                    image: vis_cards
+                        .0
+                        .get(card.0 as usize)
+                        .ok_or(format!("No visual found for card {card:?}"))?
+                        .image
+                        .clone(),
+                    ..default()
+                },
             ));
         } else {
             commands.spawn((
                 Node {
                     aspect_ratio: Some(1.0),
-                    height: Val::Percent(40.0),
+                    height: Val::Percent(30.0),
+                    border_radius: BorderRadius::all(Val::Percent(10.0)),
+                    border: UiRect::all(Val::Px(3.0)),
                     ..default()
                 },
-                BackgroundColor(tailwind::AMBER_700.into()),
+                BackgroundColor(SLATE_600.into()),
+                BorderColor::all(SLATE_700),
                 ChildOf(container_for_item_icons),
             ));
         }

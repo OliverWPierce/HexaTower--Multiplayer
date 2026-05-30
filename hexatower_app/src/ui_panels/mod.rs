@@ -1,7 +1,4 @@
-use bevy::{
-    color::palettes::tailwind::{self, ZINC_500, ZINC_600, ZINC_700, ZINC_800, ZINC_900},
-    prelude::*,
-};
+use bevy::{color::palettes::tailwind::*, prelude::*};
 
 use crate::{functional_assets::SetUpBoard, ui_panels::upper_panel::VisualInventoryPlugin};
 
@@ -16,9 +13,9 @@ impl Plugin for UiPanelsPlugin {
     }
 }
 
-pub const UNIVERSAL_BACKGROUND: Color = Color::Srgba(tailwind::ZINC_700);
-pub const UNIVERSAL_BORDER: Color = Color::Srgba(tailwind::ZINC_900);
-pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(3.0);
+pub const UNIVERSAL_BACKGROUND: Color = Color::Srgba(ZINC_800);
+pub const UNIVERSAL_BORDER: Color = Color::Srgba(ZINC_900);
+pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
 
 pub fn spawn_basic_ui_layout(mut commands: Commands) {
     pub const SIDE_PANELS_WIDTH_AS_A_PERCENT: f32 = 25.0;
@@ -36,8 +33,8 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
     {
         const OVERALL_PANEL_HEIGHTS: Val = Val::Percent(32.0);
         const OVERALL_PANEL_WIDTHS: Val = Val::Percent(96.0);
-        const PANEL_BACKGROUNDS: Color = Color::Srgba(ZINC_500);
-        const PANEL_BORDERS: Color = Color::Srgba(ZINC_600);
+        const PANEL_BACKGROUNDS: Color = Color::Srgba(STONE_700);
+        const PANEL_BORDERS: Color = Color::Srgba(STONE_800);
 
         commands.spawn((
             Node {
@@ -61,6 +58,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
+                        align_self: AlignSelf::Center,
                         justify_content: JustifyContent::SpaceAround,
                         ..default()
                     },
@@ -72,6 +70,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                     Node {
                         width: OVERALL_PANEL_WIDTHS,
                         height: OVERALL_PANEL_HEIGHTS,
+                        align_self: AlignSelf::Center,
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                         ..default()
                     },
@@ -82,6 +81,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                     MarketPanel,
                     Node {
                         width: OVERALL_PANEL_WIDTHS,
+                        align_self: AlignSelf::Center,
                         height: OVERALL_PANEL_HEIGHTS,
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                         ..default()
@@ -124,7 +124,7 @@ pub struct HeaderParameters {
 
 pub const LEFT_SIDE_HEADER_PARAMS: HeaderParameters = HeaderParameters {
     border_color: Color::Srgba(ZINC_900),
-    background_color: Color::Srgba(ZINC_700),
+    background_color: Color::Srgba(ZINC_600),
     border_thickness: Val::Px(3.0),
     height: Val::Px(30.0),
     width: Val::Percent(96.0),
