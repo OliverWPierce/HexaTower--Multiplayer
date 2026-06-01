@@ -42,21 +42,24 @@ fn render_inventory(
             height: LEFT_SIDE_HEADER_PARAMS.height,
             width: LEFT_SIDE_HEADER_PARAMS.width,
             border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+            justify_content: JustifyContent::Center,
             ..default()
         },
         BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
         BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-        Header,
-        Text::new(INVENTORY_LABEL),
-        TextFont {
-            font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
-            ..default()
-        },
+        children![(
+            Header,
+            Text::new(INVENTORY_LABEL),
+            TextFont {
+                font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                ..default()
+            },
+            TextLayout {
+                justify: Justify::Center,
+                linebreak: LineBreak::WordBoundary,
+            },
+        )],
         ChildOf(panel.entity()),
-        TextLayout {
-            justify: Justify::Center,
-            linebreak: LineBreak::WordBoundary,
-        },
     ));
 
     let log_player = log_world
@@ -75,7 +78,7 @@ fn render_inventory(
         .spawn((
             Node {
                 max_width: LEFT_SIDE_HEADER_PARAMS.width,
-                height: Val::Percent(80.0),
+                height: Val::Percent(60.0),
                 flex_wrap: FlexWrap::Wrap,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::SpaceAround,
@@ -194,6 +197,8 @@ fn load_card_action(
     cards_in_inventory: Query<(&VisualCardIndex, &VisualCardId)>,
     mut commands: Commands,
     logical_world: Res<LogicalWorld>,
+    parent_panel: Single<Entity, With<InventoryPanel>>,
+    visual_cards: Res<VisCardDirectory>,
 ) -> Result<(), BevyError> {
     let Ok((VisualCardIndex(index_in_the_players_inventory), VisualCardId(card))) =
         cards_in_inventory.get(trigger.entity)
@@ -210,6 +215,153 @@ fn load_card_action(
             .functionality
             .action_cache(&logical_world.0)?,
     });
+
+    {
+        let card_details = visual_cards
+            .0
+            .get(card.0 as usize)
+            .ok_or("no visual found for this card")?;
+
+        commands.entity(parent_panel.entity()).despawn_children();
+
+        commands.spawn((
+            Node {
+                height: LEFT_SIDE_HEADER_PARAMS.height,
+                width: Val::Percent(96.0),
+                flex_shrink: 0.0,
+                ..default()
+            },
+            ChildOf(parent_panel.entity()),
+            children![
+                (
+                    Node {
+                        height: Val::Percent(100.0),
+                        width: Val::Percent(15.0),
+                        border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    BorderColor::all(ORANGE_900),
+                    BackgroundColor(Color::Srgba(ORANGE_700)),
+                    children![(
+                        Text::new("<--"),
+                        TextFont {
+                            font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                            ..default()
+                        },
+                        TextLayout {
+                            justify: Justify::Center,
+                            linebreak: LineBreak::WordBoundary,
+                        },
+                    )]
+                ),
+                (
+                    Node {
+                        height: Val::Percent(100.0),
+                        width: Val::Percent(85.0),
+                        border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                    BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+                    children![(
+                        Text::new(card_details.name.clone()),
+                        TextFont {
+                            font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                            ..default()
+                        },
+                        TextLayout {
+                            justify: Justify::Center,
+                            linebreak: LineBreak::WordBoundary,
+                        },
+                    )]
+                ),
+            ],
+        ));
+
+        commands.spawn((
+            Node {
+                width: Val::Percent(96.0),
+                height: Val::Percent(25.0),
+                flex_shrink: 0.0,
+                ..Default::default()
+            },
+            ChildOf(parent_panel.entity()),
+            children![
+                (
+                    Node {
+                        aspect_ratio: Some(1.0),
+                        flex_shrink: 0.0,
+                        height: Val::Percent(100.0),
+                        border_radius: BorderRadius::all(Val::Percent(10.0)),
+                        border: UiRect::all(Val::Px(3.0)),
+                        ..default()
+                    },
+                    BorderColor::all(SLATE_950),
+                    BackgroundColor(Color::Srgba(SKY_800)),
+                    InventorySlot,
+                    children![(
+                        ImageNode {
+                            image: card_details.image.clone(),
+                            image_mode: NodeImageMode::Stretch,
+                            ..default()
+                        },
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        }
+                    ),],
+                ),
+                (
+                    Node {
+                        height: Val::Percent(100.0),
+                        width: Val::Percent(100.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::BLACK)
+                )
+            ],
+        ));
+
+        commands.spawn((
+            Node {
+                width: Val::Percent(96.0),
+                height: Val::Percent(60.0),
+                border: UiRect::top(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+            ChildOf(parent_panel.entity()),
+            children![
+                (
+                    Text::new("This is a purely forensic description of what this item does...."),
+                    TextLayout {
+                        justify: Justify::Center,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                    TextFont {
+                        font_size: 18.0,
+                        ..default()
+                    }
+                ),
+                (
+                    Text::new("This is a witty tooltip about the item."),
+                    TextLayout {
+                        justify: Justify::Center,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                    TextFont {
+                        font_size: 12.0,
+                        ..default()
+                    }
+                )
+            ],
+        ));
+    }
 
     Ok(())
 }

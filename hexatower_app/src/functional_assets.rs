@@ -23,26 +23,32 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
         VisualCard {
             image: asset_server.load("item_images/blue_potion.png"),
             name: "ZERO".into(),
+            tooltip: "Tooltip for card 0.".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/red_glow_potion.png"),
             name: "ONE".into(),
+            tooltip: "Tooltip for card 1.".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/green_potion.png"),
             name: "TWO".into(),
+            tooltip: "Tooltip for card 2.".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/purple_potion.png"),
             name: "THREE".into(),
+            tooltip: "Tooltip for card 3.".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/blue_potion.png"),
             name: "FOUR".into(),
+            tooltip: "Tooltip for card 4.".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/green_potion.png"),
             name: "FIVE".into(),
+            tooltip: "Tooltip for card 5.".into(),
         },
     ])));
 
@@ -62,6 +68,7 @@ pub struct GameCreationSettings {
 pub struct VisualCard {
     pub image: Handle<Image>,
     pub name: String,
+    pub tooltip: String,
 }
 
 #[derive(Debug, Resource)]

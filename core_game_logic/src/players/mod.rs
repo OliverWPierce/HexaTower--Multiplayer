@@ -34,7 +34,7 @@ impl PlayerDirectory {
 }
 
 pub const STARTING_COINS: u32 = 25;
-pub const STARTING_INVENTORY_MAX_SIZE: u8 = 8;
+pub const STARTING_INVENTORY_MAX_SIZE: u8 = 6;
 
 pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &[CardId]) {
     let players = world
