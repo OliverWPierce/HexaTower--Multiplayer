@@ -1,9 +1,13 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
-use core_game_logic::players::{InventoryIndex, PlayerCardInventory, PlayerDirectory};
+use core_game_logic::{
+    cards::CardDirectory,
+    players::{InventoryIndex, PlayerCardInventory, PlayerDirectory},
+};
 
 use crate::{
     DisplayPlayer,
     functional_assets::{LogicalWorld, SetUpBoard, VisCardDirectory, VisualCardId},
+    inputs_interface::{LoadedAction, Source},
     ui_panels::{LEFT_SIDE_HEADER_PARAMS, hoverable_elements},
 };
 
@@ -16,6 +20,7 @@ impl Plugin for VisualInventoryPlugin {
         app.add_systems(SetUpBoard, render_inventory.after(spawn_basic_ui_layout));
         app.add_observer(hover_slot);
         app.add_observer(unhover_slot);
+        app.add_observer(load_card_action);
     }
 }
 #[derive(Debug, Component)]
@@ -182,4 +187,29 @@ fn unhover_slot(
     }
 
     header_text.0 = INVENTORY_LABEL.into();
+}
+
+fn load_card_action(
+    trigger: On<Pointer<Click>>,
+    cards_in_inventory: Query<(&VisualCardIndex, &VisualCardId)>,
+    mut commands: Commands,
+    logical_world: Res<LogicalWorld>,
+) -> Result<(), BevyError> {
+    let Ok((VisualCardIndex(index_in_the_players_inventory), VisualCardId(card))) =
+        cards_in_inventory.get(trigger.entity)
+    else {
+        return Ok(());
+    };
+
+    commands.insert_resource(LoadedAction {
+        source: Source::Card(*index_in_the_players_inventory),
+        cache: logical_world
+            .0
+            .resource::<CardDirectory>()
+            .get_card(*card)?
+            .functionality
+            .action_cache(&logical_world.0)?,
+    });
+
+    Ok(())
 }
