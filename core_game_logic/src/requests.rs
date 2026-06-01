@@ -93,7 +93,7 @@ impl From<Vec<ActionEffect>> for ChangeLog {
         Self(effects)
     }
 }
-
+#[derive(Debug)]
 pub enum ActionProcessCache {
     TileAction(TileActionProcessCache),
     Ex1,

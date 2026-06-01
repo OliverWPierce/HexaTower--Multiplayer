@@ -34,7 +34,7 @@ impl PlayerDirectory {
 }
 
 pub const STARTING_COINS: u32 = 25;
-pub const INVENTORY_MAX_SIZE: u8 = 5;
+pub const STARTING_INVENTORY_MAX_SIZE: u8 = 8;
 
 pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &[CardId]) {
     let players = world
@@ -43,7 +43,7 @@ pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &
                 PlayerId(id),
                 PlayerCardInventory {
                     hand: starting_cards.to_vec(),
-                    max_size: INVENTORY_MAX_SIZE,
+                    max_size: STARTING_INVENTORY_MAX_SIZE,
                 },
                 Coins(STARTING_COINS),
                 PlayerState::HasNoWinConditionYet,

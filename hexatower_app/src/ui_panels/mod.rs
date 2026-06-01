@@ -9,6 +9,9 @@ pub struct UiPanelsPlugin;
 impl Plugin for UiPanelsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(SetUpBoard, spawn_basic_ui_layout);
+        app.add_observer(hoverable_elements::hover_colors);
+        app.add_observer(hoverable_elements::un_hover_colors);
+
         app.add_plugins(VisualInventoryPlugin);
     }
 }
@@ -130,3 +133,82 @@ pub const LEFT_SIDE_HEADER_PARAMS: HeaderParameters = HeaderParameters {
     width: Val::Percent(96.0),
     text_size_px: 24.0,
 };
+
+mod hoverable_elements {
+    use bevy::prelude::*;
+
+    /// This module provides an easy way to make UI elements hoverable. Simply use the "create_hoverable_ui_bundle" function when spawning an entity, and the rest is handled.
+
+    #[derive(Debug, Component, Default)]
+    #[require(BackgroundColor, BorderColor, ColorsForDormantUI)]
+    pub struct ColorsForHoveredUI {
+        border: BorderColor,
+        background: BackgroundColor,
+    }
+
+    #[derive(Debug, Component, Default)]
+    #[require(BackgroundColor, BorderColor)]
+    pub struct ColorsForDormantUI {
+        border: BorderColor,
+        background: BackgroundColor,
+    }
+
+    pub fn create_hoverable_ui_bundle(
+        dormant_border: BorderColor,
+        dormant_background: BackgroundColor,
+        hovered_border: BorderColor,
+        hovered_background: BackgroundColor,
+    ) -> (
+        ColorsForDormantUI,
+        ColorsForHoveredUI,
+        BackgroundColor,
+        BorderColor,
+    ) {
+        (
+            ColorsForDormantUI {
+                border: dormant_border,
+                background: dormant_background,
+            },
+            ColorsForHoveredUI {
+                border: hovered_border,
+                background: hovered_background,
+            },
+            dormant_background,
+            dormant_border,
+        )
+    }
+
+    pub(super) fn hover_colors(
+        trigger: On<Pointer<Over>>,
+        mut hoverable_elements: Query<(
+            &mut BorderColor,
+            &mut BackgroundColor,
+            &ColorsForHoveredUI,
+        )>,
+    ) {
+        let Ok((mut border, mut background, presets)) = hoverable_elements.get_mut(trigger.entity)
+        else {
+            return;
+        };
+
+        *border = presets.border;
+        *background = presets.background;
+    }
+
+    pub(super) fn un_hover_colors(
+        trigger: On<Pointer<Out>>,
+        mut hoverable_elements: Query<(
+            &mut BorderColor,
+            &mut BackgroundColor,
+            &ColorsForDormantUI,
+        )>,
+    ) {
+        let Ok((mut border, mut background, presets)) = hoverable_elements.get_mut(trigger.entity)
+        else {
+            return;
+        };
+
+        *border = presets.border;
+        *background = presets.background;
+    }
+}

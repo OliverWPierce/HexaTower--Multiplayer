@@ -7,12 +7,16 @@
 /// not bubble up to the tile.
 use bevy::prelude::*;
 use core_game_logic::{
-    tile_based_actions::{self, TileActionProcessCache},
+    requests::ActionProcessCache,
+    tile_based_actions::{self},
     tile_mapping::*,
     tiles::TileType,
 };
 
-use crate::functional_assets::{GameCreationSettings, SetUpBoard};
+use crate::{
+    functional_assets::{GameCreationSettings, SetUpBoard},
+    inputs_interface::LoadedAction,
+};
 
 #[derive(Debug)]
 pub enum BoardSize {
@@ -23,7 +27,7 @@ pub enum BoardSize {
 }
 
 impl BoardSize {
-    fn into_ring_count(&self) -> u32 {
+    fn ring_count(&self) -> u32 {
         match self {
             BoardSize::Small => 3,
             BoardSize::Standard => 4,
@@ -44,7 +48,7 @@ impl Plugin for VisTilesPlugin {
 
         app.add_systems(
             Update,
-            update_indicators.run_if(resource_changed_or_removed::<TileActionProcess>),
+            update_indicators.run_if(resource_changed_or_removed::<LoadedAction>),
         );
     }
 }
@@ -74,7 +78,7 @@ fn spawn_tiles_and_initialize_inficators(
 
     commands.insert_resource(tile_models.clone());
 
-    let rings_to_spawn = settings.board_size.into_ring_count();
+    let rings_to_spawn = settings.board_size.ring_count();
 
     let mut vis_tiles = Vec::new();
 
@@ -152,9 +156,6 @@ fn swap_tile_mesh(
     Ok(())
 }
 
-#[derive(Debug, Resource)]
-pub struct TileActionProcess(pub TileActionProcessCache);
-
 #[derive(Debug, Component, PartialEq, Clone, Copy)]
 enum IndicatorType {
     Selected,
@@ -175,28 +176,29 @@ impl From<IndicatorType> for tile_based_actions::State {
 struct IndicatorWatches(TileId);
 
 fn update_indicators(
-    maybe_selection_data: Option<Res<TileActionProcess>>,
+    loaded_action: Option<Res<LoadedAction>>,
     mut indicators: Query<(&mut Visibility, &IndicatorType, &IndicatorWatches)>,
 ) {
-    let Some(selection_data) = maybe_selection_data else {
-        for (mut visibility, ..) in indicators.iter_mut() {
-            *visibility = Visibility::Hidden;
+    if let Some(action) = loaded_action
+        && let ActionProcessCache::TileAction(selection_data) = &action.cache
+    {
+        let selection_states = selection_data.view_selection_states();
+
+        for (mut visibility, indicator_type, tile_watched) in indicators.iter_mut() {
+            let Some(state) = selection_states.get(tile_watched.0.id() as usize) else {
+                warn!("Tile indicator with invalid tile id {tile_watched:?}");
+                continue;
+            };
+
+            if *state == (*indicator_type).into() {
+                *visibility = Visibility::Visible
+            } else {
+                *visibility = Visibility::Hidden
+            }
         }
-        return;
-    };
-
-    let selection_states = selection_data.0.view_selection_states();
-
-    for (mut visibility, indicator_type, tile_watched) in indicators.iter_mut() {
-        let Some(state) = selection_states.get(tile_watched.0.id() as usize) else {
-            warn!("Tile indicator with invalid tile id {tile_watched:?}");
-            continue;
-        };
-
-        if *state == (*indicator_type).into() {
-            *visibility = Visibility::Visible
-        } else {
-            *visibility = Visibility::Hidden
+    } else {
+        for (mut visibility, _, _) in indicators.iter_mut() {
+            *visibility = Visibility::Hidden;
         }
     }
 }

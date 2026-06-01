@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use core_game_logic::requests::ActionEffect;
+use core_game_logic::{
+    players::InventoryIndex,
+    requests::{ActionEffect, ActionProcessCache},
+};
 
 use crate::vis_tiles::TileTypeConverted;
 
@@ -18,4 +21,14 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
             "Received an action effect from the logical world, but did not have a way to to display it to the player."
         ),
     }
+}
+#[derive(Debug, Resource)]
+pub struct LoadedAction {
+    pub source: Source,
+    pub cache: ActionProcessCache,
+}
+
+#[derive(Debug)]
+pub enum Source {
+    Card(InventoryIndex),
 }

@@ -1,5 +1,5 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
-use core_game_logic::{CreationParameters, players::PlayerId};
+use core_game_logic::{CreationParameters, cards::CardId, players::PlayerId};
 
 use crate::{DisplayPlayer, vis_tiles::BoardSize};
 
@@ -66,3 +66,5 @@ pub struct VisualCard {
 
 #[derive(Debug, Resource)]
 pub struct VisCardDirectory(pub Box<[VisualCard]>);
+#[derive(Debug, Component)]
+pub struct VisualCardId(pub CardId);
