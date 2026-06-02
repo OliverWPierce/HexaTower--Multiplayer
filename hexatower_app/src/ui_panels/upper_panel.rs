@@ -8,7 +8,9 @@ use crate::{
     DisplayPlayer,
     functional_assets::{LogicalWorld, SetUpBoard, VisCardDirectory, VisualCardId},
     inputs_interface::{LoadedAction, Source},
-    ui_panels::{LEFT_SIDE_HEADER_PARAMS, hoverable_elements},
+    ui_panels::{
+        LEFT_SIDE_HEADER_PARAMS, execution_button::ExecutionButtonPanel, hoverable_elements,
+    },
 };
 
 use super::{InventoryPanel, spawn_basic_ui_layout};
@@ -101,9 +103,9 @@ fn render_inventory(
                 },
                 hoverable_elements::create_hoverable_ui_bundle(
                     BorderColor::all(SLATE_950),
-                    BackgroundColor(Color::Srgba(SKY_800)),
+                    BackgroundColor(Color::Srgba(ZINC_800)),
                     BorderColor::all(SLATE_400),
-                    BackgroundColor(Color::Srgba(SKY_700)),
+                    BackgroundColor(Color::Srgba(ZINC_700)),
                 ),
                 ChildOf(container_for_item_icons),
                 VisualCardIndex(InventoryIndex(maybe_index)),
@@ -139,9 +141,9 @@ fn render_inventory(
                 InventorySlot,
                 hoverable_elements::create_hoverable_ui_bundle(
                     BorderColor::all(SLATE_950),
-                    BackgroundColor(Color::Srgba(SKY_950)),
+                    BackgroundColor(Color::Srgba(ZINC_950)),
                     BorderColor::all(SLATE_400),
-                    BackgroundColor(Color::Srgba(SKY_900)),
+                    BackgroundColor(Color::Srgba(ZINC_900)),
                 ),
                 ChildOf(container_for_item_icons),
             ));
@@ -241,8 +243,8 @@ fn load_card_action(
                         justify_content: JustifyContent::Center,
                         ..default()
                     },
-                    BorderColor::all(ORANGE_900),
-                    BackgroundColor(Color::Srgba(ORANGE_700)),
+                    BorderColor::all(STONE_900),
+                    BackgroundColor(Color::Srgba(STONE_700)),
                     children![(
                         Text::new("<--"),
                         TextFont {
@@ -299,7 +301,7 @@ fn load_card_action(
                         ..default()
                     },
                     BorderColor::all(SLATE_950),
-                    BackgroundColor(Color::Srgba(SKY_800)),
+                    BackgroundColor(Color::Srgba(ZINC_800)),
                     InventorySlot,
                     children![(
                         ImageNode {
@@ -318,9 +320,10 @@ fn load_card_action(
                     Node {
                         height: Val::Percent(100.0),
                         width: Val::Percent(100.0),
+                        flex_direction: FlexDirection::Column,
                         ..default()
                     },
-                    BackgroundColor(Color::BLACK)
+                    ExecutionButtonPanel
                 )
             ],
         ));

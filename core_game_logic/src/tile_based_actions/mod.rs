@@ -111,6 +111,14 @@ impl TileActionProcessCache {
             Err(SelectedTooFewTiles)
         }
     }
+
+    pub fn currently_selected(&self) -> usize {
+        self.selections.selection_count()
+    }
+
+    pub fn selection_bounds(&self) -> &Range<usize> {
+        &self.action.tile_range_for_execution
+    }
 }
 
 #[derive(Debug, Error)]

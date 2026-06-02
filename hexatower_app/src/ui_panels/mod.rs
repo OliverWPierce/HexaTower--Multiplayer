@@ -1,6 +1,9 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 
-use crate::{functional_assets::SetUpBoard, ui_panels::upper_panel::VisualInventoryPlugin};
+use crate::{
+    functional_assets::SetUpBoard, inputs_interface::LoadedAction,
+    ui_panels::upper_panel::VisualInventoryPlugin,
+};
 
 mod upper_panel;
 
@@ -11,6 +14,11 @@ impl Plugin for UiPanelsPlugin {
         app.add_systems(SetUpBoard, spawn_basic_ui_layout);
         app.add_observer(hoverable_elements::hover_colors);
         app.add_observer(hoverable_elements::un_hover_colors);
+
+        app.add_systems(
+            Update,
+            execution_button::update_panel.run_if(resource_exists_and_changed::<LoadedAction>),
+        );
 
         app.add_plugins(VisualInventoryPlugin);
     }
@@ -24,12 +32,18 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
     pub const SIDE_PANELS_WIDTH_AS_A_PERCENT: f32 = 25.0;
 
     let overall_parent = commands
-        .spawn(Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            justify_content: JustifyContent::SpaceBetween,
-            ..default()
-        })
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::SpaceBetween,
+                ..default()
+            },
+            Pickable {
+                should_block_lower: false,
+                is_hoverable: false,
+            },
+        ))
         .id();
 
     // the inventory, orders, and market panels
@@ -210,5 +224,147 @@ mod hoverable_elements {
 
         *border = presets.border;
         *background = presets.background;
+    }
+}
+
+mod execution_button {
+    use bevy::{color::palettes::tailwind::*, prelude::*};
+
+    use crate::inputs_interface::LoadedAction;
+
+    #[derive(Debug, Component)]
+    pub struct ExecutionButtonPanel;
+
+    pub fn update_panel(
+        mut commands: Commands,
+        loaded_action: Res<LoadedAction>,
+        panel: Single<Entity, With<ExecutionButtonPanel>>,
+    ) {
+        match &loaded_action.cache {
+            core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
+                commands.entity(panel.entity()).despawn_children();
+
+                let ready_for_execution =
+                    cache.selection_bounds().start <= cache.currently_selected();
+
+                let button = commands
+                    .spawn((
+                        Node {
+                            min_height: Val::Px(38.0),
+                            height: Val::Percent(100.0),
+                            width: Val::Percent(100.0),
+                            border: UiRect::all(Val::Px(3.0)),
+                            border_radius: BorderRadius::all(Val::Px(5.0)),
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center,
+                            justify_content: JustifyContent::Center,
+                            ..default()
+                        },
+                        ChildOf(panel.entity()),
+                        {
+                            if ready_for_execution {
+                                (
+                                    BackgroundColor(VIOLET_600.into()),
+                                    BorderColor::all(VIOLET_800),
+                                )
+                            } else {
+                                (
+                                    BackgroundColor(VIOLET_900.into()),
+                                    BorderColor::all(VIOLET_950),
+                                )
+                            }
+                        },
+                    ))
+                    .id();
+
+                commands.spawn((
+                    Text::new("Use Item"),
+                    TextFont {
+                        font_size: 24.0,
+                        ..default()
+                    },
+                    ChildOf(button),
+                    TextColor({
+                        if ready_for_execution {
+                            Color::Hsva(Hsva {
+                                hue: 0.0,
+                                saturation: 0.0,
+                                value: 1.0,
+                                alpha: 1.0,
+                            })
+                        } else {
+                            Color::Hsva(Hsva {
+                                hue: 0.0,
+                                saturation: 0.0,
+                                value: 0.7,
+                                alpha: 1.0,
+                            })
+                        }
+                    }),
+                ));
+
+                commands.spawn((
+                    Text::new(if !ready_for_execution {
+                        format!(
+                            "select at least {} more tiles",
+                            cache.selection_bounds().start - cache.currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
+                        )
+                    } else {
+                        format!(
+                            "select up to {} more tiles",
+                            cache.selection_bounds().end - cache.currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
+                        )
+                    }),
+                    TextFont {
+                        font_size: 12.0,
+                        ..default()
+                    },
+                    ChildOf(button),
+                ));
+
+                let selection_progress_bar = commands
+                    .spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            min_height: Val::Percent(20.0),
+                            justify_content: JustifyContent::SpaceEvenly,
+                            padding: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        BackgroundColor(ZINC_900.into()),
+                        ChildOf(panel.entity()),
+                    ))
+                    .id();
+
+                for box_number in 0..cache.selection_bounds().end {
+                    commands.spawn((
+                        Node {
+                            height: Val::Percent(90.0),
+                            width: Val::Percent(100.0 / (cache.selection_bounds().end as f32)),
+                            border: UiRect::all(Val::Px(3.0)),
+                            ..default()
+                        },
+                        {
+                            if box_number >= cache.currently_selected() {
+                                (
+                                    BackgroundColor(STONE_900.into()),
+                                    BorderColor::all(STONE_950),
+                                )
+                            } else if box_number >= cache.selection_bounds().start {
+                                (
+                                    BackgroundColor(EMERALD_500.into()),
+                                    BorderColor::all(EMERALD_700),
+                                )
+                            } else {
+                                (BackgroundColor(SKY_500.into()), BorderColor::all(SKY_700))
+                            }
+                        },
+                        ChildOf(selection_progress_bar),
+                    ));
+                }
+            }
+
+            core_game_logic::requests::ActionProcessCache::Ex1 => todo!(),
+        }
     }
 }

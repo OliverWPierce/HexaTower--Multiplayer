@@ -14,7 +14,7 @@ use core_game_logic::{
 };
 
 use crate::{
-    functional_assets::{GameCreationSettings, SetUpBoard},
+    functional_assets::{GameCreationSettings, LogicalWorld, SetUpBoard},
     inputs_interface::LoadedAction,
 };
 
@@ -50,6 +50,8 @@ impl Plugin for VisTilesPlugin {
             Update,
             update_indicators.run_if(resource_changed_or_removed::<LoadedAction>),
         );
+
+        app.add_observer(tmp_select_tile);
     }
 }
 
@@ -201,4 +203,33 @@ fn update_indicators(
             *visibility = Visibility::Hidden;
         }
     }
+}
+
+fn tmp_select_tile(
+    trigger: On<Pointer<Click>>,
+    tiles: Query<&TileId>,
+    mut loaded_action: If<ResMut<LoadedAction>>,
+    logical_world: Res<LogicalWorld>,
+) {
+    info!("registered a click.");
+
+    let Ok(tile) = tiles.get(trigger.entity) else {
+        return;
+    };
+
+    info!("a tile was clicked");
+
+    let ActionProcessCache::TileAction(cache) = &mut loaded_action.cache else {
+        return;
+    };
+
+    info!("we are dealing with the proper loaded action.");
+
+    if cache
+        .try_select_tile_and_update_elligibility(*tile, &logical_world.0)
+        .is_err()
+    {
+        #[cfg(debug_assertions)]
+        println!("tile selection {tile:?} failed");
+    };
 }
