@@ -112,12 +112,16 @@ impl TileActionProcessCache {
         }
     }
 
-    pub fn currently_selected(&self) -> usize {
+    pub fn amount_currently_selected(&self) -> usize {
         self.selections.selection_count()
     }
 
     pub fn selection_bounds(&self) -> &Range<usize> {
         &self.action.tile_range_for_execution
+    }
+
+    pub fn selected_tiles(&self) -> &[TileId] {
+        self.selections.get_validated_ordered_selections()
     }
 }
 

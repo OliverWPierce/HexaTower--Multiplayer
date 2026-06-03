@@ -149,10 +149,13 @@ fn swap_tile_mesh(
             .ok_or("No visual tile for this id")?;
 
         commands.entity(*parent).despawn_children();
-        commands.spawn(SceneRoot(match event.new_type {
-            TileType::Basic => models.basic.clone(),
-            TileType::Ex1 => models.ex1.clone(),
-        }));
+        commands.spawn((
+            SceneRoot(match event.new_type {
+                TileType::Basic => models.basic.clone(),
+                TileType::Ex1 => models.ex1.clone(),
+            }),
+            ChildOf(*parent),
+        ));
     }
 
     Ok(())

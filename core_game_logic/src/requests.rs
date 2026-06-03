@@ -71,7 +71,7 @@ pub enum ActionEffect {
     },
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ChangeLog(Vec<ActionEffect>);
 
 impl ChangeLog {
@@ -396,15 +396,14 @@ pub fn try_consume_request(
             .copied()
             .collect::<Box<[Entity]>>()
         {
-            if (*world.get::<PlayerState>(player).unwrap() == PlayerState::HasNoWinConditionYet)
-                || (world
+            if *world.get::<PlayerState>(player).unwrap() == PlayerState::HasNoWinConditionYet
+                || world
                     .get::<OwnsPieces>(player)
                     .unwrap()
                     .list()
                     .iter()
-                    .any(|piece| world.get::<IsWinCondition>(*piece).is_some()))
+                    .any(|piece| world.get::<IsWinCondition>(*piece).is_some())
             {
-                *world.get_mut::<PlayerState>(player).unwrap() = PlayerState::Alive;
                 alive += 1;
             } else {
                 let mut state = world.get_mut::<PlayerState>(player).unwrap();

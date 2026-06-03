@@ -245,7 +245,11 @@ mod execution_button {
     use bevy::{color::palettes::tailwind::*, prelude::*};
     use core_game_logic::players::ActivePlayer;
 
-    use crate::{OperatingPlayer, functional_assets::LogicalWorld, inputs_interface::LoadedAction};
+    use crate::{
+        OperatingPlayer,
+        functional_assets::LogicalWorld,
+        inputs_interface::{LoadedAction, TryExecuteLoadedAction},
+    };
 
     #[derive(Debug, Component)]
     pub struct ExecutionButtonPanel;
@@ -260,7 +264,7 @@ mod execution_button {
                 commands.entity(panel.entity()).despawn_children();
 
                 let ready_for_execution =
-                    cache.selection_bounds().start <= cache.currently_selected();
+                    cache.selection_bounds().start <= cache.amount_currently_selected();
 
                 let button = commands
                     .spawn((
@@ -323,12 +327,12 @@ mod execution_button {
                     Text::new(if !ready_for_execution {
                         format!(
                             "select at least {} more tiles",
-                            cache.selection_bounds().start - cache.currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
+                            cache.selection_bounds().start - cache.amount_currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
                         )
                     } else {
                         format!(
                             "select up to {} more tiles",
-                            cache.selection_bounds().end - cache.currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
+                            cache.selection_bounds().end - cache.amount_currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
                         )
                     }),
                     TextFont {
@@ -361,7 +365,7 @@ mod execution_button {
                             ..default()
                         },
                         {
-                            if box_number >= cache.currently_selected() {
+                            if box_number >= cache.amount_currently_selected() {
                                 (
                                     BackgroundColor(STONE_900.into()),
                                     BorderColor::all(STONE_950),
@@ -389,6 +393,7 @@ mod execution_button {
         as_player: Res<OperatingPlayer>,
         logical_world: Res<LogicalWorld>,
         action: Res<LoadedAction>,
+        mut commands: Commands,
     ) {
         click.propagate(false);
 
@@ -398,14 +403,13 @@ mod execution_button {
             match &action.cache {
                 core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
                     let ready_for_execution =
-                        cache.selection_bounds().start <= cache.currently_selected();
+                        cache.selection_bounds().start <= cache.amount_currently_selected();
 
                     if !ready_for_execution {
                         info!("insufficient tile selections. Please select more tiles.");
                         return;
                     }
-
-                    println!("attempting to execute the loaded action");
+                    commands.trigger(TryExecuteLoadedAction);
                 }
 
                 core_game_logic::requests::ActionProcessCache::Ex1 => todo!(),

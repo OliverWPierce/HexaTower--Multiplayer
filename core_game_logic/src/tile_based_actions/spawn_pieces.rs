@@ -64,6 +64,7 @@ impl TileActionFunctionality for SpawnPieces {
 
             if blueprint.is_win_condition {
                 piece.insert(IsWinCondition);
+                *world.get_mut::<PlayerState>(player_entity).unwrap() = PlayerState::Alive;
             }
 
             log.write(ActionEffect::SpawnedPiece {
