@@ -358,7 +358,7 @@ fn load_card_action(
                     }
                 ),
                 (
-                    Text::new("This is a witty tooltip about the item."),
+                    Text::new(card_details.tooltip.clone()),
                     TextLayout {
                         justify: Justify::Center,
                         linebreak: LineBreak::WordBoundary,

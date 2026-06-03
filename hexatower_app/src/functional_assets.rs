@@ -27,44 +27,52 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
         VisualCard {
             image: asset_server.load("item_images/blue_potion.png"),
             name: "ZERO".into(),
-            tooltip: "Tooltip for card 0.".into(),
+            tooltip: "Command Z! command Zeee!!".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/red_glow_potion.png"),
             name: "ONE".into(),
-            tooltip: "Tooltip for card 1.".into(),
+            tooltip: "Realestate is my specialty!".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/green_potion.png"),
             name: "TWO".into(),
-            tooltip: "Tooltip for card 2.".into(),
+            tooltip: "Enjoy your very own piece".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/purple_potion.png"),
             name: "THREE".into(),
-            tooltip: "Tooltip for card 3.".into(),
+            tooltip: "All your needed wares sold here!".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/blue_potion.png"),
             name: "FOUR".into(),
-            tooltip: "Tooltip for card 4.".into(),
+            tooltip: "Mind ye placement".into(),
         },
         VisualCard {
             image: asset_server.load("item_images/green_potion.png"),
             name: "FIVE".into(),
-            tooltip: "Tooltip for card 5.".into(),
+            tooltip: "Something witty about this piece will be established later.".into(),
         },
     ])));
 
     commands.insert_resource(
         crate::vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory::new(&[
             VisualPieceArchetype {
-                model: todo!(),
-                name: "Archetype TWO".into(),
+                model: asset_server.load(
+                    GltfAssetLabel::Scene(0).from_asset("piece_models/Magnetic Hockey Rover.glb"),
+                ),
+                name: "Archetype ZERO".into(),
             },
             VisualPieceArchetype {
-                model: todo!(),
+                model: asset_server
+                    .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Obelisk.glb")),
                 name: "Archetype ONE".into(),
+            },
+            VisualPieceArchetype {
+                model: asset_server
+                    .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Wizard Hat.glb")),
+                name: "Archetype TWO".into(),
             },
         ]),
     );

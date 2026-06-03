@@ -7,7 +7,10 @@ use core_game_logic::{
     },
 };
 
-use crate::{OperatingPlayer, functional_assets::LogicalWorld, vis_tiles::TileTypeConverted};
+use crate::{
+    OperatingPlayer, functional_assets::LogicalWorld, vis_pieces::PieceSpawned,
+    vis_tiles::TileTypeConverted,
+};
 
 pub struct InputInterfacePlugin;
 
@@ -21,6 +24,17 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
     match effect {
         ActionEffect::ConvertedTileType { tile, new_type } => {
             commands.write_message(TileTypeConverted { tile, new_type });
+        }
+        ActionEffect::SpawnedPiece {
+            tile,
+            player,
+            archetype,
+        } => {
+            commands.write_message(PieceSpawned {
+                tile,
+                owner: player,
+                archetype,
+            });
         }
         _ => warn!("Display method not yet implemented..."),
     }
