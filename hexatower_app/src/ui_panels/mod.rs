@@ -14,6 +14,7 @@ impl Plugin for UiPanelsPlugin {
         app.add_systems(SetUpBoard, spawn_basic_ui_layout);
         app.add_observer(hoverable_elements::hover_colors);
         app.add_observer(hoverable_elements::un_hover_colors);
+        app.add_observer(unload_action_button);
 
         app.add_systems(
             Update,
@@ -147,6 +148,19 @@ pub const LEFT_SIDE_HEADER_PARAMS: HeaderParameters = HeaderParameters {
     width: Val::Percent(96.0),
     text_size_px: 24.0,
 };
+
+#[derive(Debug, Component)]
+pub struct UnloadActionButton;
+
+fn unload_action_button(
+    trigger: On<Pointer<Click>>,
+    buttons: Query<(), With<UnloadActionButton>>,
+    mut commands: Commands,
+) {
+    if buttons.get(trigger.entity).is_ok() {
+        commands.remove_resource::<LoadedAction>();
+    }
+}
 
 mod hoverable_elements {
     use bevy::prelude::*;

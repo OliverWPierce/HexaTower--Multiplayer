@@ -9,7 +9,8 @@ use crate::{
     functional_assets::{LogicalWorld, SetUpBoard, VisCardDirectory, VisualCardId},
     inputs_interface::{LoadedAction, Source},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, execution_button::ExecutionButtonPanel, hoverable_elements,
+        LEFT_SIDE_HEADER_PARAMS, UnloadActionButton, execution_button::ExecutionButtonPanel,
+        hoverable_elements,
     },
 };
 
@@ -20,6 +21,10 @@ pub struct VisualInventoryPlugin;
 impl Plugin for VisualInventoryPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(SetUpBoard, render_inventory.after(spawn_basic_ui_layout));
+        app.add_systems(
+            Update,
+            render_inventory.run_if(resource_removed::<LoadedAction>),
+        );
         app.add_observer(hover_slot);
         app.add_observer(unhover_slot);
         app.add_observer(load_card_action);
@@ -245,6 +250,7 @@ fn load_card_action(
                     },
                     BorderColor::all(STONE_900),
                     BackgroundColor(Color::Srgba(STONE_700)),
+                    UnloadActionButton,
                     children![(
                         Text::new("<--"),
                         TextFont {
