@@ -206,24 +206,20 @@ fn update_indicators(
 }
 
 fn tmp_select_tile(
-    trigger: On<Pointer<Click>>,
+    mut trigger: On<Pointer<Click>>,
     tiles: Query<&TileId>,
     mut loaded_action: If<ResMut<LoadedAction>>,
     logical_world: Res<LogicalWorld>,
 ) {
-    info!("registered a click.");
-
     let Ok(tile) = tiles.get(trigger.entity) else {
         return;
     };
 
-    info!("a tile was clicked");
+    trigger.propagate(false);
 
     let ActionProcessCache::TileAction(cache) = &mut loaded_action.cache else {
         return;
     };
-
-    info!("we are dealing with the proper loaded action.");
 
     if cache
         .try_select_tile_and_update_elligibility(*tile, &logical_world.0)

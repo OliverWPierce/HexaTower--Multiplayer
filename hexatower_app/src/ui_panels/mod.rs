@@ -243,8 +243,9 @@ mod hoverable_elements {
 
 mod execution_button {
     use bevy::{color::palettes::tailwind::*, prelude::*};
+    use core_game_logic::players::ActivePlayer;
 
-    use crate::inputs_interface::LoadedAction;
+    use crate::{OperatingPlayer, functional_assets::LogicalWorld, inputs_interface::LoadedAction};
 
     #[derive(Debug, Component)]
     pub struct ExecutionButtonPanel;
@@ -289,6 +290,7 @@ mod execution_button {
                             }
                         },
                     ))
+                    .observe(try_start_execution_request)
                     .id();
 
                 commands.spawn((
@@ -379,6 +381,39 @@ mod execution_button {
             }
 
             core_game_logic::requests::ActionProcessCache::Ex1 => todo!(),
+        }
+    }
+
+    fn try_start_execution_request(
+        mut click: On<Pointer<Click>>,
+        as_player: Res<OperatingPlayer>,
+        logical_world: Res<LogicalWorld>,
+        action: Res<LoadedAction>,
+    ) {
+        click.propagate(false);
+
+        if let Some(id) = as_player.0
+            && id == logical_world.0.resource::<ActivePlayer>().0
+        {
+            match &action.cache {
+                core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
+                    let ready_for_execution =
+                        cache.selection_bounds().start <= cache.currently_selected();
+
+                    if !ready_for_execution {
+                        info!("insufficient tile selections. Please select more tiles.");
+                        return;
+                    }
+
+                    println!("attempting to execute the loaded action");
+                }
+
+                core_game_logic::requests::ActionProcessCache::Ex1 => todo!(),
+            }
+        } else {
+            info!(
+                "You are not the active player and cannot request to execute an order at this time. It is not your turn"
+            );
         }
     }
 }

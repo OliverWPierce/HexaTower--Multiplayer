@@ -1,7 +1,7 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 use core_game_logic::{CreationParameters, cards::CardId, players::PlayerId};
 
-use crate::{DisplayPlayer, vis_tiles::BoardSize};
+use crate::{DisplayPlayer, OperatingPlayer, vis_tiles::BoardSize};
 
 pub struct StartupPlugin;
 
@@ -18,6 +18,7 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
         board_size: BoardSize::Standard,
     });
     commands.insert_resource(DisplayPlayer(PlayerId(0)));
+    commands.insert_resource(OperatingPlayer(Some(PlayerId(0))));
 
     commands.insert_resource(VisCardDirectory(Box::new([
         VisualCard {

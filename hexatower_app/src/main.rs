@@ -30,9 +30,13 @@ fn main() {
         .run();
 }
 
-/// The player whom the screen should be rendered for. Most likely, this is the player using this device.
+/// The player whom the screen should be rendered for. Most likely, this is the player using this device. However, this could also be used for spectator modes.
 #[derive(Debug, Resource)]
 pub struct DisplayPlayer(pub PlayerId);
+
+/// The player that the operator of the device is representing. A spectator of a match would be Option::None, since they are not acting as a player, just a spectator. However, they will have a display player, so that the game can know which player's inventory and stats to display to the spectator.
+#[derive(Debug, Resource)]
+pub struct OperatingPlayer(pub Option<PlayerId>);
 
 fn cam_3d(mut commands: Commands) {
     let desired_transform = Transform::default()
