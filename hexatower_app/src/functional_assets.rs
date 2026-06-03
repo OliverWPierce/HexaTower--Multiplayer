@@ -1,7 +1,10 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 use core_game_logic::{CreationParameters, cards::CardId, players::PlayerId};
 
-use crate::{DisplayPlayer, OperatingPlayer, vis_tiles::BoardSize};
+use crate::{
+    DisplayPlayer, OperatingPlayer,
+    vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetype, vis_tiles::BoardSize,
+};
 
 pub struct StartupPlugin;
 
@@ -52,6 +55,29 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
             tooltip: "Tooltip for card 5.".into(),
         },
     ])));
+
+    commands.insert_resource(
+        crate::vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory::new(&[
+            VisualPieceArchetype {
+                model: todo!(),
+                name: "Archetype TWO".into(),
+            },
+            VisualPieceArchetype {
+                model: todo!(),
+                name: "Archetype ONE".into(),
+            },
+        ]),
+    );
+
+    commands.insert_resource(
+        crate::vis_pieces::visual_piece_archetypes_storage::BasePlatesDirectory::new(&[
+            asset_server
+                .load(GltfAssetLabel::Scene(0).from_asset("base_plates/green_baseplate.glb")),
+            asset_server.load(GltfAssetLabel::Scene(0).from_asset("base_plates/red_baseplate.glb")),
+            asset_server
+                .load(GltfAssetLabel::Scene(0).from_asset("base_plates/yellow_baseplate.glb")),
+        ]),
+    );
 
     commands.insert_resource(LogicalWorld(CreationParameters::testing_default()));
 

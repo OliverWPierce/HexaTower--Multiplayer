@@ -56,16 +56,13 @@ impl OccupiedByPiece {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Default)]
 #[relationship_target(relationship = PieceOwnedByPlayer, linked_spawn)]
 pub struct OwnsPieces(Vec<Entity>);
 
 impl OwnsPieces {
     pub fn list(&self) -> &[Entity] {
         &self.0
-    }
-    pub fn new() -> Self {
-        OwnsPieces(Vec::new())
     }
 }
 
