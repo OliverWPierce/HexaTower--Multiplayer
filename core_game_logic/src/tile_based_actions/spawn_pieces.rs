@@ -73,6 +73,7 @@ impl TileActionFunctionality for SpawnPieces {
                 tile: id,
                 player: self.owner,
                 archetype: self.archetype,
+                facing_direction: FacingHexDirection::default(),
             });
 
             log.write(ActionEffect::GaveFreeRotationComponent {

@@ -8,7 +8,9 @@ use core_game_logic::{
 };
 
 use crate::{
-    OperatingPlayer, functional_assets::LogicalWorld, vis_pieces::PieceSpawned,
+    OperatingPlayer,
+    functional_assets::LogicalWorld,
+    vis_pieces::{EndFreeRotationAnimation, PieceSpawned, StartFreeRotationAnimation},
     vis_tiles::TileTypeConverted,
 };
 
@@ -29,11 +31,23 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
             tile,
             player,
             archetype,
+            facing_direction,
         } => {
             commands.write_message(PieceSpawned {
                 tile,
                 owner: player,
                 archetype,
+                direction: facing_direction,
+            });
+        }
+        ActionEffect::GaveFreeRotationComponent { to_piece_on_tile } => {
+            commands.write_message(StartFreeRotationAnimation {
+                on_tile: to_piece_on_tile,
+            });
+        }
+        ActionEffect::RemovedFreeRotationComponent { from_piece_on_tile } => {
+            commands.write_message(EndFreeRotationAnimation {
+                on_tile: from_piece_on_tile,
             });
         }
         _ => warn!("Display method not yet implemented..."),

@@ -33,6 +33,7 @@ pub enum ActionEffect {
         tile: TileId,
         player: PlayerId,
         archetype: crate::pieces::ArchetypeId,
+        facing_direction: FacingHexDirection,
     },
     AddedCardToInventory {
         player: PlayerId,
