@@ -1,11 +1,14 @@
 use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
     orders::OrderId,
     players::{Coins, PlayerId},
     requests::{ActionEffect, ChangeLog},
-    tile_mapping::TileId,
+    tile_mapping::{
+        HexVector2d, NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST, TileId,
+    },
 };
 
 #[derive(Debug, Resource)]
@@ -135,3 +138,29 @@ pub fn get_delta_health(health: Health, method: AlterHealthMethod) -> i32 {
 }
 #[derive(Debug, Component)]
 pub struct IsWinCondition;
+
+#[derive(Debug, Default, Component, Serialize, Deserialize, Clone, Copy, PartialEq)]
+pub enum FacingHexDirection {
+    NorthEast,
+    #[default]
+    North,
+    NorthWest,
+    SouthWest,
+    South,
+    SouthEast,
+}
+
+impl From<FacingHexDirection> for HexVector2d {
+    fn from(direction: FacingHexDirection) -> Self {
+        match direction {
+            FacingHexDirection::NorthEast => NORTH_EAST,
+            FacingHexDirection::North => NORTH,
+            FacingHexDirection::NorthWest => NORTH_WEST,
+            FacingHexDirection::SouthWest => SOUTH_WEST,
+            FacingHexDirection::South => SOUTH,
+            FacingHexDirection::SouthEast => SOUTH_EAST,
+        }
+    }
+}
+#[derive(Debug, Component)]
+pub struct GetsFreeRotation;

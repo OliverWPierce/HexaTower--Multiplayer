@@ -7,7 +7,8 @@ use crate::{
     markets::{MarketDirectory, MarketId},
     orders::OrderDirectory,
     pieces::{
-        IsWinCondition, OccupiedByPiece, Orders, OrdersReceivable, OwnsPieces, PieceOwnedByPlayer,
+        FacingHexDirection, GetsFreeRotation, IsWinCondition, OccupiedByPiece, Orders,
+        OrdersReceivable, OwnsPieces, PieceOwnedByPlayer,
     },
     players::{
         self, ActivePlayer, Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory, PlayerId,
@@ -69,6 +70,16 @@ pub enum ActionEffect {
     GameOver {
         winner: Option<PlayerId>,
     },
+    PieceRotated {
+        on_tile: TileId,
+        new_rotation: FacingHexDirection,
+    },
+    GaveFreeRotationComponent {
+        to_piece_on_tile: TileId,
+    },
+    RemovedFreeRotationComponent {
+        from_piece_on_tile: TileId,
+    },
 }
 
 #[derive(Default, Debug)]
@@ -126,6 +137,10 @@ pub enum RequestType {
         input: InputData,
         index_of_order: u8,
     },
+    FreePieceRotation {
+        on_tile: TileId,
+        direction: FacingHexDirection,
+    },
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum InputData {
@@ -143,6 +158,10 @@ struct UnexpectedInputType;
 struct NotPlayersTurn(PlayerId);
 
 #[derive(Debug, Error)]
+#[error("Piece on tile {0:?} cannot be rotated for free.")]
+struct PieceCannotBeRotatedForFree(TileId);
+
+#[derive(Debug, Error)]
 pub enum PurchaseCardError {
     #[error("Tile {0:?} is not a market tile.")]
     TileIsNotMarket(TileId),
@@ -154,9 +173,11 @@ pub enum PurchaseCardError {
     IndexOutOfBounds,
 }
 #[derive(Debug, Error)]
+#[error("Tile {0:?} is vacant.")]
+struct NoPieceOnTile(TileId);
+
+#[derive(Debug, Error)]
 pub enum ExecuteOrderError {
-    #[error("Tile {0:?} is vacant, so it cannot be used to specify an order.")]
-    NoPieceOnTile(TileId),
     #[error("The peice has no orders remaining for this round.")]
     PieceHasNoRemainingOrders,
     #[error("The acting player is out of orders for this roudn.")]
@@ -294,8 +315,8 @@ pub fn try_consume_request(
                     .split_at(exiting_player.0 as usize);
 
                 *world.get::<PlayerId>(*next_players.iter().skip(1).chain(preceding_players).find(|player| *world.get::<PlayerState>(**player).unwrap() != PlayerState::Dead)
-                    .expect("Tried to end turn, but all players were dead (except perhaps the active player.) This indicates the game is over, which should have been handled by another system. (Players cannot end their turn when the game is over)."))
-                    .unwrap()
+                        .expect("Tried to end turn, but all players were dead (except perhaps the active player.) This indicates the game is over, which should have been handled by another system. (Players cannot end their turn when the game is over)."))
+                        .unwrap()
             };
 
             world.resource_mut::<ActivePlayer>().0 = next_player;
@@ -313,7 +334,7 @@ pub fn try_consume_request(
         } => {
             let piece = world
                 .get::<OccupiedByPiece>(world.resource::<TileDirectory>().get_entity(tile)?)
-                .ok_or(ExecuteOrderError::NoPieceOnTile(tile))?
+                .ok_or(NoPieceOnTile(tile))?
                 .piece();
 
             if world.get::<OrdersReceivable>(piece).unwrap().currently < 1 {
@@ -383,6 +404,35 @@ pub fn try_consume_request(
                 .remaining -= 1;
 
             change_log
+        }
+        RequestType::FreePieceRotation { on_tile, direction } => {
+            let piece_entity = world
+                .get::<OccupiedByPiece>(world.resource::<TileDirectory>().get_entity(on_tile)?)
+                .ok_or(NoPieceOnTile(on_tile))?
+                .piece();
+
+            let _ = world
+                .get::<GetsFreeRotation>(piece_entity)
+                .ok_or(PieceCannotBeRotatedForFree(on_tile))?;
+
+            *world
+                .get_mut::<FacingHexDirection>(piece_entity)
+                .expect("all pieces have a rotation") = direction;
+
+            world.entity_mut(piece_entity).remove::<GetsFreeRotation>();
+
+            let mut log = ChangeLog::default();
+
+            log.write(ActionEffect::RemovedFreeRotationComponent {
+                from_piece_on_tile: on_tile,
+            });
+
+            log.write(ActionEffect::PieceRotated {
+                on_tile,
+                new_rotation: direction,
+            });
+
+            log
         }
     };
 
