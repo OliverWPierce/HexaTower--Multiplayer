@@ -1,3 +1,5 @@
+use std::f32::consts::TAU;
+
 /// This module provides the functionality for ensuring tile-related visuals remain consistent with the backend. This includes animations.
 ///
 /// Indicators: I could have used a parent-child heirarchy between indicators and the tiles they indicate; however,
@@ -16,6 +18,7 @@ use core_game_logic::{
 use crate::{
     functional_assets::{GameCreationSettings, LogicalWorld, SetUpBoard},
     inputs_interface::LoadedAction,
+    vis_pieces::PieceOnTile,
 };
 
 #[derive(Debug)]
@@ -43,7 +46,7 @@ impl Plugin for VisTilesPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(SetUpBoard, spawn_tiles_and_initialize_inficators);
         // switch this to a custom schedule later.
-        app.add_systems(Update, swap_tile_mesh);
+        app.add_systems(Update, (swap_tile_mesh, visualize_active_tile));
         app.add_message::<TileTypeConverted>();
 
         app.add_systems(
@@ -51,7 +54,13 @@ impl Plugin for VisTilesPlugin {
             update_indicators.run_if(resource_changed_or_removed::<LoadedAction>),
         );
 
+        app.add_systems(
+            Update,
+            remove_active_tile_indicators.run_if(resource_removed::<ActiveTile>),
+        );
+
         app.add_observer(tmp_select_tile);
+        app.add_observer(set_active_tile);
     }
 }
 
@@ -231,4 +240,72 @@ fn tmp_select_tile(
         #[cfg(debug_assertions)]
         println!("tile selection {tile:?} failed");
     };
+}
+
+#[derive(Debug, Resource)]
+pub struct ActiveTile(pub TileId);
+
+fn set_active_tile(
+    mut click: On<Pointer<Click>>,
+    vis_tiles: Query<&TileId>,
+    vis_pieces: Query<&PieceOnTile>,
+    loaded_action: Option<Res<LoadedAction>>,
+    mut commands: Commands,
+) {
+    if loaded_action.is_some() {
+        return;
+    }
+
+    if let Ok(&tile) = vis_tiles.get(click.entity) {
+        click.propagate(false);
+        commands.insert_resource(ActiveTile(tile));
+    } else if let Ok(&PieceOnTile(tile)) = vis_pieces.get(click.entity) {
+        click.propagate(false);
+        commands.insert_resource(ActiveTile(tile));
+    }
+}
+
+#[derive(Debug, Component)]
+struct ActiveTileIndicator;
+
+fn visualize_active_tile(
+    mut commands: Commands,
+    asset_server: ResMut<AssetServer>,
+    mut alread_existing_indicators: Query<&mut Transform, With<ActiveTileIndicator>>,
+    active_tile: If<Res<ActiveTile>>,
+    time: Res<Time>,
+) {
+    let horizontal_location: Vec2 = HexVector2d::from(active_tile.0.0).into();
+
+    if alread_existing_indicators.is_empty() {
+        commands.spawn((
+            Transform::from_translation(Vec3 {
+                x: horizontal_location.x,
+                y: 1.0,
+                z: horizontal_location.y,
+            }),
+            ActiveTileIndicator,
+            SceneRoot(
+                asset_server.load(GltfAssetLabel::Scene(0).from_asset("active_tile_indicator.glb")),
+            ),
+        ));
+    } else {
+        const SPEED: f32 = 1.0;
+
+        for mut ring in alread_existing_indicators.iter_mut() {
+            ring.translation.x = horizontal_location.x;
+            ring.translation.z = horizontal_location.y;
+
+            ring.rotate_y(SPEED * time.delta_secs());
+        }
+    }
+}
+
+fn remove_active_tile_indicators(
+    mut commands: Commands,
+    indicators: Query<Entity, With<ActiveTileIndicator>>,
+) {
+    for entity in indicators {
+        commands.entity(entity).despawn();
+    }
 }

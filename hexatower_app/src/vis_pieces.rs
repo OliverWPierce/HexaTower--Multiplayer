@@ -1,10 +1,10 @@
 use std::f32::consts::PI;
 
-use bevy::{ecs::query, prelude::*};
+use bevy::prelude::*;
 use core_game_logic::{
     pieces::{ArchetypeId, FacingHexDirection},
     players::PlayerId,
-    tile_mapping::{HexVector2d, TileId},
+    tile_mapping::TileId,
 };
 
 use crate::vis_pieces::visual_piece_archetypes_storage::{
@@ -90,7 +90,7 @@ pub struct PieceSpawned {
     pub direction: FacingHexDirection,
 }
 #[derive(Debug, Component)]
-struct PieceOnTile(TileId);
+pub struct PieceOnTile(pub TileId);
 
 const BASEPLATE_HEIGHT: f32 = 0.115;
 
