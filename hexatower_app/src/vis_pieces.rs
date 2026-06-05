@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use bevy::prelude::*;
+use bevy::{ecs::query, prelude::*};
 use core_game_logic::{
     pieces::{ArchetypeId, FacingHexDirection},
     players::PlayerId,
@@ -18,7 +18,14 @@ impl Plugin for VisPiecesPlugin {
         app.add_message::<PieceSpawned>();
         app.add_message::<StartFreeRotationAnimation>();
         app.add_message::<EndFreeRotationAnimation>();
-        app.add_systems(Update, (spawn_visuals, start_free_rotation_animation));
+        app.add_systems(
+            Update,
+            (spawn_visuals, start_free_rotation_animation).chain(),
+        );
+        app.add_systems(
+            Update,
+            (spin_pieces_that_need_rotation, exclaimation_mark_animations),
+        );
     }
 }
 
@@ -145,13 +152,29 @@ pub struct StartFreeRotationAnimation {
 pub struct EndFreeRotationAnimation {
     pub on_tile: TileId,
 }
+#[derive(Debug, Component)]
+struct IndicatesPieceThatNeedsADirectionToFace;
+
+#[derive(Debug, Component)]
+struct ExclamationMark;
 
 fn start_free_rotation_animation(
     mut pieces_to_start: MessageReader<StartFreeRotationAnimation>,
+    visual_pieces: Query<(Entity, &PieceOnTile)>,
     asset_server: ResMut<AssetServer>,
     mut commands: Commands,
-) {
+) -> Result<(), BevyError> {
     for StartFreeRotationAnimation { on_tile } in pieces_to_start.read() {
+        let vis_piece = visual_pieces
+            .iter()
+            .find(|(_, PieceOnTile(tile))| *tile == *on_tile)
+            .ok_or("No visual for a piece on tile {on_tile:?}")?
+            .0;
+
+        commands
+            .entity(vis_piece)
+            .insert(IndicatesPieceThatNeedsADirectionToFace);
+
         let horizontal_location: Vec2 =
             core_game_logic::tile_mapping::HexVector2d::from(*on_tile).into();
         commands.spawn((
@@ -161,10 +184,56 @@ fn start_free_rotation_animation(
                 z: horizontal_location.y,
             }),
             SceneRoot(
-                asset_server.load(
-                    GltfAssetLabel::Scene(0).from_asset("free_rotation_indication_pillar.glb"),
-                ),
+                asset_server
+                    .load(GltfAssetLabel::Scene(0).from_asset("free_rotation_indication.glb")),
             ),
+            ExclamationMark,
         ));
+    }
+
+    Ok(())
+}
+
+const SPIN_SPEED: f32 = 0.6;
+
+fn spin_pieces_that_need_rotation(
+    mut spinable_pieces: Query<&mut Transform, With<IndicatesPieceThatNeedsADirectionToFace>>,
+    time: Res<Time>,
+) {
+    let delta = time.delta_secs();
+
+    for mut transform in spinable_pieces.iter_mut() {
+        transform.rotate_y(SPIN_SPEED * delta);
+    }
+}
+
+fn exclaimation_mark_animations(
+    mut spinable_pieces: Query<&mut Transform, With<ExclamationMark>>,
+    time: Res<Time>,
+) {
+    let delta = time.delta_secs();
+
+    let mut my_iter = spinable_pieces.iter_mut();
+
+    let Some(mut transform) = my_iter.next() else {
+        return;
+    };
+
+    transform.rotate_y(SPIN_SPEED * delta);
+
+    const SHARPNESS: i32 = 20;
+    const MAX_SCALE_BOOST: f32 = 0.5;
+
+    const LOWEST_HEIGHT: f32 = 0.9;
+    const MAX_HEIGHT_BOOST: f32 = 0.9;
+
+    let scale = MAX_SCALE_BOOST * transform.rotation.w.powi(SHARPNESS) + 1.0;
+    let height = MAX_HEIGHT_BOOST * transform.rotation.w.powi(SHARPNESS) + LOWEST_HEIGHT;
+
+    transform.scale = Vec3::splat(scale);
+    transform.translation.y = height;
+
+    for mut individual_indicator in my_iter {
+        *individual_indicator = *transform;
     }
 }
