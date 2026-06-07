@@ -1,5 +1,6 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
-use core_game_logic::{CreationParameters, cards::CardId, players::PlayerId};
+use core_game_logic::{CreationParameters, cards::CardId, orders::OrderId, players::PlayerId};
+use thiserror::Error;
 
 use crate::{
     DisplayPlayer, OperatingPlayer,
@@ -120,7 +121,7 @@ pub struct LogicalWorld(pub World);
 pub struct GameCreationSettings {
     pub board_size: BoardSize,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VisualCard {
     pub image: Handle<Image>,
     pub name: String,
@@ -128,7 +129,21 @@ pub struct VisualCard {
 }
 
 #[derive(Debug, Resource)]
-pub struct VisCardDirectory(pub Box<[VisualCard]>);
+pub struct VisCardDirectory(Box<[VisualCard]>);
+
+#[derive(Debug, Error)]
+#[error{"Tried to retrieve card data using an invalid CardId {0:?}."}]
+pub struct VisInvaildCardIdErr(pub CardId);
+
+impl VisCardDirectory {
+    pub fn get_card(&self, id: CardId) -> Result<&VisualCard, VisInvaildCardIdErr> {
+        self.0.get(id.0 as usize).ok_or(VisInvaildCardIdErr(id))
+    }
+    pub fn new(cards: &[VisualCard]) -> Self {
+        VisCardDirectory(cards.into())
+    }
+}
+
 #[derive(Debug, Component)]
 pub struct VisualCardId(pub CardId);
 
@@ -140,4 +155,17 @@ pub struct VisOrder {
 }
 
 #[derive(Debug, Resource)]
-pub struct VisOrderDirectory(pub Box<[VisOrder]>);
+pub struct VisOrderDirectory(Box<[VisOrder]>);
+
+#[derive(Debug, Error)]
+#[error{"Tried to retrieve visual order data using an invalid OrderId {0:?}."}]
+pub struct VisInvaildIDErr(pub OrderId);
+
+impl VisOrderDirectory {
+    pub fn get_order(&self, id: OrderId) -> Result<&VisOrder, VisInvaildIDErr> {
+        self.0.get(id.0 as usize).ok_or(VisInvaildIDErr(id))
+    }
+    pub fn new(orders: Box<[VisOrder]>) -> Self {
+        Self(orders)
+    }
+}

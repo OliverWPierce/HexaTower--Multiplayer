@@ -118,12 +118,7 @@ fn render_inventory(
                 InventorySlot,
                 children![(
                     ImageNode {
-                        image: vis_cards
-                            .0
-                            .get(card.0 as usize)
-                            .ok_or(format!("No visual found for card {card:?}"))?
-                            .image
-                            .clone(),
+                        image: vis_cards.get_card(*card)?.image.clone(),
                         image_mode: NodeImageMode::Stretch,
                         ..default()
                     },
@@ -174,12 +169,7 @@ fn hover_slot(
     };
 
     if let Some(&VisualCardId(card)) = slot_status {
-        header_text.0 = vis_cards
-            .0
-            .get(card.0 as usize)
-            .ok_or(format!("No visual found for card {card:?}"))?
-            .name
-            .clone();
+        header_text.0 = vis_cards.get_card(card)?.name.clone();
     } else {
         header_text.0 = "Empty Slot".into();
     }
@@ -224,10 +214,7 @@ fn load_card_action(
     });
 
     {
-        let card_details = visual_cards
-            .0
-            .get(card.0 as usize)
-            .ok_or("no visual found for this card")?;
+        let card_details = visual_cards.get_card(*card)?;
 
         commands.entity(parent_panel.entity()).despawn_children();
 
