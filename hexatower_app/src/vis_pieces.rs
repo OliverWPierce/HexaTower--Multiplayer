@@ -90,7 +90,7 @@ pub struct PieceSpawned {
     pub direction: FacingHexDirection,
 }
 #[derive(Debug, Component)]
-pub struct PieceOnTile(pub TileId);
+pub struct VisOccupies(pub TileId);
 
 const BASEPLATE_HEIGHT: f32 = 0.115;
 
@@ -118,7 +118,7 @@ fn spawn_visuals(
         let horizontal_location: Vec2 =
             core_game_logic::tile_mapping::HexVector2d::from(spawn.tile).into();
         commands.spawn((
-            PieceOnTile(spawn.tile),
+            VisOccupies(spawn.tile),
             Transform::from_translation(Vec3 {
                 x: horizontal_location.x,
                 y: 0.0,
@@ -162,13 +162,13 @@ struct ExclamationMark;
 
 fn start_free_rotation_animation(
     mut pieces_to_start: MessageReader<StartFreeRotationAnimation>,
-    visual_pieces: Query<(Entity, &PieceOnTile)>,
+    visual_pieces: Query<(Entity, &VisOccupies)>,
     mut commands: Commands,
 ) -> Result<(), BevyError> {
     for StartFreeRotationAnimation { on_tile } in pieces_to_start.read() {
         let vis_piece = visual_pieces
             .iter()
-            .find(|(_, PieceOnTile(tile))| *tile == *on_tile)
+            .find(|(_, VisOccupies(tile))| *tile == *on_tile)
             .ok_or("No visual for a piece on tile {on_tile:?}")?
             .0;
 
@@ -194,13 +194,13 @@ fn spin_pieces_that_need_rotation(
 
 fn end_free_rotation_animation(
     mut pieces_to_start: MessageReader<EndFreeRotationAnimation>,
-    visual_pieces: Query<(Entity, &PieceOnTile)>,
+    visual_pieces: Query<(Entity, &VisOccupies)>,
     mut commands: Commands,
 ) -> Result<(), BevyError> {
     for EndFreeRotationAnimation { on_tile } in pieces_to_start.read() {
         let vis_piece = visual_pieces
             .iter()
-            .find(|(_, PieceOnTile(tile))| *tile == *on_tile)
+            .find(|(_, VisOccupies(tile))| *tile == *on_tile)
             .ok_or("No visual for a piece on tile {on_tile:?}")?
             .0;
 

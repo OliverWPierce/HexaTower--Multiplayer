@@ -1,10 +1,12 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 
 use crate::{
-    functional_assets::SetUpBoard, inputs_interface::LoadedAction,
-    ui_panels::upper_panel::VisualInventoryPlugin,
+    functional_assets::SetUpBoard,
+    inputs_interface::LoadedAction,
+    ui_panels::{mid_panel::VisualOrdersPlugin, upper_panel::VisualInventoryPlugin},
 };
 
+mod mid_panel;
 mod upper_panel;
 
 pub struct UiPanelsPlugin;
@@ -22,6 +24,7 @@ impl Plugin for UiPanelsPlugin {
         );
 
         app.add_plugins(VisualInventoryPlugin);
+        app.add_plugins(VisualOrdersPlugin);
     }
 }
 
@@ -88,8 +91,11 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                     Node {
                         width: OVERALL_PANEL_WIDTHS,
                         height: OVERALL_PANEL_HEIGHTS,
-                        align_self: AlignSelf::Center,
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        align_self: AlignSelf::Center,
+                        justify_content: JustifyContent::SpaceAround,
                         ..default()
                     },
                     BorderColor::all(PANEL_BORDERS),

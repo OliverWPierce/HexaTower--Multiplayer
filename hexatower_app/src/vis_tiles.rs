@@ -18,7 +18,7 @@ use core_game_logic::{
 use crate::{
     functional_assets::{GameCreationSettings, LogicalWorld, SetUpBoard},
     inputs_interface::LoadedAction,
-    vis_pieces::PieceOnTile,
+    vis_pieces::VisOccupies,
 };
 
 #[derive(Debug)]
@@ -248,7 +248,7 @@ pub struct ActiveTile(pub TileId);
 fn set_active_tile(
     mut click: On<Pointer<Click>>,
     vis_tiles: Query<&TileId>,
-    vis_pieces: Query<&PieceOnTile>,
+    vis_pieces: Query<&VisOccupies>,
     loaded_action: Option<Res<LoadedAction>>,
     mut commands: Commands,
 ) {
@@ -259,7 +259,7 @@ fn set_active_tile(
     if let Ok(&tile) = vis_tiles.get(click.entity) {
         click.propagate(false);
         commands.insert_resource(ActiveTile(tile));
-    } else if let Ok(&PieceOnTile(tile)) = vis_pieces.get(click.entity) {
+    } else if let Ok(&VisOccupies(tile)) = vis_pieces.get(click.entity) {
         click.propagate(false);
         commands.insert_resource(ActiveTile(tile));
     }
