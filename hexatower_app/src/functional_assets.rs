@@ -87,6 +87,27 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
         ]),
     );
 
+    commands.insert_resource(VisOrderDirectory(
+        [
+            VisOrder {
+                image: asset_server.load("order_icons/Knife.png"),
+                name: "The Exemplifier".into(),
+                tooltip: "A lovely example which does absolutely nothing.".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/crossed_dagger.png"),
+                name: "Remedy".into(),
+                tooltip: "Good as new".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/single_dagger.png"),
+                name: "Corrupter".into(),
+                tooltip: "Triplets of darkness".into(),
+            },
+        ]
+        .into(),
+    ));
+
     commands.insert_resource(LogicalWorld(CreationParameters::testing_default()));
 
     commands.run_schedule(SetUpBoard);
@@ -110,3 +131,13 @@ pub struct VisualCard {
 pub struct VisCardDirectory(pub Box<[VisualCard]>);
 #[derive(Debug, Component)]
 pub struct VisualCardId(pub CardId);
+
+#[derive(Debug)]
+pub struct VisOrder {
+    pub image: Handle<Image>,
+    pub name: String,
+    pub tooltip: String,
+}
+
+#[derive(Debug, Resource)]
+pub struct VisOrderDirectory(pub Box<[VisOrder]>);
