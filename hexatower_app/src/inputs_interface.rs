@@ -5,11 +5,13 @@ use core_game_logic::{
         ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType,
         try_consume_request,
     },
+    tile_mapping::TileId,
 };
 
 use crate::{
     OperatingPlayer,
     functional_assets::LogicalWorld,
+    ui_panels::OrderAtPieceIndex,
     vis_pieces::{EndFreeRotationAnimation, PieceSpawned, StartFreeRotationAnimation},
     vis_tiles::TileTypeConverted,
 };
@@ -62,6 +64,10 @@ pub struct LoadedAction {
 #[derive(Debug)]
 pub enum Source {
     Card(InventoryIndex),
+    Order {
+        tile_of_piece: TileId,
+        order_index: OrderAtPieceIndex,
+    },
 }
 
 #[derive(Event, Debug)]
@@ -83,6 +89,16 @@ fn try_execute_loaded_action(
                         input: InputData::AffectedTiles(
                             tile_action_process_cache.selected_tiles().into(),
                         ),
+                    },
+                    Source::Order {
+                        tile_of_piece,
+                        order_index,
+                    } => RequestType::UseOrder {
+                        tile: tile_of_piece,
+                        input: InputData::AffectedTiles(
+                            tile_action_process_cache.selected_tiles().into(),
+                        ),
+                        index_of_order: order_index.0,
                     },
                 }
             }

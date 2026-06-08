@@ -1,11 +1,13 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
+    orders::{OrderDirectory, OrderFunction},
     pieces::{OccupiedByPiece, Orders},
     tiles::TileDirectory,
 };
 
 use crate::{
     functional_assets::{LogicalWorld, VisOrderDirectory},
+    inputs_interface::{LoadedAction, Source},
     ui_panels::{LEFT_SIDE_HEADER_PARAMS, OrdersPanel, hoverable_elements},
     vis_pieces::VisOccupies,
     vis_tiles::ActiveTile,
@@ -97,9 +99,9 @@ fn render_orders_of_active_piece(
         ))
         .id();
 
-    for maybe_order in orders_to_display {
+    for (index, maybe_order) in orders_to_display.iter().enumerate() {
         if let Some(order) = maybe_order {
-            let visual_details = visual_order_data.get_order(order)?;
+            let visual_details = visual_order_data.get_order(*order)?;
 
             commands.spawn((
                 Node {
@@ -116,6 +118,7 @@ fn render_orders_of_active_piece(
                     BackgroundColor(Color::Srgba(ZINC_700)),
                 ),
                 ChildOf(container_for_order_icons),
+                OrderAtPieceIndex(index as u8),
                 children![(
                     ImageNode {
                         image: visual_details.image.clone(),
@@ -148,6 +151,55 @@ fn render_orders_of_active_piece(
             ));
         }
     }
+
+    Ok(())
+}
+
+#[derive(Debug, Component, Clone, Copy)]
+pub struct OrderAtPieceIndex(pub u8);
+
+fn load_order(
+    click: On<Pointer<Click>>,
+    mut commands: Commands,
+    orders: Query<&OrderAtPieceIndex>,
+    active_piece: Res<ActiveTile>,
+    logical_world: Res<LogicalWorld>,
+) -> Result<(), BevyError> {
+    let Ok(&order_index) = orders.get(click.entity) else {
+        return Ok(());
+    };
+    commands.insert_resource(LoadedAction {
+        source: Source::Order {
+            tile_of_piece: active_piece.0,
+            order_index,
+        },
+        cache: logical_world
+            .0
+            .resource::<OrderDirectory>()
+            .get_order(
+                logical_world
+                    .0
+                    .get::<Orders>(
+                        logical_world
+                            .0
+                            .get::<OccupiedByPiece>(
+                                logical_world
+                                    .0
+                                    .resource::<TileDirectory>()
+                                    .get_entity(active_piece.0)?,
+                            )
+                            .ok_or("Tile was unnoccupied")?
+                            .piece(),
+                    )
+                    .expect("all pieces should store data about the orders they use")
+                    .0
+                    .get(order_index.0 as usize)
+                    .unwrap()
+                    .ok_or("No order found at this index for this piece")?,
+            )?
+            .functionality
+            .action_cache(active_piece.0, &logical_world.0)?,
+    });
 
     Ok(())
 }
