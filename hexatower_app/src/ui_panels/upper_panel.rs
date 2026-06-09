@@ -313,7 +313,6 @@ fn render_card_execution_panel(
                 },
                 BorderColor::all(SLATE_950),
                 BackgroundColor(Color::Srgba(ZINC_800)),
-                InventorySlot,
                 children![(
                     ImageNode {
                         image: card_details.image.clone(),
