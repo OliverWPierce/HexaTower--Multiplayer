@@ -251,12 +251,17 @@ mod hoverable_elements {
 
 mod execution_button {
     use bevy::{color::palettes::tailwind::*, prelude::*};
-    use core_game_logic::players::ActivePlayer;
+    use core_game_logic::{
+        pieces::{OccupiedByPiece, OrdersReceivable, PieceOwnedByPlayer},
+        players::{ActivePlayer, PlayerDirectory, PlayerOrdersRemaining},
+        tiles::TileDirectory,
+    };
 
     use crate::{
         DisplayPlayer, OperatingPlayer,
         functional_assets::LogicalWorld,
-        inputs_interface::{LoadedAction, TryExecuteLoadedAction},
+        inputs_interface::{LoadedAction, Source, TryExecuteLoadedAction},
+        vis_tiles::ActiveTile,
     };
 
     #[derive(Debug, Component)]
@@ -266,90 +271,108 @@ mod execution_button {
         mut commands: Commands,
         loaded_action: Res<LoadedAction>,
         panel: Single<Entity, With<ExecutionButtonPanel>>,
-    ) {
+        operating_player: Res<OperatingPlayer>,
+        active_tile: Option<Res<ActiveTile>>,
+        logical_world: Res<LogicalWorld>,
+    ) -> Result<(), BevyError> {
+        let blockers_for_action_execution = action_blockers(
+            &loaded_action,
+            &logical_world,
+            &operating_player,
+            active_tile.as_ref(),
+        )?;
+
+        struct ColorScheme {
+            unready_background: BackgroundColor,
+            unready_border: BorderColor,
+            ready_background: BackgroundColor,
+            ready_border: BorderColor,
+        }
+
+        let colors = match loaded_action.source {
+            Source::Card(..) => ColorScheme {
+                unready_background: BackgroundColor(BLUE_900.into()),
+                unready_border: BorderColor::all(BLUE_950),
+                ready_background: BackgroundColor(BLUE_500.into()),
+                ready_border: BorderColor::all(BLUE_600),
+            },
+            Source::Order(..) => ColorScheme {
+                unready_background: BackgroundColor(RED_900.into()),
+                unready_border: BorderColor::all(RED_950),
+                ready_background: BackgroundColor(RED_500.into()),
+                ready_border: BorderColor::all(RED_600),
+            },
+        };
+
+        commands.entity(panel.entity()).despawn_children();
+
+        let button = commands
+            .spawn((
+                Node {
+                    min_height: Val::Px(38.0),
+                    height: Val::Percent(100.0),
+                    width: Val::Percent(100.0),
+                    border: UiRect::all(Val::Px(3.0)),
+                    border_radius: BorderRadius::all(Val::Px(5.0)),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                ChildOf(panel.entity()),
+                {
+                    if blockers_for_action_execution.is_none() {
+                        (colors.ready_background, colors.ready_border)
+                    } else {
+                        (colors.unready_background, colors.unready_border)
+                    }
+                },
+            ))
+            .observe(try_start_execution_request)
+            .id();
+
+        commands.spawn((
+            Text::new(match loaded_action.source {
+                Source::Card(..) => String::from("USE ITEM!"),
+                Source::Order(..) => String::from("ORDER!"),
+            }),
+            TextFont {
+                font_size: 24.0,
+                ..default()
+            },
+            ChildOf(button),
+            TextColor({
+                if blockers_for_action_execution.is_none() {
+                    Color::Hsva(Hsva {
+                        hue: 0.0,
+                        saturation: 0.0,
+                        value: 1.0,
+                        alpha: 1.0,
+                    })
+                } else {
+                    Color::Hsva(Hsva {
+                        hue: 0.0,
+                        saturation: 0.0,
+                        value: 0.7,
+                        alpha: 1.0,
+                    })
+                }
+            }),
+        ));
+
+        if let Some(blocker) = blockers_for_action_execution {
+            commands.spawn((
+                Text::new(blocker.0),
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                },
+                ChildOf(button),
+            ));
+        }
+
         match &loaded_action.cache {
             core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
-                commands.entity(panel.entity()).despawn_children();
-
-                let ready_for_execution =
-                    cache.selection_bounds().start <= cache.amount_currently_selected();
-
-                let button = commands
-                    .spawn((
-                        Node {
-                            min_height: Val::Px(38.0),
-                            height: Val::Percent(100.0),
-                            width: Val::Percent(100.0),
-                            border: UiRect::all(Val::Px(3.0)),
-                            border_radius: BorderRadius::all(Val::Px(5.0)),
-                            flex_direction: FlexDirection::Column,
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::Center,
-                            ..default()
-                        },
-                        ChildOf(panel.entity()),
-                        {
-                            if ready_for_execution {
-                                (
-                                    BackgroundColor(VIOLET_600.into()),
-                                    BorderColor::all(VIOLET_800),
-                                )
-                            } else {
-                                (
-                                    BackgroundColor(VIOLET_900.into()),
-                                    BorderColor::all(VIOLET_950),
-                                )
-                            }
-                        },
-                    ))
-                    .observe(try_start_execution_request)
-                    .id();
-
-                commands.spawn((
-                    Text::new("Use Item"),
-                    TextFont {
-                        font_size: 24.0,
-                        ..default()
-                    },
-                    ChildOf(button),
-                    TextColor({
-                        if ready_for_execution {
-                            Color::Hsva(Hsva {
-                                hue: 0.0,
-                                saturation: 0.0,
-                                value: 1.0,
-                                alpha: 1.0,
-                            })
-                        } else {
-                            Color::Hsva(Hsva {
-                                hue: 0.0,
-                                saturation: 0.0,
-                                value: 0.7,
-                                alpha: 1.0,
-                            })
-                        }
-                    }),
-                ));
-
-                commands.spawn((
-                    Text::new(if !ready_for_execution {
-                        format!(
-                            "select at least {} more tiles",
-                            cache.selection_bounds().start - cache.amount_currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
-                        )
-                    } else {
-                        format!(
-                            "select up to {} more tiles",
-                            cache.selection_bounds().end - cache.amount_currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
-                        )
-                    }),
-                    TextFont {
-                        font_size: 12.0,
-                        ..default()
-                    },
-                    ChildOf(button),
-                ));
-
                 let selection_progress_bar = commands
                     .spawn((
                         Node {
@@ -394,6 +417,87 @@ mod execution_button {
 
             core_game_logic::requests::ActionProcessCache::Ex1 => todo!(),
         }
+        Ok(())
+    }
+
+    struct Blocker(String);
+
+    fn action_blockers(
+        loaded_action: &LoadedAction,
+        logical_world: &LogicalWorld,
+        operating_player: &OperatingPlayer,
+        active_tile: Option<&Res<ActiveTile>>,
+    ) -> Result<Option<Blocker>, BevyError> {
+        match &loaded_action.cache {
+            core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
+                if cache.selection_bounds().start > cache.amount_currently_selected() {
+                    return Ok(Some(Blocker(format!(
+                        "select at least {} more tiles",
+                        cache.selection_bounds().start - cache.amount_currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
+                    ))));
+                }
+            }
+            core_game_logic::requests::ActionProcessCache::Ex1 => (),
+        }
+
+        match loaded_action.source {
+            Source::Card(..) => (),
+            Source::Order(..) => {
+                let Some(tile) = active_tile else {
+                    return Err(BevyError::from(
+                        "An order was loaded with no accompanying active tile.",
+                    ));
+                };
+
+                let logical_piece = logical_world
+                    .0
+                    .get::<OccupiedByPiece>(
+                        logical_world
+                            .0
+                            .resource::<TileDirectory>()
+                            .get_entity(tile.0)?,
+                    )
+                    .ok_or("An order was loaded but the active tile was vacant")?
+                    .piece();
+
+                if logical_world.0.get::<OrdersReceivable>(logical_piece).expect("all pieces should have a component detailing how many orders they have and should have each round.").currently == 0 {
+                            return Ok(Some(Blocker("Piece is out of orders this round".into())))
+                        }
+
+                let Some(operating_player) = operating_player.0 else {
+                    return Ok(Some(Blocker("Spectators cannot preform actions".into())));
+                };
+
+                let owner = logical_world.0.get::<PieceOwnedByPlayer>(logical_piece);
+
+                if owner.is_none()
+                    || owner.unwrap().0
+                        != logical_world
+                            .0
+                            .resource::<PlayerDirectory>()
+                            .get_player(operating_player)?
+                {
+                    return Ok(Some(Blocker("You do not own this piece.".into())));
+                }
+                if logical_world
+                    .0
+                    .get::<PlayerOrdersRemaining>(
+                        logical_world
+                            .0
+                            .resource::<PlayerDirectory>()
+                            .get_player(operating_player)?,
+                    )
+                    .ok_or(
+                        "A player lacked information about how many remaining orders they have.",
+                    )?
+                    .remaining
+                    == 0
+                {
+                    return Ok(Some(Blocker("You are out of orders this round".into())));
+                }
+            }
+        }
+        Ok(None)
     }
 
     fn try_start_execution_request(
