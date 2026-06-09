@@ -1,8 +1,8 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     orders::OrderDirectory,
-    pieces::{OccupiedByPiece, Orders, OrdersReceivable},
-    players::{PlayerDirectory, PlayerOrdersRemaining},
+    pieces::{OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
+    players::{PlayerDirectory, PlayerId, PlayerOrdersRemaining},
     tiles::TileDirectory,
 };
 
@@ -45,6 +45,7 @@ fn render_orders_of_active_piece(
     logical_entity_of_active_piece: Entity,
     logical_world: &LogicalWorld,
     visual_order_data: &VisOrderDirectory,
+    operating_player: &OperatingPlayer,
     commands: &mut Commands,
 ) -> Result<(), BevyError> {
     commands
@@ -152,6 +153,104 @@ fn render_orders_of_active_piece(
         }
     }
 
+    {
+        let piece_owner = logical_world
+            .0
+            .get::<PieceOwnedByPlayer>(logical_entity_of_active_piece);
+
+        let piece_orders = logical_world
+            .0
+            .get::<OrdersReceivable>(logical_entity_of_active_piece)
+            .ok_or(
+                "all piece's should contain information about how many orders they can receive",
+            )?;
+
+        let big_container_bar = commands
+            .spawn((
+                ChildOf(overarching_order_panel),
+                Node {
+                    width: LEFT_SIDE_HEADER_PARAMS.width,
+                    height: Val::Px(24.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    justify_content: JustifyContent::SpaceBetween,
+                    ..default()
+                },
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+            ))
+            .id();
+
+        commands.spawn((
+            ChildOf(big_container_bar),
+            Node {
+                height: Val::Percent(100.0),
+                ..default()
+            },
+            children![
+                (Text::new("Piece orders: "), TextFont::from_font_size(16.0),),
+                (
+                    Text::new(format!("{}", piece_orders.currently)),
+                    TextFont::from_font_size(16.0),
+                    TextColor(match piece_orders.currently {
+                        0 => ROSE_600.into(),
+                        1 => ROSE_300.into(),
+                        2 => AMBER_300.into(),
+                        3 => EMERALD_300.into(),
+                        _ => TEAL_300.into(),
+                    })
+                ),
+                (
+                    Text::new(format!("/{}", piece_orders.per_round)),
+                    TextFont::from_font_size(16.0),
+                ),
+            ],
+        ));
+        if let Some(owner) = piece_owner {
+            let owner_id = *logical_world
+                .0
+                .get::<PlayerId>(owner.0)
+                .ok_or("A player did not have a player Id")?;
+
+            if owner_id == operating_player.0 {
+                commands.spawn((
+                    ChildOf(big_container_bar),
+                    Node {
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    children![(
+                        Text::new(String::from("Commander: You")),
+                        TextFont::from_font_size(16.0),
+                    ),],
+                ));
+            } else {
+                commands.spawn((
+                    ChildOf(big_container_bar),
+                    Node {
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    children![(
+                        Text::new(format!("Commander: {:?}", owner_id)),
+                        TextFont::from_font_size(16.0),
+                    )],
+                ));
+            }
+        } else {
+            commands.spawn((
+                ChildOf(big_container_bar),
+                Node {
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                children![(
+                    Text::new(String::from("For Sale")),
+                    TextFont::from_font_size(16.0),
+                )],
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -234,6 +333,7 @@ fn manage_orders_panel(
                     active_piece_log_entity.piece(),
                     &logical_world,
                     &visual_order_data,
+                    &operating_player,
                     &mut commands,
                 ),
             }
@@ -243,6 +343,7 @@ fn manage_orders_panel(
                 active_piece_log_entity.piece(),
                 &logical_world,
                 &visual_order_data,
+                &operating_player,
                 &mut commands,
             )
         }
@@ -391,13 +492,123 @@ fn render_order_execution_process(
         ],
     ));
 
-    display_player_and_piece_remaining_orders(
-        logical_world,
-        operating_player,
-        commands,
-        parent_panel,
-        logical_piece,
-    )?;
+    // display remaining orders, and/or owner.
+    {
+        let player_orders = logical_world
+            .0
+            .get::<PlayerOrdersRemaining>(
+                logical_world
+                    .0
+                    .resource::<PlayerDirectory>()
+                    .get_player(operating_player.0)?,
+            )
+            .ok_or("All players should have information about their remaining orders")?
+            .remaining;
+
+        let piece_owner = logical_world.0.get::<PieceOwnedByPlayer>(logical_piece);
+
+        let piece_orders = logical_world
+            .0
+            .get::<OrdersReceivable>(logical_piece)
+            .ok_or(
+                "all piece's should contain information about how many orders they can receive",
+            )?;
+
+        let big_container_bar = commands
+            .spawn((
+                ChildOf(parent_panel),
+                Node {
+                    width: LEFT_SIDE_HEADER_PARAMS.width,
+                    height: Val::Px(24.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    justify_content: JustifyContent::SpaceBetween,
+                    ..default()
+                },
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+            ))
+            .id();
+
+        commands.spawn((
+            ChildOf(big_container_bar),
+            Node {
+                height: Val::Percent(100.0),
+                ..default()
+            },
+            children![
+                (Text::new("Piece orders: "), TextFont::from_font_size(16.0),),
+                (
+                    Text::new(format!("{}", piece_orders.currently)),
+                    TextFont::from_font_size(16.0),
+                    TextColor(match piece_orders.currently {
+                        0 => ROSE_600.into(),
+                        1 => ROSE_300.into(),
+                        2 => AMBER_300.into(),
+                        3 => EMERALD_300.into(),
+                        _ => TEAL_300.into(),
+                    })
+                ),
+                (
+                    Text::new(format!("/{}", piece_orders.per_round)),
+                    TextFont::from_font_size(16.0),
+                ),
+            ],
+        ));
+        if let Some(owner) = piece_owner {
+            if *logical_world
+                .0
+                .get::<PlayerId>(owner.0)
+                .ok_or("A player did not have a player Id")?
+                == operating_player.0
+            {
+                commands.spawn((
+                    ChildOf(big_container_bar),
+                    Node {
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    children![
+                        (Text::new("Your orders: "), TextFont::from_font_size(16.0),),
+                        (
+                            Text::new(format!("{player_orders}")),
+                            TextFont::from_font_size(16.0),
+                            TextColor(match player_orders {
+                                0 => ROSE_600.into(),
+                                1 => ROSE_300.into(),
+                                2 => AMBER_300.into(),
+                                3 => EMERALD_300.into(),
+                                _ => TEAL_300.into(),
+                            })
+                        )
+                    ],
+                ));
+            } else {
+                commands.spawn((
+                    ChildOf(big_container_bar),
+                    Node {
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    children![(
+                        Text::new(format!("Commander: {:?}", owner.0)),
+                        TextFont::from_font_size(16.0),
+                    )],
+                ));
+            }
+        } else {
+            commands.spawn((
+                ChildOf(big_container_bar),
+                Node {
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                children![(
+                    Text::new(String::from("For Sale")),
+                    TextFont::from_font_size(16.0),
+                )],
+            ));
+        }
+    }
 
     commands.spawn((
         Node {
@@ -443,106 +654,6 @@ fn render_order_execution_process(
             }))
         )],
     ));
-
-    Ok(())
-}
-
-fn display_player_and_piece_remaining_orders(
-    logical_world: &LogicalWorld,
-    operating_player: &OperatingPlayer,
-    commands: &mut Commands,
-    parent_element: Entity,
-    logical_piece: Entity,
-) -> Result<(), BevyError> {
-    {
-        let player_orders = logical_world
-            .0
-            .get::<PlayerOrdersRemaining>(
-                logical_world
-                    .0
-                    .resource::<PlayerDirectory>()
-                    .get_player(operating_player.0)?,
-            )
-            .ok_or("All players should have information about their remaining orders")?
-            .remaining;
-
-        let piece_orders = logical_world
-            .0
-            .get::<OrdersReceivable>(logical_piece)
-            .ok_or(
-                "all piece's should contain information about how many orders they can receive",
-            )?;
-
-        let big_container_bar = commands
-            .spawn((
-                ChildOf(parent_element),
-                Node {
-                    width: LEFT_SIDE_HEADER_PARAMS.width,
-                    height: Val::Px(24.0),
-                    border: UiRect::all(Val::Px(2.0)),
-                    ..default()
-                },
-                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
-                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-            ))
-            .id();
-
-        commands.spawn((
-            ChildOf(big_container_bar),
-            Node {
-                width: Val::Percent(50.0),
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            children![
-                (
-                    Text::new("Your issuable orders: "),
-                    TextFont::from_font_size(16.0),
-                ),
-                (
-                    Text::new(format!("{player_orders}")),
-                    TextFont::from_font_size(16.0),
-                    TextColor(match player_orders {
-                        0 => ROSE_600.into(),
-                        1 => ROSE_300.into(),
-                        2 => AMBER_300.into(),
-                        3 => EMERALD_300.into(),
-                        _ => TEAL_300.into(),
-                    })
-                )
-            ],
-        ));
-
-        commands.spawn((
-            ChildOf(big_container_bar),
-            Node {
-                width: Val::Percent(50.0),
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            children![
-                (
-                    Text::new("Receivable orders: "),
-                    TextFont::from_font_size(16.0),
-                ),
-                (
-                    Text::new(format!("{}", piece_orders.currently)),
-                    TextFont::from_font_size(16.0),
-                    TextColor(match piece_orders.currently {
-                        0 => ROSE_600.into(),
-                        1 => ROSE_300.into(),
-                        2 => AMBER_300.into(),
-                        3 => EMERALD_300.into(),
-                        _ => TEAL_300.into(),
-                    })
-                ),
-                (
-                    Text::new(format!("/{}", piece_orders.per_round)),
-                    TextFont::from_font_size(16.0),
-                ),
-            ],
-        ));
-    }
 
     Ok(())
 }
