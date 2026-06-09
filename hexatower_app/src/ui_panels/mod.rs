@@ -82,7 +82,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
                         align_self: AlignSelf::Center,
-                        justify_content: JustifyContent::SpaceAround,
+                        row_gap: Val::Px(8.0),
                         ..default()
                     },
                     BorderColor::all(PANEL_BORDERS),
@@ -97,7 +97,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
                         align_self: AlignSelf::Center,
-                        justify_content: JustifyContent::SpaceAround,
+                        row_gap: Val::Px(8.0),
                         ..default()
                     },
                     BorderColor::all(PANEL_BORDERS),

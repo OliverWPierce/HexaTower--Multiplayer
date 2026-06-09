@@ -337,10 +337,11 @@ fn render_card_execution_panel(
 
     commands.spawn((
         Node {
-            width: Val::Percent(96.0),
-            height: Val::Percent(60.0),
+            max_width: LEFT_SIDE_HEADER_PARAMS.width,
+            width: LEFT_SIDE_HEADER_PARAMS.width,
             border: UiRect::top(LEFT_SIDE_HEADER_PARAMS.border_thickness),
             flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::SpaceBetween,
             align_items: AlignItems::Center,
             ..default()
         },
@@ -348,28 +349,35 @@ fn render_card_execution_panel(
         ChildOf(parent_panel.entity()),
         children![
             (
-                Text::new("This is a purely forensic description of what this item does.... It is such a long description that it stretches for many lines until it is far too cumbersome for the eyes to manage in a single sitting. Wherefore, we will accent it with pretty colors to highlight important information quickly."),
+                Text::new("This is a purely forensic description of what this order does.... It is such a long description that it stretches for many lines until it is far too cumbersome for the eyes to manage in a single sitting."),
                 TextLayout {
                     justify: Justify::Center,
                     linebreak: LineBreak::WordBoundary,
                 },
                 TextFont {
-                    font_size: 18.0,
+                    font_size: 16.0,
                     ..default()
                 }
             ),
-            (
-                Text::new(card_details.tooltip.clone()),
-                TextLayout {
-                    justify: Justify::Center,
-                    linebreak: LineBreak::WordBoundary,
-                },
-                TextFont {
-                    font_size: 12.0,
-                    ..default()
-                }
-            )
         ],
+    ));
+
+    commands.spawn((
+        Node {
+            min_height: Val::Px(20.0),
+            ..default()
+        },
+        ChildOf(parent_panel),
+        children![(
+            Text::new("\"This is a lovely example tooltip...\""),
+            TextFont::from_font_size(16.0),
+            TextColor(Color::Hsva(Hsva {
+                hue: 0.0,
+                saturation: 0.0,
+                value: 0.7,
+                alpha: 1.0,
+            }))
+        )],
     ));
 
     Ok(())

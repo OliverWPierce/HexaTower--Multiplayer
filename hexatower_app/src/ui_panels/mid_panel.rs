@@ -1,11 +1,13 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     orders::OrderDirectory,
-    pieces::{OccupiedByPiece, Orders},
+    pieces::{OccupiedByPiece, Orders, OrdersReceivable},
+    players::{PlayerDirectory, PlayerOrdersRemaining},
     tiles::TileDirectory,
 };
 
 use crate::{
+    OperatingPlayer,
     functional_assets::{LogicalWorld, SetUpBoard, VisOrderDirectory},
     inputs_interface::{LoadedAction, Source},
     ui_panels::{
@@ -205,6 +207,7 @@ fn manage_orders_panel(
     active_tile: Option<Res<ActiveTile>>,
     logical_world: Res<LogicalWorld>,
     visual_order_data: Res<VisOrderDirectory>,
+    operating_player: Res<OperatingPlayer>,
     mut commands: Commands,
 ) -> Result<(), BevyError> {
     if let Some(tile_of_active_piece) = active_tile
@@ -224,6 +227,7 @@ fn manage_orders_panel(
                     active_piece_log_entity.piece(),
                     order_index,
                     &visual_order_data,
+                    &operating_player,
                 ), // render the order execution process panel,
                 _ => render_orders_of_active_piece(
                     overarching_order_panel.entity(),
@@ -269,6 +273,7 @@ fn render_order_execution_process(
     logical_piece: Entity,
     order_index: OrderAtPieceIndex,
     visual_order_data: &VisOrderDirectory,
+    operating_player: &OperatingPlayer,
 ) -> Result<(), BevyError> {
     let order_details = {
         let order = logical_world
@@ -287,7 +292,7 @@ fn render_order_execution_process(
     commands.spawn((
         Node {
             height: LEFT_SIDE_HEADER_PARAMS.height,
-            width: Val::Percent(96.0),
+            width: LEFT_SIDE_HEADER_PARAMS.width,
             flex_shrink: 0.0,
             ..default()
         },
@@ -343,7 +348,7 @@ fn render_order_execution_process(
 
     commands.spawn((
         Node {
-            width: Val::Percent(96.0),
+            width: LEFT_SIDE_HEADER_PARAMS.width,
             height: Val::Percent(25.0),
             flex_shrink: 0.0,
             ..Default::default()
@@ -386,12 +391,21 @@ fn render_order_execution_process(
         ],
     ));
 
+    display_player_and_piece_remaining_orders(
+        logical_world,
+        operating_player,
+        commands,
+        parent_panel,
+        logical_piece,
+    )?;
+
     commands.spawn((
         Node {
-            width: Val::Percent(96.0),
-            height: Val::Percent(60.0),
+            max_width: LEFT_SIDE_HEADER_PARAMS.width,
+            width: LEFT_SIDE_HEADER_PARAMS.width,
             border: UiRect::top(LEFT_SIDE_HEADER_PARAMS.border_thickness),
             flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::SpaceBetween,
             align_items: AlignItems::Center,
             ..default()
         },
@@ -399,29 +413,136 @@ fn render_order_execution_process(
         ChildOf(parent_panel.entity()),
         children![
             (
-                Text::new("This is a purely forensic description of what this order does.... It is such a long description that it stretches for many lines until it is far too cumbersome for the eyes to manage in a single sitting. Wherefore, we will accent it with pretty colors to highlight important information quickly."),
+                Text::new("This is a purely forensic description of what this order does.... It is such a long description that it stretches for many lines until it is far too cumbersome for the eyes to manage in a single sitting."),
                 TextLayout {
                     justify: Justify::Center,
                     linebreak: LineBreak::WordBoundary,
                 },
                 TextFont {
-                    font_size: 18.0,
+                    font_size: 16.0,
                     ..default()
                 }
             ),
-            (
-                Text::new(order_details.tooltip.clone()),
-                TextLayout {
-                    justify: Justify::Center,
-                    linebreak: LineBreak::WordBoundary,
-                },
-                TextFont {
-                    font_size: 12.0,
-                    ..default()
-                }
-            )
         ],
     ));
+
+    commands.spawn((
+        Node {
+            min_height: Val::Px(20.0),
+            ..default()
+        },
+        ChildOf(parent_panel),
+        children![(
+            Text::new("\"This is a lovely example tooltip...\""),
+            TextFont::from_font_size(16.0),
+            TextColor(Color::Hsva(Hsva {
+                hue: 0.0,
+                saturation: 0.0,
+                value: 0.7,
+                alpha: 1.0,
+            }))
+        )],
+    ));
+
+    Ok(())
+}
+
+fn display_player_and_piece_remaining_orders(
+    logical_world: &LogicalWorld,
+    operating_player: &OperatingPlayer,
+    commands: &mut Commands,
+    parent_element: Entity,
+    logical_piece: Entity,
+) -> Result<(), BevyError> {
+    {
+        let player_orders = logical_world
+            .0
+            .get::<PlayerOrdersRemaining>(
+                logical_world
+                    .0
+                    .resource::<PlayerDirectory>()
+                    .get_player(operating_player.0)?,
+            )
+            .ok_or("All players should have information about their remaining orders")?
+            .remaining;
+
+        let piece_orders = logical_world
+            .0
+            .get::<OrdersReceivable>(logical_piece)
+            .ok_or(
+                "all piece's should contain information about how many orders they can receive",
+            )?;
+
+        let big_container_bar = commands
+            .spawn((
+                ChildOf(parent_element),
+                Node {
+                    width: LEFT_SIDE_HEADER_PARAMS.width,
+                    height: Val::Px(24.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+            ))
+            .id();
+
+        commands.spawn((
+            ChildOf(big_container_bar),
+            Node {
+                width: Val::Percent(50.0),
+                height: Val::Percent(100.0),
+                ..default()
+            },
+            children![
+                (
+                    Text::new("Your issuable orders: "),
+                    TextFont::from_font_size(16.0),
+                ),
+                (
+                    Text::new(format!("{player_orders}")),
+                    TextFont::from_font_size(16.0),
+                    TextColor(match player_orders {
+                        0 => ROSE_600.into(),
+                        1 => ROSE_300.into(),
+                        2 => AMBER_300.into(),
+                        3 => EMERALD_300.into(),
+                        _ => TEAL_300.into(),
+                    })
+                )
+            ],
+        ));
+
+        commands.spawn((
+            ChildOf(big_container_bar),
+            Node {
+                width: Val::Percent(50.0),
+                height: Val::Percent(100.0),
+                ..default()
+            },
+            children![
+                (
+                    Text::new("Receivable orders: "),
+                    TextFont::from_font_size(16.0),
+                ),
+                (
+                    Text::new(format!("{}", piece_orders.currently)),
+                    TextFont::from_font_size(16.0),
+                    TextColor(match piece_orders.currently {
+                        0 => ROSE_600.into(),
+                        1 => ROSE_300.into(),
+                        2 => AMBER_300.into(),
+                        3 => EMERALD_300.into(),
+                        _ => TEAL_300.into(),
+                    })
+                ),
+                (
+                    Text::new(format!("/{}", piece_orders.per_round)),
+                    TextFont::from_font_size(16.0),
+                ),
+            ],
+        ));
+    }
 
     Ok(())
 }
