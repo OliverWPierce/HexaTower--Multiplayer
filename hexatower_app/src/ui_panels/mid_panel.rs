@@ -173,6 +173,7 @@ fn render_orders_of_active_piece(
                     height: Val::Px(24.0),
                     border: UiRect::all(Val::Px(2.0)),
                     justify_content: JustifyContent::SpaceBetween,
+                    padding: UiRect::left(Val::Px(4.0)).with_right(Val::Px(4.0)),
                     ..default()
                 },
                 BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
@@ -522,6 +523,7 @@ fn render_order_execution_process(
                     height: Val::Px(24.0),
                     border: UiRect::all(Val::Px(2.0)),
                     justify_content: JustifyContent::SpaceBetween,
+                    padding: UiRect::left(Val::Px(4.0)).with_right(Val::Px(4.0)),
                     ..default()
                 },
                 BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
