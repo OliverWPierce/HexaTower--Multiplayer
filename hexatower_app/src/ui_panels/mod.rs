@@ -254,7 +254,7 @@ mod execution_button {
     use core_game_logic::players::ActivePlayer;
 
     use crate::{
-        OperatingPlayer,
+        DisplayPlayer, OperatingPlayer,
         functional_assets::LogicalWorld,
         inputs_interface::{LoadedAction, TryExecuteLoadedAction},
     };
@@ -398,15 +398,17 @@ mod execution_button {
 
     fn try_start_execution_request(
         mut click: On<Pointer<Click>>,
-        as_player: Res<OperatingPlayer>,
+        operating_player: Res<OperatingPlayer>,
+        display_player: Res<DisplayPlayer>,
         logical_world: Res<LogicalWorld>,
         action: Res<LoadedAction>,
         mut commands: Commands,
     ) {
         click.propagate(false);
 
-        if let Some(id) = as_player.0
+        if let Some(id) = operating_player.0
             && id == logical_world.0.resource::<ActivePlayer>().0
+            && id == display_player.0
         {
             match &action.cache {
                 core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
@@ -424,7 +426,7 @@ mod execution_button {
             }
         } else {
             info!(
-                "You are not the active player and cannot request to execute an order at this time. It is not your turn"
+                "You do not have the authority to execute this order. Either it is not your turn, or you are viewing someone else's items which you lack the right to use."
             );
         }
     }

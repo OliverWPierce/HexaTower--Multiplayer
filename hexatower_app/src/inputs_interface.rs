@@ -13,7 +13,7 @@ use crate::{
     functional_assets::LogicalWorld,
     ui_panels::OrderAtPieceIndex,
     vis_pieces::{EndFreeRotationAnimation, PieceSpawned, StartFreeRotationAnimation},
-    vis_tiles::TileTypeConverted,
+    vis_tiles::{ActiveTile, TileTypeConverted},
 };
 
 pub struct InputInterfacePlugin;
@@ -64,10 +64,7 @@ pub struct LoadedAction {
 #[derive(Debug)]
 pub enum Source {
     Card(InventoryIndex),
-    Order {
-        tile_of_piece: TileId,
-        order_index: OrderAtPieceIndex,
-    },
+    Order(OrderAtPieceIndex),
 }
 
 #[derive(Event, Debug)]
@@ -77,6 +74,7 @@ fn try_execute_loaded_action(
     _trigger: On<TryExecuteLoadedAction>,
     loaded_action: Res<LoadedAction>,
     acting_player: Res<OperatingPlayer>,
+    active_tile: Option<Res<ActiveTile>>,
     mut logical_world: ResMut<LogicalWorld>,
     mut commands: Commands,
 ) -> Result<(), BevyError> {
@@ -90,11 +88,8 @@ fn try_execute_loaded_action(
                             tile_action_process_cache.selected_tiles().into(),
                         ),
                     },
-                    Source::Order {
-                        tile_of_piece,
-                        order_index,
-                    } => RequestType::UseOrder {
-                        tile: tile_of_piece,
+                    Source::Order(order_index) => RequestType::UseOrder {
+                        tile: active_tile.ok_or("Tried to execute an order while there was no active tile. An active tile is needed to tell which piece the order is being used on.")?.0,
                         input: InputData::AffectedTiles(
                             tile_action_process_cache.selected_tiles().into(),
                         ),

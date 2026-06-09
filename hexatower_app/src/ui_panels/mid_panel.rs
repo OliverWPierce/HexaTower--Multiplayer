@@ -1,15 +1,14 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
-    orders::{OrderDirectory, OrderFunction},
+    orders::OrderDirectory,
     pieces::{OccupiedByPiece, Orders},
     tiles::TileDirectory,
 };
 
 use crate::{
-    functional_assets::{LogicalWorld, VisOrderDirectory},
+    functional_assets::{LogicalWorld, SetUpBoard, VisOrderDirectory},
     inputs_interface::{LoadedAction, Source},
-    ui_panels::{LEFT_SIDE_HEADER_PARAMS, OrdersPanel, hoverable_elements},
-    vis_pieces::VisOccupies,
+    ui_panels::{LEFT_SIDE_HEADER_PARAMS, OrdersPanel, hoverable_elements, spawn_basic_ui_layout},
     vis_tiles::ActiveTile,
 };
 
@@ -17,10 +16,17 @@ pub struct VisualOrdersPlugin;
 
 impl Plugin for VisualOrdersPlugin {
     fn build(&self, app: &mut App) {
+        app.add_systems(SetUpBoard, manage_orders_panel.after(spawn_basic_ui_layout));
+
         app.add_systems(
             Update,
-            render_orders_of_active_piece.run_if(resource_exists_and_changed::<ActiveTile>),
+            manage_orders_panel.run_if(
+                resource_changed_or_removed::<ActiveTile>
+                    .or(resource_changed_or_removed::<LoadedAction>),
+            ),
         );
+
+        app.add_observer(load_order);
     }
 }
 
@@ -30,31 +36,20 @@ struct Header;
 const ORDER_LIBRARY_LABEL: &str = "Piece Capabilities";
 
 fn render_orders_of_active_piece(
-    overarching_order_panel: Single<Entity, With<OrdersPanel>>,
-    active_piece: Res<ActiveTile>,
-    logical_world: Res<LogicalWorld>,
-    visual_order_data: Res<VisOrderDirectory>,
-    mut commands: Commands,
+    overarching_order_panel: Entity,
+    logical_entity_of_active_piece: Entity,
+    logical_world: &LogicalWorld,
+    visual_order_data: &VisOrderDirectory,
+    commands: &mut Commands,
 ) -> Result<(), BevyError> {
     commands
         .entity(overarching_order_panel.entity())
         .despawn_children();
 
     let orders_to_display = {
-        let logical_tile_occupied = logical_world
-            .0
-            .resource::<TileDirectory>()
-            .get_entity(active_piece.0)?;
-        let Some(logical_piece) = logical_world
-            .0
-            .get::<OccupiedByPiece>(logical_tile_occupied)
-        else {
-            return Ok(());
-        };
-
         logical_world
             .0
-            .get::<Orders>(logical_piece.piece())
+            .get::<Orders>(logical_entity_of_active_piece)
             .expect("All pieces should have an orders component")
             .0
     };
@@ -81,7 +76,7 @@ fn render_orders_of_active_piece(
                 linebreak: LineBreak::WordBoundary,
             },
         )],
-        ChildOf(overarching_order_panel.entity()),
+        ChildOf(overarching_order_panel),
     ));
 
     let container_for_order_icons = commands
@@ -95,7 +90,7 @@ fn render_orders_of_active_piece(
                 flex_grow: 1.0,
                 ..default()
             },
-            ChildOf(overarching_order_panel.entity()),
+            ChildOf(overarching_order_panel),
         ))
         .id();
 
@@ -162,17 +157,14 @@ fn load_order(
     click: On<Pointer<Click>>,
     mut commands: Commands,
     orders: Query<&OrderAtPieceIndex>,
-    active_piece: Res<ActiveTile>,
+    active_piece: If<Res<ActiveTile>>,
     logical_world: Res<LogicalWorld>,
 ) -> Result<(), BevyError> {
     let Ok(&order_index) = orders.get(click.entity) else {
         return Ok(());
     };
     commands.insert_resource(LoadedAction {
-        source: Source::Order {
-            tile_of_piece: active_piece.0,
-            order_index,
-        },
+        source: Source::Order(order_index),
         cache: logical_world
             .0
             .resource::<OrderDirectory>()
@@ -186,7 +178,7 @@ fn load_order(
                                 logical_world
                                     .0
                                     .resource::<TileDirectory>()
-                                    .get_entity(active_piece.0)?,
+                                    .get_entity(active_piece.0.0)?,
                             )
                             .ok_or("Tile was unnoccupied")?
                             .piece(),
@@ -198,8 +190,64 @@ fn load_order(
                     .ok_or("No order found at this index for this piece")?,
             )?
             .functionality
-            .action_cache(active_piece.0, &logical_world.0)?,
+            .action_cache(active_piece.0.0, &logical_world.0)?,
     });
 
     Ok(())
+}
+
+fn manage_orders_panel(
+    overarching_order_panel: Single<Entity, With<OrdersPanel>>,
+    loaded_action: Option<Res<LoadedAction>>,
+    active_tile: Option<Res<ActiveTile>>,
+    logical_world: Res<LogicalWorld>,
+    visual_order_data: Res<VisOrderDirectory>,
+    mut commands: Commands,
+) -> Result<(), BevyError> {
+    if let Some(tile_of_active_piece) = active_tile
+        && let Some(active_piece) = logical_world.0.get::<OccupiedByPiece>(
+            logical_world
+                .0
+                .resource::<TileDirectory>()
+                .get_entity(tile_of_active_piece.0)?,
+        )
+    {
+        if let Some(action) = loaded_action {
+            match action.source {
+                Source::Order(order_index) => todo!(), // render the order execution process panel,
+                _ => render_orders_of_active_piece(
+                    overarching_order_panel.entity(),
+                    active_piece.piece(),
+                    &logical_world,
+                    &visual_order_data,
+                    &mut commands,
+                ),
+            }
+        } else {
+            render_orders_of_active_piece(
+                overarching_order_panel.entity(),
+                active_piece.piece(),
+                &logical_world,
+                &visual_order_data,
+                &mut commands,
+            )
+        }
+    } else {
+        display_when_no_active_piece(&mut commands, overarching_order_panel.entity());
+        Ok(())
+    }
+}
+
+fn display_when_no_active_piece(commands: &mut Commands, parent_panel: Entity) {
+    commands.entity(parent_panel).despawn_children();
+
+    commands.spawn((
+        Text::new("Activate a tile with a piece to view its orders."),
+        TextFont::from_font_size(24.0),
+        ChildOf(parent_panel),
+        TextLayout {
+            justify: Justify::Center,
+            linebreak: LineBreak::WordBoundary,
+        },
+    ));
 }

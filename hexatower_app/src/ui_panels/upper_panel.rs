@@ -1,6 +1,6 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
-    cards::CardDirectory,
+    cards::{CardDirectory, CardId},
     players::{InventoryIndex, PlayerCardInventory, PlayerDirectory},
 };
 
@@ -9,7 +9,8 @@ use crate::{
     functional_assets::{LogicalWorld, SetUpBoard, VisCardDirectory, VisualCardId},
     inputs_interface::{LoadedAction, Source},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, UnloadActionButton, execution_button::ExecutionButtonPanel,
+        LEFT_SIDE_HEADER_PARAMS, UnloadActionButton,
+        execution_button::{self, ExecutionButtonPanel},
         hoverable_elements,
     },
 };
@@ -20,11 +21,21 @@ pub struct VisualInventoryPlugin;
 
 impl Plugin for VisualInventoryPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(SetUpBoard, render_inventory.after(spawn_basic_ui_layout));
         app.add_systems(
             Update,
-            render_inventory.run_if(resource_removed::<LoadedAction>),
+            manage_inventory_panel
+                .before(execution_button::update_panel)
+                .run_if(
+                    resource_changed_or_removed::<LoadedAction>
+                        .or(resource_changed::<DisplayPlayer>),
+                ),
         );
+
+        app.add_systems(
+            SetUpBoard,
+            manage_inventory_panel.after(spawn_basic_ui_layout),
+        );
+
         app.add_observer(hover_slot);
         app.add_observer(unhover_slot);
         app.add_observer(load_card_action);
@@ -36,13 +47,13 @@ struct Header;
 const INVENTORY_LABEL: &str = "Inventory";
 
 fn render_inventory(
-    mut commands: Commands,
-    panel: Single<Entity, With<InventoryPanel>>,
-    vis_cards: Res<VisCardDirectory>,
-    log_world: Res<LogicalWorld>,
-    display_player: Res<DisplayPlayer>,
+    commands: &mut Commands,
+    panel: Entity,
+    vis_cards: &VisCardDirectory,
+    log_world: &LogicalWorld,
+    display_player: &DisplayPlayer,
 ) -> Result<(), BevyError> {
-    commands.entity(panel.entity()).despawn_children();
+    commands.entity(panel).despawn_children();
 
     commands.spawn((
         Node {
@@ -66,7 +77,7 @@ fn render_inventory(
                 linebreak: LineBreak::WordBoundary,
             },
         )],
-        ChildOf(panel.entity()),
+        ChildOf(panel),
     ));
 
     let log_player = log_world
@@ -92,7 +103,7 @@ fn render_inventory(
                 flex_grow: 1.0,
                 ..default()
             },
-            ChildOf(panel.entity()),
+            ChildOf(panel),
         ))
         .id();
 
@@ -152,6 +163,7 @@ fn render_inventory(
 
     Ok(())
 }
+
 #[derive(Debug, Component)]
 struct InventorySlot;
 
@@ -194,8 +206,6 @@ fn load_card_action(
     cards_in_inventory: Query<(&VisualCardIndex, &VisualCardId)>,
     mut commands: Commands,
     logical_world: Res<LogicalWorld>,
-    parent_panel: Single<Entity, With<InventoryPanel>>,
-    visual_cards: Res<VisCardDirectory>,
 ) -> Result<(), BevyError> {
     let Ok((VisualCardIndex(index_in_the_players_inventory), VisualCardId(card))) =
         cards_in_inventory.get(trigger.entity)
@@ -213,151 +223,202 @@ fn load_card_action(
             .action_cache(&logical_world.0)?,
     });
 
-    {
-        let card_details = visual_cards.get_card(*card)?;
+    Ok(())
+}
 
-        commands.entity(parent_panel.entity()).despawn_children();
+fn render_card_execution_panel(
+    parent_panel: Entity,
+    visual_cards: &VisCardDirectory,
+    commands: &mut Commands,
+    card: CardId,
+) -> Result<(), BevyError> {
+    let card_details = visual_cards.get_card(card)?;
 
-        commands.spawn((
-            Node {
-                height: LEFT_SIDE_HEADER_PARAMS.height,
-                width: Val::Percent(96.0),
-                flex_shrink: 0.0,
-                ..default()
-            },
-            ChildOf(parent_panel.entity()),
-            children![
-                (
-                    Node {
-                        height: Val::Percent(100.0),
-                        width: Val::Percent(15.0),
-                        border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-                        justify_content: JustifyContent::Center,
+    commands.entity(parent_panel.entity()).despawn_children();
+
+    commands.spawn((
+        Node {
+            height: LEFT_SIDE_HEADER_PARAMS.height,
+            width: Val::Percent(96.0),
+            flex_shrink: 0.0,
+            ..default()
+        },
+        ChildOf(parent_panel.entity()),
+        children![
+            (
+                Node {
+                    height: Val::Percent(100.0),
+                    width: Val::Percent(15.0),
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                BorderColor::all(STONE_900),
+                BackgroundColor(Color::Srgba(STONE_700)),
+                UnloadActionButton,
+                children![(
+                    Text::new("<--"),
+                    TextFont {
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
                         ..default()
                     },
-                    BorderColor::all(STONE_900),
-                    BackgroundColor(Color::Srgba(STONE_700)),
-                    UnloadActionButton,
-                    children![(
-                        Text::new("<--"),
-                        TextFont {
-                            font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
-                            ..default()
-                        },
-                        TextLayout {
-                            justify: Justify::Center,
-                            linebreak: LineBreak::WordBoundary,
-                        },
-                    )]
-                ),
-                (
-                    Node {
-                        height: Val::Percent(100.0),
-                        width: Val::Percent(85.0),
-                        border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-                        justify_content: JustifyContent::Center,
+                    TextLayout {
+                        justify: Justify::Center,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                )]
+            ),
+            (
+                Node {
+                    height: Val::Percent(100.0),
+                    width: Val::Percent(85.0),
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+                children![(
+                    Text::new(card_details.name.clone()),
+                    TextFont {
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
                         ..default()
                     },
-                    BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
-                    BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-                    children![(
-                        Text::new(card_details.name.clone()),
-                        TextFont {
-                            font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
-                            ..default()
-                        },
-                        TextLayout {
-                            justify: Justify::Center,
-                            linebreak: LineBreak::WordBoundary,
-                        },
-                    )]
-                ),
-            ],
-        ));
+                    TextLayout {
+                        justify: Justify::Center,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                )]
+            ),
+        ],
+    ));
 
-        commands.spawn((
-            Node {
-                width: Val::Percent(96.0),
-                height: Val::Percent(25.0),
-                flex_shrink: 0.0,
-                ..Default::default()
-            },
-            ChildOf(parent_panel.entity()),
-            children![
-                (
-                    Node {
-                        aspect_ratio: Some(1.0),
-                        flex_shrink: 0.0,
-                        height: Val::Percent(100.0),
-                        border_radius: BorderRadius::all(Val::Percent(10.0)),
-                        border: UiRect::all(Val::Px(3.0)),
+    commands.spawn((
+        Node {
+            width: Val::Percent(96.0),
+            height: Val::Percent(25.0),
+            flex_shrink: 0.0,
+            ..Default::default()
+        },
+        ChildOf(parent_panel.entity()),
+        children![
+            (
+                Node {
+                    aspect_ratio: Some(1.0),
+                    flex_shrink: 0.0,
+                    height: Val::Percent(100.0),
+                    border_radius: BorderRadius::all(Val::Percent(10.0)),
+                    border: UiRect::all(Val::Px(3.0)),
+                    ..default()
+                },
+                BorderColor::all(SLATE_950),
+                BackgroundColor(Color::Srgba(ZINC_800)),
+                InventorySlot,
+                children![(
+                    ImageNode {
+                        image: card_details.image.clone(),
+                        image_mode: NodeImageMode::Stretch,
                         ..default()
                     },
-                    BorderColor::all(SLATE_950),
-                    BackgroundColor(Color::Srgba(ZINC_800)),
-                    InventorySlot,
-                    children![(
-                        ImageNode {
-                            image: card_details.image.clone(),
-                            image_mode: NodeImageMode::Stretch,
-                            ..default()
-                        },
-                        Node {
-                            width: Val::Percent(100.0),
-                            height: Val::Percent(100.0),
-                            ..default()
-                        }
-                    ),],
-                ),
-                (
                     Node {
-                        height: Val::Percent(100.0),
                         width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Column,
+                        height: Val::Percent(100.0),
                         ..default()
-                    },
-                    ExecutionButtonPanel
-                )
-            ],
-        ));
+                    }
+                ),],
+            ),
+            (
+                Node {
+                    height: Val::Percent(100.0),
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ExecutionButtonPanel
+            )
+        ],
+    ));
 
-        commands.spawn((
-            Node {
-                width: Val::Percent(96.0),
-                height: Val::Percent(60.0),
-                border: UiRect::top(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-            ChildOf(parent_panel.entity()),
-            children![
-                (
-                    Text::new("This is a purely forensic description of what this item does...."),
-                    TextLayout {
-                        justify: Justify::Center,
-                        linebreak: LineBreak::WordBoundary,
-                    },
-                    TextFont {
-                        font_size: 18.0,
-                        ..default()
-                    }
-                ),
-                (
-                    Text::new(card_details.tooltip.clone()),
-                    TextLayout {
-                        justify: Justify::Center,
-                        linebreak: LineBreak::WordBoundary,
-                    },
-                    TextFont {
-                        font_size: 12.0,
-                        ..default()
-                    }
-                )
-            ],
-        ));
-    }
+    commands.spawn((
+        Node {
+            width: Val::Percent(96.0),
+            height: Val::Percent(60.0),
+            border: UiRect::top(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+        ChildOf(parent_panel.entity()),
+        children![
+            (
+                Text::new("This is a purely forensic description of what this item does.... It is such a long description that it stretches for many lines until it is far too cumbersome for the eyes to manage in a single sitting. Wherefore, we will accent it with pretty colors to highlight important information quickly."),
+                TextLayout {
+                    justify: Justify::Center,
+                    linebreak: LineBreak::WordBoundary,
+                },
+                TextFont {
+                    font_size: 18.0,
+                    ..default()
+                }
+            ),
+            (
+                Text::new(card_details.tooltip.clone()),
+                TextLayout {
+                    justify: Justify::Center,
+                    linebreak: LineBreak::WordBoundary,
+                },
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                }
+            )
+        ],
+    ));
 
     Ok(())
+}
+
+fn manage_inventory_panel(
+    parent_panel: Single<Entity, With<InventoryPanel>>,
+    display_player: Res<DisplayPlayer>,
+    loaded_action: Option<Res<LoadedAction>>,
+    log_world: Res<LogicalWorld>,
+    mut commands: Commands,
+    vis_cards: Res<VisCardDirectory>,
+) -> Result<(), BevyError> {
+    debug!("managing");
+
+    if let Some(action) = loaded_action {
+        match action.source {
+            Source::Card(inventory_index) => {
+                let card = log_world
+                    .0
+                    .get::<PlayerCardInventory>(
+                        log_world
+                            .0
+                            .resource::<PlayerDirectory>()
+                            .get_player(display_player.0)?,
+                    )
+                    .expect("all players should have an inventory")
+                    .get_card(inventory_index)?;
+                render_card_execution_panel(parent_panel.entity(), &vis_cards, &mut commands, card)
+            }
+            _ => render_inventory(
+                &mut commands,
+                parent_panel.entity(),
+                &vis_cards,
+                &log_world,
+                &display_player,
+            ),
+        }
+    } else {
+        render_inventory(
+            &mut commands,
+            parent_panel.entity(),
+            &vis_cards,
+            &log_world,
+            &display_player,
+        )
+    }
 }
