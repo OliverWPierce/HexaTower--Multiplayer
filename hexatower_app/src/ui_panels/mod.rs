@@ -272,6 +272,7 @@ mod execution_button {
         loaded_action: Res<LoadedAction>,
         panel: Single<Entity, With<ExecutionButtonPanel>>,
         operating_player: Res<OperatingPlayer>,
+        display_player: Res<DisplayPlayer>,
         active_tile: Option<Res<ActiveTile>>,
         logical_world: Res<LogicalWorld>,
     ) -> Result<(), BevyError> {
@@ -279,6 +280,7 @@ mod execution_button {
             &loaded_action,
             &logical_world,
             &operating_player,
+            &display_player,
             active_tile.as_ref(),
         )?;
 
@@ -426,6 +428,7 @@ mod execution_button {
         loaded_action: &LoadedAction,
         logical_world: &LogicalWorld,
         operating_player: &OperatingPlayer,
+        display_player: &DisplayPlayer,
         active_tile: Option<&Res<ActiveTile>>,
     ) -> Result<Option<Blocker>, BevyError> {
         match &loaded_action.cache {
@@ -438,6 +441,16 @@ mod execution_button {
                 }
             }
             core_game_logic::requests::ActionProcessCache::Ex1 => (),
+        }
+
+        let Some(operating_player) = operating_player.0 else {
+            return Ok(Some(Blocker("Spectators cannot preform actions".into())));
+        };
+
+        if display_player.0 != operating_player {
+            return Ok(Some(Blocker(
+                "You are viewing someone else's resources and cannot act on their behalf.".into(),
+            )));
         }
 
         match loaded_action.source {
@@ -463,10 +476,6 @@ mod execution_button {
                 if logical_world.0.get::<OrdersReceivable>(logical_piece).expect("all pieces should have a component detailing how many orders they have and should have each round.").currently == 0 {
                             return Ok(Some(Blocker("Piece is out of orders this round".into())))
                         }
-
-                let Some(operating_player) = operating_player.0 else {
-                    return Ok(Some(Blocker("Spectators cannot preform actions".into())));
-                };
 
                 let owner = logical_world.0.get::<PieceOwnedByPlayer>(logical_piece);
 
@@ -497,6 +506,11 @@ mod execution_button {
                 }
             }
         }
+
+        if operating_player != logical_world.0.resource::<ActivePlayer>().0 {
+            return Ok(Some(Blocker("It is not your turn".into())));
+        }
+
         Ok(None)
     }
 
@@ -505,33 +519,24 @@ mod execution_button {
         operating_player: Res<OperatingPlayer>,
         display_player: Res<DisplayPlayer>,
         logical_world: Res<LogicalWorld>,
+        active_tile: Option<Res<ActiveTile>>,
         action: Res<LoadedAction>,
         mut commands: Commands,
-    ) {
+    ) -> Result<(), BevyError> {
         click.propagate(false);
 
-        if let Some(id) = operating_player.0
-            && id == logical_world.0.resource::<ActivePlayer>().0
-            && id == display_player.0
-        {
-            match &action.cache {
-                core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
-                    let ready_for_execution =
-                        cache.selection_bounds().start <= cache.amount_currently_selected();
-
-                    if !ready_for_execution {
-                        info!("insufficient tile selections. Please select more tiles.");
-                        return;
-                    }
-                    commands.trigger(TryExecuteLoadedAction);
-                }
-
-                core_game_logic::requests::ActionProcessCache::Ex1 => todo!(),
-            }
+        if let Some(Blocker(message)) = action_blockers(
+            &action,
+            &logical_world,
+            &operating_player,
+            &display_player,
+            active_tile.as_ref(),
+        )? {
+            warn!(message);
         } else {
-            info!(
-                "You do not have the authority to execute this order. Either it is not your turn, or you are viewing someone else's items which you lack the right to use."
-            );
+            commands.trigger(TryExecuteLoadedAction);
         }
+
+        Ok(())
     }
 }
