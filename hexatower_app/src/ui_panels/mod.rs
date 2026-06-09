@@ -258,7 +258,7 @@ mod execution_button {
     };
 
     use crate::{
-        DisplayPlayer, OperatingPlayer,
+        OperatingPlayer,
         functional_assets::LogicalWorld,
         inputs_interface::{LoadedAction, Source, TryExecuteLoadedAction},
         vis_tiles::ActiveTile,
@@ -272,7 +272,6 @@ mod execution_button {
         loaded_action: Res<LoadedAction>,
         panel: Single<Entity, With<ExecutionButtonPanel>>,
         operating_player: Res<OperatingPlayer>,
-        display_player: Res<DisplayPlayer>,
         active_tile: Option<Res<ActiveTile>>,
         logical_world: Res<LogicalWorld>,
     ) -> Result<(), BevyError> {
@@ -280,7 +279,6 @@ mod execution_button {
             &loaded_action,
             &logical_world,
             &operating_player,
-            &display_player,
             active_tile.as_ref(),
         )?;
 
@@ -428,7 +426,6 @@ mod execution_button {
         loaded_action: &LoadedAction,
         logical_world: &LogicalWorld,
         operating_player: &OperatingPlayer,
-        display_player: &DisplayPlayer,
         active_tile: Option<&Res<ActiveTile>>,
     ) -> Result<Option<Blocker>, BevyError> {
         match &loaded_action.cache {
@@ -441,16 +438,6 @@ mod execution_button {
                 }
             }
             core_game_logic::requests::ActionProcessCache::Ex1 => (),
-        }
-
-        let Some(operating_player) = operating_player.0 else {
-            return Ok(Some(Blocker("Spectators cannot preform actions".into())));
-        };
-
-        if display_player.0 != operating_player {
-            return Ok(Some(Blocker(
-                "You are viewing someone else's resources and cannot act on their behalf.".into(),
-            )));
         }
 
         match loaded_action.source {
@@ -484,7 +471,7 @@ mod execution_button {
                         != logical_world
                             .0
                             .resource::<PlayerDirectory>()
-                            .get_player(operating_player)?
+                            .get_player(operating_player.0)?
                 {
                     return Ok(Some(Blocker("You do not own this piece.".into())));
                 }
@@ -494,7 +481,7 @@ mod execution_button {
                         logical_world
                             .0
                             .resource::<PlayerDirectory>()
-                            .get_player(operating_player)?,
+                            .get_player(operating_player.0)?,
                     )
                     .ok_or(
                         "A player lacked information about how many remaining orders they have.",
@@ -507,7 +494,7 @@ mod execution_button {
             }
         }
 
-        if operating_player != logical_world.0.resource::<ActivePlayer>().0 {
+        if operating_player.0 != logical_world.0.resource::<ActivePlayer>().0 {
             return Ok(Some(Blocker("It is not your turn".into())));
         }
 
@@ -517,7 +504,6 @@ mod execution_button {
     fn try_start_execution_request(
         mut click: On<Pointer<Click>>,
         operating_player: Res<OperatingPlayer>,
-        display_player: Res<DisplayPlayer>,
         logical_world: Res<LogicalWorld>,
         active_tile: Option<Res<ActiveTile>>,
         action: Res<LoadedAction>,
@@ -529,7 +515,6 @@ mod execution_button {
             &action,
             &logical_world,
             &operating_player,
-            &display_player,
             active_tile.as_ref(),
         )? {
             warn!(message);

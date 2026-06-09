@@ -5,7 +5,7 @@ use core_game_logic::{
 };
 
 use crate::{
-    DisplayPlayer,
+    OperatingPlayer,
     functional_assets::{LogicalWorld, SetUpBoard, VisCardDirectory, VisualCardId},
     inputs_interface::{LoadedAction, Source},
     ui_panels::{
@@ -25,10 +25,7 @@ impl Plugin for VisualInventoryPlugin {
             Update,
             manage_inventory_panel
                 .before(execution_button::update_panel)
-                .run_if(
-                    resource_changed_or_removed::<LoadedAction>
-                        .or(resource_changed::<DisplayPlayer>),
-                ),
+                .run_if(resource_changed_or_removed::<LoadedAction>),
         );
 
         app.add_systems(
@@ -51,7 +48,7 @@ fn render_inventory(
     panel: Entity,
     vis_cards: &VisCardDirectory,
     log_world: &LogicalWorld,
-    display_player: &DisplayPlayer,
+    display_player: &OperatingPlayer,
 ) -> Result<(), BevyError> {
     commands.entity(panel).despawn_children();
 
@@ -380,7 +377,7 @@ fn render_card_execution_panel(
 
 fn manage_inventory_panel(
     parent_panel: Single<Entity, With<InventoryPanel>>,
-    display_player: Res<DisplayPlayer>,
+    display_player: Res<OperatingPlayer>,
     loaded_action: Option<Res<LoadedAction>>,
     log_world: Res<LogicalWorld>,
     mut commands: Commands,

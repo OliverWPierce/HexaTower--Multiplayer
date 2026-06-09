@@ -103,7 +103,7 @@ fn try_execute_loaded_action(
 
     let change_log = try_consume_request(
         BackendRequest {
-            acting_player: acting_player.0.ok_or("User is not operating as a player")?,
+            acting_player: acting_player.0,
             request,
         },
         &mut logical_world.0,
