@@ -4,7 +4,10 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
-use bevy::{ecs::component::Component, math::Vec2};
+use bevy::{
+    ecs::component::Component,
+    math::{Vec2, Vec3},
+};
 use serde::{Deserialize, Serialize};
 
 /// Tile ids start at zero and work counter clockwise from the origin, starting at the tile directly beneath the origin.
@@ -159,6 +162,18 @@ impl From<HexVector2d> for Vec2 {
         };
 
         vec_from_a + vec_from_b
+    }
+}
+
+impl From<HexVector2d> for Vec3 {
+    fn from(value: HexVector2d) -> Self {
+        let v2 = Vec2::from(value);
+
+        Self {
+            x: v2.x,
+            y: 0.0,
+            z: v2.y,
+        }
     }
 }
 

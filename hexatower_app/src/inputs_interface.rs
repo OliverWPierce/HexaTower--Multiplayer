@@ -97,7 +97,27 @@ fn try_execute_loaded_action(
                     },
                 }
             }
-            ActionProcessCache::Ex1 => todo!(),
+            ActionProcessCache::RotationAction {
+                tile_data,
+                selected_direction,
+            } => match loaded_action.source {
+                Source::Card(inventory_index) => RequestType::UseCard {
+                    inventory_index,
+                    input: InputData::RotatePiece { on_tile: match tile_data {
+                        core_game_logic::requests::RotationTileStates::ElligibleTiles(..) => return Err("attempted to request a rotation action of the backend, but the rotation cache did not contain a selected tile. The request was not sent".into()),
+                        core_game_logic::requests::RotationTileStates::SelectedTile(tile_id) => *tile_id,
+                    }, towards_direction: selected_direction.ok_or("attempted to request a rotation action of the backend, but the rotation cache did not contain a selected direction. The request was not sent.")? }
+                },
+                Source::Order(order_index) => RequestType::UseOrder {
+                    tile: active_tile.ok_or("Tried to execute an order while there was no active tile. An active tile is needed to tell which piece the order is being used on.")?.0,
+                    input:InputData::RotatePiece { on_tile: match tile_data {
+                        core_game_logic::requests::RotationTileStates::ElligibleTiles(..) => return Err("attempted to request a rotation action of the backend, but the rotation cache did not contain a selected tile. The request was not sent".into()),
+                        core_game_logic::requests::RotationTileStates::SelectedTile(tile_id) => *tile_id,
+                    }, towards_direction: selected_direction.ok_or("attempted to request a rotation action of the backend, but the rotation cache did not contain a selected direction. The request was not sent.")? },
+                    index_of_order: order_index.0,
+
+                },
+            },
         }
     };
 
