@@ -1,11 +1,12 @@
 use std::ops::Range;
 
-use bevy::ecs::{resource::Resource, world::World};
+use bevy::ecs::{query::With, resource::Resource, world::World};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    requests::ActionProcessCache,
+    pieces::OccupiedByPiece,
+    requests::{ActionProcessCache, RotationTileStates},
     tile_based_actions::{
         TileAction, TileActionProcessCache,
         change_tile_type::{AdjecentRestriction, ConvertTileTo},
@@ -51,7 +52,16 @@ impl OrderFunction {
                 world,
             )
             .into()),
-            OrderFunction::Ex1 => todo!(),
+            OrderFunction::Ex1 => Ok(ActionProcessCache::RotationAction {
+                tile_data: RotationTileStates::ElligibleTiles(
+                    world
+                        .try_query_filtered::<&TileId, With<OccupiedByPiece>>().expect("This component should already be registered upon creation of the world.")
+                        .iter(world)
+                        .cloned()
+                        .collect::<Box<_>>(),
+                ),
+                selected_direction: None,
+            }),
         }
     }
 }

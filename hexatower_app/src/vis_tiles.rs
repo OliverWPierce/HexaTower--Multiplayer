@@ -253,27 +253,26 @@ fn tmp_select_tile(
     tiles: Query<&TileId>,
     mut loaded_action: If<ResMut<LoadedAction>>,
     logical_world: Res<LogicalWorld>,
-) -> Result<(), BevyError> {
+) {
     let Ok(tile) = tiles.get(trigger.entity) else {
-        return Ok(());
+        return;
     };
 
     trigger.propagate(false);
 
     match &mut loaded_action.0.cache {
-        ActionProcessCache::TileAction(tile_action_process_cache) => tile_action_process_cache
-            .try_select_tile_and_update_elligibility(*tile, &logical_world.0)?,
+        ActionProcessCache::TileAction(tile_action_process_cache) => {
+            let _ = tile_action_process_cache
+                .try_select_tile_and_update_elligibility(*tile, &logical_world.0);
+        }
         ActionProcessCache::RotationAction { tile_data, .. } => {
             if let RotationTileStates::ElligibleTiles(elligible) = &tile_data
                 && elligible.contains(tile)
             {
                 *tile_data = RotationTileStates::SelectedTile(*tile)
-            } else {
-                return Ok(());
             }
         }
     }
-    Ok(())
 }
 
 #[derive(Debug, Resource)]
