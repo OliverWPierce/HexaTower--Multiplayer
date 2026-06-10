@@ -142,9 +142,9 @@ pub struct IsWinCondition;
 
 #[derive(Debug, Default, Component, Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub enum FacingHexDirection {
-    NorthEast,
     #[default]
     North,
+    NorthEast,
     NorthWest,
     SouthWest,
     South,
