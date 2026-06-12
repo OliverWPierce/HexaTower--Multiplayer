@@ -270,7 +270,6 @@ fn load_order(
     };
     commands.insert_resource(LoadedAction {
         source: Source::Order(order_index),
-        is_immediately_mandatory: false,
         cache: logical_world
             .0
             .resource::<OrderDirectory>()
@@ -323,55 +322,21 @@ fn manage_orders_panel(
             match action.source {
                 Source::Order(order_index) => render_order_execution_process(
                     &mut commands,
-                    !action.is_immediately_mandatory,
                     &logical_world,
                     overarching_order_panel.entity(),
                     active_piece_log_entity.piece(),
                     order_index,
                     &visual_order_data,
                     &operating_player,
+                ), // render the order execution process panel,
+                _ => render_orders_of_active_piece(
+                    overarching_order_panel.entity(),
+                    active_piece_log_entity.piece(),
+                    &logical_world,
+                    &visual_order_data,
+                    &operating_player,
+                    &mut commands,
                 ),
-                Source::FreePieceRotation => {
-                    commands
-                        .entity(overarching_order_panel.entity())
-                        .despawn_children();
-
-                    commands.spawn((
-                        ChildOf(overarching_order_panel.entity()),
-                        Node {
-                            height: Val::Percent(50.0),
-                            width: Val::Percent(60.0),
-                            flex_direction: FlexDirection::Column,
-                            ..default()
-                        },
-                        ExecutionButtonPanel,
-                    ));
-
-                    Ok(())
-                }
-                _ => {
-                    if action.is_immediately_mandatory {
-                        commands
-                            .entity(overarching_order_panel.entity())
-                            .despawn_children();
-
-                        commands.spawn((
-                            ChildOf(overarching_order_panel.entity()),
-                            Text::new("Action is mandatory. Execute it to proceed."),
-                        ));
-
-                        Ok(())
-                    } else {
-                        render_orders_of_active_piece(
-                            overarching_order_panel.entity(),
-                            active_piece_log_entity.piece(),
-                            &logical_world,
-                            &visual_order_data,
-                            &operating_player,
-                            &mut commands,
-                        )
-                    }
-                }
             }
         } else {
             render_orders_of_active_piece(
@@ -403,10 +368,8 @@ fn display_when_no_active_piece(commands: &mut Commands, parent_panel: Entity) {
     ));
 }
 
-#[allow(clippy::too_many_arguments)]
 fn render_order_execution_process(
     commands: &mut Commands,
-    should_display_back_arrow: bool,
     logical_world: &LogicalWorld,
     parent_panel: Entity,
     logical_piece: Entity,
@@ -428,71 +391,61 @@ fn render_order_execution_process(
 
     commands.entity(parent_panel).despawn_children();
 
-    let top_banner = commands
-        .spawn((
-            Node {
-                height: LEFT_SIDE_HEADER_PARAMS.height,
-                width: LEFT_SIDE_HEADER_PARAMS.width,
-                flex_shrink: 0.0,
-                ..default()
-            },
-            ChildOf(parent_panel),
-        ))
-        .id();
-
-    if should_display_back_arrow {
-        commands.spawn((
-            ChildOf(top_banner),
-            Node {
-                height: Val::Percent(100.0),
-                width: Val::Percent(15.0),
-                border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            BorderColor::all(STONE_900),
-            BackgroundColor(Color::Srgba(STONE_700)),
-            UnloadActionButton,
-            children![(
-                Text::new("<--"),
-                TextFont {
-                    font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
-                    ..default()
-                },
-                TextLayout {
-                    justify: Justify::Center,
-                    linebreak: LineBreak::WordBoundary,
-                },
-            )],
-        ));
-    }
-
     commands.spawn((
-        ChildOf(top_banner),
         Node {
-            height: Val::Percent(100.0),
-            width: Val::Percent(if should_display_back_arrow {
-                85.0
-            } else {
-                100.0
-            }),
-            border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-            justify_content: JustifyContent::Center,
+            height: LEFT_SIDE_HEADER_PARAMS.height,
+            width: LEFT_SIDE_HEADER_PARAMS.width,
+            flex_shrink: 0.0,
             ..default()
         },
-        BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
-        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-        children![(
-            Text::new(order_details.name.clone()),
-            TextFont {
-                font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
-                ..default()
-            },
-            TextLayout {
-                justify: Justify::Center,
-                linebreak: LineBreak::WordBoundary,
-            },
-        )],
+        ChildOf(parent_panel),
+        children![
+            (
+                Node {
+                    height: Val::Percent(100.0),
+                    width: Val::Percent(15.0),
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                BorderColor::all(STONE_900),
+                BackgroundColor(Color::Srgba(STONE_700)),
+                UnloadActionButton,
+                children![(
+                    Text::new("<--"),
+                    TextFont {
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        ..default()
+                    },
+                    TextLayout {
+                        justify: Justify::Center,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                )]
+            ),
+            (
+                Node {
+                    height: Val::Percent(100.0),
+                    width: Val::Percent(85.0),
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+                children![(
+                    Text::new(order_details.name.clone()),
+                    TextFont {
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        ..default()
+                    },
+                    TextLayout {
+                        justify: Justify::Center,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                )]
+            ),
+        ],
     ));
 
     commands.spawn((

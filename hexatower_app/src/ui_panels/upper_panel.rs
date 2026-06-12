@@ -218,7 +218,6 @@ fn load_card_action(
             .get_card(*card)?
             .functionality
             .action_cache(&logical_world.0)?,
-        is_immediately_mandatory: false,
     });
 
     Ok(())
@@ -226,7 +225,6 @@ fn load_card_action(
 
 fn render_card_execution_panel(
     parent_panel: Entity,
-    should_display_back_arrow: bool,
     visual_cards: &VisCardDirectory,
     commands: &mut Commands,
     card: CardId,
@@ -235,71 +233,61 @@ fn render_card_execution_panel(
 
     commands.entity(parent_panel.entity()).despawn_children();
 
-    let top_banner = commands
-        .spawn((
-            Node {
-                height: LEFT_SIDE_HEADER_PARAMS.height,
-                width: LEFT_SIDE_HEADER_PARAMS.width,
-                flex_shrink: 0.0,
-                ..default()
-            },
-            ChildOf(parent_panel),
-        ))
-        .id();
-
-    if should_display_back_arrow {
-        commands.spawn((
-            ChildOf(top_banner),
-            Node {
-                height: Val::Percent(100.0),
-                width: Val::Percent(15.0),
-                border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            BorderColor::all(STONE_900),
-            BackgroundColor(Color::Srgba(STONE_700)),
-            UnloadActionButton,
-            children![(
-                Text::new("<--"),
-                TextFont {
-                    font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
-                    ..default()
-                },
-                TextLayout {
-                    justify: Justify::Center,
-                    linebreak: LineBreak::WordBoundary,
-                },
-            )],
-        ));
-    }
-
     commands.spawn((
-        ChildOf(top_banner),
         Node {
-            height: Val::Percent(100.0),
-            width: Val::Percent(if should_display_back_arrow {
-                85.0
-            } else {
-                100.0
-            }),
-            border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-            justify_content: JustifyContent::Center,
+            height: LEFT_SIDE_HEADER_PARAMS.height,
+            width: Val::Percent(96.0),
+            flex_shrink: 0.0,
             ..default()
         },
-        BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
-        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-        children![(
-            Text::new(card_details.name.clone()),
-            TextFont {
-                font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
-                ..default()
-            },
-            TextLayout {
-                justify: Justify::Center,
-                linebreak: LineBreak::WordBoundary,
-            },
-        )],
+        ChildOf(parent_panel.entity()),
+        children![
+            (
+                Node {
+                    height: Val::Percent(100.0),
+                    width: Val::Percent(15.0),
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                BorderColor::all(STONE_900),
+                BackgroundColor(Color::Srgba(STONE_700)),
+                UnloadActionButton,
+                children![(
+                    Text::new("<--"),
+                    TextFont {
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        ..default()
+                    },
+                    TextLayout {
+                        justify: Justify::Center,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                )]
+            ),
+            (
+                Node {
+                    height: Val::Percent(100.0),
+                    width: Val::Percent(85.0),
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+                children![(
+                    Text::new(card_details.name.clone()),
+                    TextFont {
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        ..default()
+                    },
+                    TextLayout {
+                        justify: Justify::Center,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                )]
+            ),
+        ],
     ));
 
     commands.spawn((
@@ -418,34 +406,15 @@ fn manage_inventory_panel(
                     )
                     .expect("all players should have an inventory")
                     .get_card(inventory_index)?;
-                render_card_execution_panel(
-                    parent_panel.entity(),
-                    action.is_immediately_mandatory,
-                    &vis_cards,
-                    &mut commands,
-                    card,
-                )
+                render_card_execution_panel(parent_panel.entity(), &vis_cards, &mut commands, card)
             }
-            _ => {
-                if action.is_immediately_mandatory {
-                    commands.entity(parent_panel.entity()).despawn_children();
-
-                    commands.spawn((
-                        ChildOf(parent_panel.entity()),
-                        Text::new("Action is mandatory. Execute it to proceed."),
-                    ));
-
-                    Ok(())
-                } else {
-                    render_inventory(
-                        &mut commands,
-                        parent_panel.entity(),
-                        &vis_cards,
-                        &log_world,
-                        &display_player,
-                    )
-                }
-            }
+            _ => render_inventory(
+                &mut commands,
+                parent_panel.entity(),
+                &vis_cards,
+                &log_world,
+                &display_player,
+            ),
         }
     } else {
         render_inventory(

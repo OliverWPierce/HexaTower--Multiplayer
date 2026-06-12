@@ -303,12 +303,6 @@ mod execution_button {
                 ready_background: BackgroundColor(RED_500.into()),
                 ready_border: BorderColor::all(RED_600),
             },
-            Source::FreePieceRotation => ColorScheme {
-                unready_background: BackgroundColor(ORANGE_900.into()),
-                unready_border: BorderColor::all(ORANGE_950),
-                ready_background: BackgroundColor(ORANGE_500.into()),
-                ready_border: BorderColor::all(ORANGE_600),
-            },
         };
 
         commands.entity(panel.entity()).despawn_children();
@@ -342,7 +336,6 @@ mod execution_button {
             Text::new(match loaded_action.source {
                 Source::Card(..) => String::from("USE ITEM!"),
                 Source::Order(..) => String::from("ORDER!"),
-                Source::FreePieceRotation => String::from("POINT PIECE!"),
             }),
             TextFont {
                 font_size: 24.0,
@@ -534,8 +527,8 @@ mod execution_button {
                     .piece();
 
                 if logical_world.0.get::<OrdersReceivable>(logical_piece).expect("all pieces should have a component detailing how many orders they have and should have each round.").currently == 0 {
-                                    return Ok(Some(Blocker("Piece is out of orders this round".into())))
-                                }
+                            return Ok(Some(Blocker("Piece is out of orders this round".into())))
+                        }
 
                 let owner = logical_world.0.get::<PieceOwnedByPlayer>(logical_piece);
 
@@ -565,7 +558,6 @@ mod execution_button {
                     return Ok(Some(Blocker("You are out of orders this round".into())));
                 }
             }
-            Source::FreePieceRotation => (),
         }
 
         if operating_player.0 != logical_world.0.resource::<ActivePlayer>().0 {
