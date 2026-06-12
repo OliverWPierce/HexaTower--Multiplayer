@@ -2,7 +2,10 @@ use std::ops::Range;
 
 use crate::{
     requests::{ActionEffect, ChangeLog},
-    tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
+    tile_based_actions::{
+        TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
+        selection_mechanics::SelectedTile,
+    },
     tile_mapping::TileId,
     tiles::{TileDirectory, TileType},
 };
@@ -23,7 +26,7 @@ impl TileActionFunctionalityCapabilityConstants for ConvertTileTo {
 impl TileActionFunctionality for ConvertTileTo {
     fn execute(
         &self,
-        validated_selections: &[crate::tile_mapping::TileId],
+        validated_selections: &[SelectedTile],
         world: &mut bevy::ecs::world::World,
     ) -> crate::requests::ChangeLog {
         let mut log = ChangeLog::default();
@@ -32,7 +35,7 @@ impl TileActionFunctionality for ConvertTileTo {
             let directory = world.resource::<TileDirectory>();
 
             let Some(mut tile_type) = world
-                .entity_mut(directory.get_entity(*tile).unwrap())
+                .entity_mut(directory.get_entity(tile.id).unwrap())
                 .into_mut::<TileType>()
             else {
                 panic!("A tile entity had no component indicating the type of tile it was.")
@@ -40,7 +43,7 @@ impl TileActionFunctionality for ConvertTileTo {
 
             *tile_type = self.target_type.clone();
             log.write(ActionEffect::ConvertedTileType {
-                tile: *tile,
+                tile: tile.id,
                 new_type: self.target_type.clone(),
             });
         }
@@ -114,37 +117,79 @@ mod tests {
         assert!(loaded_action.try_execute(&mut world).is_err());
 
         loaded_action
-            .try_select_tile_and_update_elligibility(TileId::new(0), &world)
+            .try_select_tile_and_update_elligibility(
+                crate::tile_based_actions::SelectedTile {
+                    id: TileId::new(0),
+                    direction: crate::pieces::FacingHexDirection::North,
+                },
+                &world,
+            )
             .unwrap();
 
         assert!(loaded_action.try_execute(&mut world).is_err());
 
         loaded_action
-            .try_select_tile_and_update_elligibility(TileId::new(2), &world)
+            .try_select_tile_and_update_elligibility(
+                crate::tile_based_actions::SelectedTile {
+                    id: TileId::new(2),
+                    direction: crate::pieces::FacingHexDirection::North,
+                },
+                &world,
+            )
             .unwrap();
 
         loaded_action
-            .try_select_tile_and_update_elligibility(TileId::new(23), &world)
+            .try_select_tile_and_update_elligibility(
+                crate::tile_based_actions::SelectedTile {
+                    id: TileId::new(23),
+                    direction: crate::pieces::FacingHexDirection::North,
+                },
+                &world,
+            )
             .unwrap();
 
         assert!(
             loaded_action
-                .try_select_tile_and_update_elligibility(TileId::new(61), &world)
+                .try_select_tile_and_update_elligibility(
+                    crate::tile_based_actions::SelectedTile {
+                        id: TileId::new(61),
+                        direction: crate::pieces::FacingHexDirection::North,
+                    },
+                    &world
+                )
                 .is_err()
         );
         assert!(
             loaded_action
-                .try_select_tile_and_update_elligibility(TileId::new(2), &world)
+                .try_select_tile_and_update_elligibility(
+                    crate::tile_based_actions::SelectedTile {
+                        id: TileId::new(2),
+                        direction: crate::pieces::FacingHexDirection::North,
+                    },
+                    &world
+                )
                 .is_err()
         );
 
         loaded_action
-            .try_select_tile_and_update_elligibility(TileId::new(60), &world)
+            .try_select_tile_and_update_elligibility(
+                crate::tile_based_actions::SelectedTile {
+                    id: TileId::new(60),
+                    direction: crate::pieces::FacingHexDirection::North,
+                },
+                &world,
+            )
             .unwrap();
 
         assert!(
             loaded_action
-                .try_select_tile_and_update_elligibility(TileId::new(27), &world)
+                .try_select_tile_and_update_elligibility(
+                    crate::tile_based_actions::SelectedTile {
+                        id: TileId::new(27),
+                        direction: crate::pieces::FacingHexDirection::North,
+                    },
+                    &world
+                )
                 .is_err()
         );
 

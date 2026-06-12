@@ -97,6 +97,7 @@ mod tests {
     use crate::{
         CreationParameters,
         cards::CardFunction,
+        tile_based_actions::SelectedTile,
         tile_mapping::TileId,
         tiles::{TileDirectory, TileType},
     };
@@ -117,10 +118,22 @@ mod tests {
         };
 
         action
-            .try_select_tile_and_update_elligibility(TileId::new(1), &world)
+            .try_select_tile_and_update_elligibility(
+                SelectedTile {
+                    id: TileId::new(1),
+                    direction: crate::pieces::FacingHexDirection::North,
+                },
+                &world,
+            )
             .unwrap();
         action
-            .try_select_tile_and_update_elligibility(TileId::new(3), &world)
+            .try_select_tile_and_update_elligibility(
+                SelectedTile {
+                    id: TileId::new(3),
+                    direction: crate::pieces::FacingHexDirection::North,
+                },
+                &world,
+            )
             .unwrap();
 
         action.try_execute(&mut world).unwrap();

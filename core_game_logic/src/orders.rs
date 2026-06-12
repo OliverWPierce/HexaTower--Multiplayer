@@ -52,16 +52,7 @@ impl OrderFunction {
                 world,
             )
             .into()),
-            OrderFunction::Ex1 => Ok(ActionProcessCache::RotationAction {
-                tile_data: RotationTileStates::ElligibleTiles(
-                    world
-                        .try_query_filtered::<&TileId, With<OccupiedByPiece>>().expect("This component should already be registered upon creation of the world.")
-                        .iter(world)
-                        .cloned()
-                        .collect::<Box<_>>(),
-                ),
-                selected_direction: None,
-            }),
+            OrderFunction::Ex1 => todo!(),
         }
     }
 }

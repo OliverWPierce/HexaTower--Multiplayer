@@ -14,7 +14,7 @@ use crate::{
         self, ActivePlayer, Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory, PlayerId,
         PlayerOrdersRemaining, PlayerState,
     },
-    tile_based_actions::TileActionProcessCache,
+    tile_based_actions::{SelectedTile, TileActionProcessCache},
     tile_mapping::TileId,
     tiles::{MarketTile, TileDirectory, TileType},
 };
@@ -75,12 +75,6 @@ pub enum ActionEffect {
         on_tile: TileId,
         new_rotation: FacingHexDirection,
     },
-    GaveFreeRotationComponent {
-        to_piece_on_tile: TileId,
-    },
-    RemovedFreeRotationComponent {
-        from_piece_on_tile: TileId,
-    },
 }
 
 #[derive(Default, Debug)]
@@ -114,10 +108,7 @@ pub enum RotationTileStates {
 #[derive(Debug)]
 pub enum ActionProcessCache {
     TileAction(TileActionProcessCache),
-    RotationAction {
-        tile_data: RotationTileStates,
-        selected_direction: Option<FacingHexDirection>,
-    },
+    Ex1,
 }
 
 impl From<TileActionProcessCache> for ActionProcessCache {
@@ -147,18 +138,11 @@ pub enum RequestType {
         input: InputData,
         index_of_order: u8,
     },
-    FreePieceRotation {
-        on_tile: TileId,
-        direction: FacingHexDirection,
-    },
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum InputData {
-    AffectedTiles(Box<[TileId]>),
-    RotatePiece {
-        on_tile: TileId,
-        towards_direction: FacingHexDirection,
-    },
+    SelectedTiles(Box<[SelectedTile]>),
+    Ex1,
 }
 #[derive(Debug, Error)]
 #[error(
@@ -184,23 +168,6 @@ pub enum PurchaseCardError {
     NotEnoughCoins,
     #[error("No card availible at this index at the market tile.")]
     IndexOutOfBounds,
-}
-
-#[derive(Debug, Error)]
-pub enum RotationError {
-    #[error("No piece exists on the given tile {0:?}.")]
-    NoPieceOnTile(TileId),
-    #[error(
-        "The action at the given location (ie. slot in inventory, order on piece) does not allow for tile {0:?} to be selected."
-    )]
-    TileIsInvalid(TileId),
-    #[error(
-        "The action at the given location (ie. slot in inventory, order on piece) perscribed a specific direction for the rotation ({prescribed:?}), but the input data requested to turn the piece to direction {inputed:?}."
-    )]
-    DirectionDisagrees {
-        prescribed: FacingHexDirection,
-        inputed: FacingHexDirection,
-    },
 }
 
 #[derive(Debug, Error)]
@@ -251,65 +218,18 @@ pub fn try_consume_request(
 
             let mut log = match action_cache {
                 ActionProcessCache::TileAction(mut tile_action_process_cache) => {
-                    let InputData::AffectedTiles(tiles) = input else {
+                    let InputData::SelectedTiles(selections) = input else {
                         return Result::Err(UnexpectedInputType.into());
                     };
 
-                    for id in tiles {
+                    for tile in selections {
                         tile_action_process_cache
-                            .try_select_tile_and_update_elligibility(id, world)?
+                            .try_select_tile_and_update_elligibility(tile, world)?
                     }
 
                     tile_action_process_cache.try_execute(world)?
                 }
-                ActionProcessCache::RotationAction {
-                    tile_data: valid_tiles_to_try_rotating_on,
-                    selected_direction,
-                } => {
-                    let InputData::RotatePiece {
-                        on_tile,
-                        towards_direction,
-                    } = input
-                    else {
-                        return Result::Err(UnexpectedInputType.into());
-                    };
-
-                    if let Some(direction) = selected_direction
-                        && direction != towards_direction
-                    {
-                        return Err(RotationError::DirectionDisagrees {
-                            prescribed: direction,
-                            inputed: towards_direction,
-                        }
-                        .into());
-                    }
-
-                    let target_piece = world
-                        .get::<OccupiedByPiece>(
-                            world.resource::<TileDirectory>().get_entity(on_tile)?,
-                        )
-                        .ok_or(RotationError::NoPieceOnTile(on_tile))?;
-
-                    if !match valid_tiles_to_try_rotating_on {
-                        RotationTileStates::ElligibleTiles(tile_ids) => tile_ids.contains(&on_tile),
-                        RotationTileStates::SelectedTile(tile_id) => tile_id == on_tile,
-                    } {
-                        return Err(RotationError::TileIsInvalid(on_tile).into());
-                    }
-
-                    let mut change_log = ChangeLog::default();
-
-                    *world
-                        .get_mut::<FacingHexDirection>(target_piece.piece())
-                        .expect("All pieces must face a direction") = towards_direction;
-
-                    change_log.write(ActionEffect::PieceRotated {
-                        on_tile,
-                        new_rotation: towards_direction,
-                    });
-
-                    change_log
-                }
+                ActionProcessCache::Ex1 => todo!(),
             };
 
             world
@@ -460,7 +380,7 @@ pub fn try_consume_request(
 
             match action {
                 ActionProcessCache::TileAction(mut tile_action_process_cache) => {
-                    let InputData::AffectedTiles(tiles_to_use_order_on) = input else {
+                    let InputData::SelectedTiles(tiles_to_use_order_on) = input else {
                         return Err(UnexpectedInputType.into());
                     };
 
@@ -471,50 +391,7 @@ pub fn try_consume_request(
 
                     change_log.append(&mut tile_action_process_cache.try_execute(world)?);
                 }
-                ActionProcessCache::RotationAction {
-                    tile_data: valid_tiles_to_try_rotating_on,
-                    selected_direction,
-                } => {
-                    let InputData::RotatePiece {
-                        on_tile,
-                        towards_direction,
-                    } = input
-                    else {
-                        return Result::Err(UnexpectedInputType.into());
-                    };
-
-                    if let Some(direction) = selected_direction
-                        && direction != towards_direction
-                    {
-                        return Err(RotationError::DirectionDisagrees {
-                            prescribed: direction,
-                            inputed: towards_direction,
-                        }
-                        .into());
-                    }
-
-                    let target_piece = world
-                        .get::<OccupiedByPiece>(
-                            world.resource::<TileDirectory>().get_entity(on_tile)?,
-                        )
-                        .ok_or(RotationError::NoPieceOnTile(on_tile))?;
-
-                    if !match valid_tiles_to_try_rotating_on {
-                        RotationTileStates::ElligibleTiles(tile_ids) => tile_ids.contains(&on_tile),
-                        RotationTileStates::SelectedTile(tile_id) => tile_id == on_tile,
-                    } {
-                        return Err(RotationError::TileIsInvalid(on_tile).into());
-                    }
-
-                    *world
-                        .get_mut::<FacingHexDirection>(target_piece.piece())
-                        .expect("All pieces must face a direction") = towards_direction;
-
-                    change_log.write(ActionEffect::PieceRotated {
-                        on_tile,
-                        new_rotation: towards_direction,
-                    });
-                }
+                ActionProcessCache::Ex1 => todo!(),
             }
 
             world.get_mut::<OrdersReceivable>(piece).unwrap().currently -= 1;
@@ -525,35 +402,6 @@ pub fn try_consume_request(
                 .remaining -= 1;
 
             change_log
-        }
-        RequestType::FreePieceRotation { on_tile, direction } => {
-            let piece_entity = world
-                .get::<OccupiedByPiece>(world.resource::<TileDirectory>().get_entity(on_tile)?)
-                .ok_or(NoPieceOnTile(on_tile))?
-                .piece();
-
-            let _ = world
-                .get::<GetsFreeRotation>(piece_entity)
-                .ok_or(PieceCannotBeRotatedForFree(on_tile))?;
-
-            *world
-                .get_mut::<FacingHexDirection>(piece_entity)
-                .expect("all pieces have a rotation") = direction;
-
-            world.entity_mut(piece_entity).remove::<GetsFreeRotation>();
-
-            let mut log = ChangeLog::default();
-
-            log.write(ActionEffect::RemovedFreeRotationComponent {
-                from_piece_on_tile: on_tile,
-            });
-
-            log.write(ActionEffect::PieceRotated {
-                on_tile,
-                new_rotation: direction,
-            });
-
-            log
         }
     };
 

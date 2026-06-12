@@ -5,8 +5,10 @@ use crate::{
     },
     players::{PlayerDirectory, PlayerId, PlayerState},
     requests::{ActionEffect, ChangeLog},
-    tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
-    tile_mapping::TileId,
+    tile_based_actions::{
+        TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
+        selection_mechanics::SelectedTile,
+    },
     tiles::TileDirectory,
 };
 #[derive(Debug)]
@@ -21,7 +23,7 @@ impl TileActionFunctionalityCapabilityConstants for SpawnPieces {
 impl TileActionFunctionality for SpawnPieces {
     fn execute(
         &self,
-        validated_selections: &[crate::tile_mapping::TileId],
+        validated_selections: &[SelectedTile],
         world: &mut bevy::ecs::world::World,
     ) -> crate::requests::ChangeLog {
         let blueprint = world
@@ -39,10 +41,10 @@ impl TileActionFunctionality for SpawnPieces {
 
         let mut log = ChangeLog::default();
 
-        for (id, tile) in validated_selections
+        for (selection, tile_entity) in validated_selections
             .iter()
-            .map(|id| (*id, tile_entities.get_entity(*id).unwrap()))
-            .collect::<Box<[(TileId, bevy::ecs::entity::Entity)]>>()
+            .map(|tile| (*tile, tile_entities.get_entity(tile.id).unwrap()))
+            .collect::<Box<[(SelectedTile, bevy::ecs::entity::Entity)]>>()
         {
             let mut piece = world.spawn((
                 Health {
@@ -50,13 +52,13 @@ impl TileActionFunctionality for SpawnPieces {
                     current: blueprint.max_health,
                 },
                 PieceOwnedByPlayer(player_entity),
-                OccupiesTile(tile),
+                OccupiesTile(tile_entity),
                 OrdersReceivable {
                     per_round: blueprint.starting_orders_per_round,
                     currently: 0,
                 },
                 blueprint.orders.clone(),
-                FacingHexDirection::default(),
+                selection.direction,
                 GetsFreeRotation,
             ));
 
@@ -70,14 +72,10 @@ impl TileActionFunctionality for SpawnPieces {
             }
 
             log.write(ActionEffect::SpawnedPiece {
-                tile: id,
+                tile: selection.id,
                 player: self.owner,
                 archetype: self.archetype,
-                facing_direction: FacingHexDirection::default(),
-            });
-
-            log.write(ActionEffect::GaveFreeRotationComponent {
-                to_piece_on_tile: id,
+                facing_direction: selection.direction,
             });
         }
 

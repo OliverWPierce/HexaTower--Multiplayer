@@ -44,16 +44,6 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
                 direction: facing_direction,
             });
         }
-        ActionEffect::GaveFreeRotationComponent { to_piece_on_tile } => {
-            commands.write_message(StartFreeRotationAnimation {
-                on_tile: to_piece_on_tile,
-            });
-        }
-        ActionEffect::RemovedFreeRotationComponent { from_piece_on_tile } => {
-            commands.write_message(EndFreeRotationAnimation {
-                on_tile: from_piece_on_tile,
-            });
-        }
         ActionEffect::PieceRotated {
             on_tile,
             new_rotation,
@@ -93,42 +83,22 @@ fn try_execute_loaded_action(
         match &loaded_action.cache {
             ActionProcessCache::TileAction(tile_action_process_cache) => {
                 match loaded_action.source {
-                    Source::Card(inventory_index) => RequestType::UseCard {
-                        inventory_index,
-                        input: InputData::AffectedTiles(
-                            tile_action_process_cache.selected_tiles().into(),
-                        ),
-                    },
-                    Source::Order(order_index) => RequestType::UseOrder {
-                        tile: active_tile.ok_or("Tried to execute an order while there was no active tile. An active tile is needed to tell which piece the order is being used on.")?.0,
-                        input: InputData::AffectedTiles(
-                            tile_action_process_cache.selected_tiles().into(),
-                        ),
-                        index_of_order: order_index.0,
-                    },
-                }
+                            Source::Card(inventory_index) => RequestType::UseCard {
+                                inventory_index,
+                                input: InputData::SelectedTiles(
+                                    tile_action_process_cache.selected_tiles().into(),
+                                ),
+                            },
+                            Source::Order(order_index) => RequestType::UseOrder {
+                                tile: active_tile.ok_or("Tried to execute an order while there was no active tile. An active tile is needed to tell which piece the order is being used on.")?.0,
+                                input: InputData::SelectedTiles(
+                                    tile_action_process_cache.selected_tiles().into(),
+                                ),
+                                index_of_order: order_index.0,
+                            },
+                        }
             }
-            ActionProcessCache::RotationAction {
-                tile_data,
-                selected_direction,
-            } => match loaded_action.source {
-                Source::Card(inventory_index) => RequestType::UseCard {
-                    inventory_index,
-                    input: InputData::RotatePiece { on_tile: match tile_data {
-                        core_game_logic::requests::RotationTileStates::ElligibleTiles(..) => return Err("attempted to request a rotation action of the backend, but the rotation cache did not contain a selected tile. The request was not sent".into()),
-                        core_game_logic::requests::RotationTileStates::SelectedTile(tile_id) => *tile_id,
-                    }, towards_direction: selected_direction.ok_or("attempted to request a rotation action of the backend, but the rotation cache did not contain a selected direction. The request was not sent.")? }
-                },
-                Source::Order(order_index) => RequestType::UseOrder {
-                    tile: active_tile.ok_or("Tried to execute an order while there was no active tile. An active tile is needed to tell which piece the order is being used on.")?.0,
-                    input:InputData::RotatePiece { on_tile: match tile_data {
-                        core_game_logic::requests::RotationTileStates::ElligibleTiles(..) => return Err("attempted to request a rotation action of the backend, but the rotation cache did not contain a selected tile. The request was not sent".into()),
-                        core_game_logic::requests::RotationTileStates::SelectedTile(tile_id) => *tile_id,
-                    }, towards_direction: selected_direction.ok_or("attempted to request a rotation action of the backend, but the rotation cache did not contain a selected direction. The request was not sent.")? },
-                    index_of_order: order_index.0,
-
-                },
-            },
+            ActionProcessCache::Ex1 => todo!(),
         }
     };
 

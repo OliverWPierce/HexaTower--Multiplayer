@@ -416,59 +416,7 @@ mod execution_button {
                 }
             }
 
-            core_game_logic::requests::ActionProcessCache::RotationAction {
-                tile_data,
-                selected_direction,
-            } => {
-                let selection_progress_bar = commands
-                    .spawn((
-                        Node {
-                            width: Val::Percent(100.0),
-                            min_height: Val::Percent(20.0),
-                            justify_content: JustifyContent::SpaceEvenly,
-                            padding: UiRect::all(Val::Px(2.0)),
-                            ..default()
-                        },
-                        BackgroundColor(ZINC_900.into()),
-                        ChildOf(panel.entity()),
-                    ))
-                    .id();
-
-                commands.spawn((
-                    Node {
-                        height: Val::Percent(90.0),
-                        width: Val::Percent(49.0),
-                        border: UiRect::all(Val::Px(3.0)),
-                        ..default()
-                    },
-                    ChildOf(selection_progress_bar),
-                    match tile_data {
-                        RotationTileStates::ElligibleTiles(..) => (
-                            BackgroundColor(STONE_900.into()),
-                            BorderColor::all(STONE_950),
-                        ),
-                        RotationTileStates::SelectedTile(..) => {
-                            (BackgroundColor(SKY_500.into()), BorderColor::all(SKY_700))
-                        }
-                    },
-                ));
-                commands.spawn((
-                    Node {
-                        height: Val::Percent(90.0),
-                        width: Val::Percent(49.0),
-                        border: UiRect::all(Val::Px(3.0)),
-                        ..default()
-                    },
-                    ChildOf(selection_progress_bar),
-                    match selected_direction {
-                        None => (
-                            BackgroundColor(STONE_900.into()),
-                            BorderColor::all(STONE_950),
-                        ),
-                        Some(..) => (BackgroundColor(SKY_500.into()), BorderColor::all(SKY_700)),
-                    },
-                ));
-            }
+            core_game_logic::requests::ActionProcessCache::Ex1 => (),
         }
         Ok(())
     }
@@ -490,20 +438,7 @@ mod execution_button {
                     ))));
                 }
             }
-            core_game_logic::requests::ActionProcessCache::RotationAction {
-                tile_data,
-                selected_direction,
-            } => {
-                match tile_data {
-                    RotationTileStates::ElligibleTiles(..) => {
-                        return Ok(Some(Blocker(String::from("Select a piece first."))));
-                    }
-                    RotationTileStates::SelectedTile(..) => (),
-                };
-                if selected_direction.is_none() {
-                    return Ok(Some(Blocker(String::from("Select a direction"))));
-                }
-            }
+            core_game_logic::requests::ActionProcessCache::Ex1 => (),
         }
 
         match loaded_action.source {

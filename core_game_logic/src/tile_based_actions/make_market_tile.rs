@@ -1,7 +1,10 @@
 use crate::{
     markets::MarketId,
     requests::ActionEffect,
-    tile_based_actions::{TileActionFunctionality, TileActionFunctionalityCapabilityConstants},
+    tile_based_actions::{
+        TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
+        selection_mechanics::SelectedTile,
+    },
     tiles::{MarketTile, TileDirectory},
 };
 #[derive(Debug)]
@@ -12,7 +15,7 @@ pub struct MakeMarketTile {
 impl TileActionFunctionality for MakeMarketTile {
     fn execute(
         &self,
-        validated_selections: &[crate::tile_mapping::TileId],
+        validated_selections: &[SelectedTile],
         world: &mut bevy::ecs::world::World,
     ) -> crate::requests::ChangeLog {
         let tile_entities = world.resource::<TileDirectory>();
@@ -20,9 +23,9 @@ impl TileActionFunctionality for MakeMarketTile {
         world.insert_batch(
             validated_selections
                 .iter()
-                .map(|id| {
+                .map(|tile| {
                     (
-                        tile_entities.get_entity(*id).unwrap(),
+                        tile_entities.get_entity(tile.id).unwrap(),
                         MarketTile(self.market),
                     )
                 })
@@ -31,8 +34,8 @@ impl TileActionFunctionality for MakeMarketTile {
 
         validated_selections
             .iter()
-            .map(|id| ActionEffect::SpawnedNewMarket {
-                tile: *id,
+            .map(|tile| ActionEffect::SpawnedNewMarket {
+                tile: tile.id,
                 market: self.market,
             })
             .collect::<Vec<_>>()

@@ -4,6 +4,7 @@ use bevy::ecs::world::World;
 use thiserror::Error;
 
 use crate::{
+    pieces::FacingHexDirection,
     requests::ChangeLog,
     tile_based_actions::selection_mechanics::{SelectionData, SelectionError},
     tile_mapping::TileId,
@@ -15,10 +16,11 @@ pub mod make_market_tile;
 mod selection_mechanics;
 pub mod spawn_pieces;
 
+pub use selection_mechanics::SelectedTile;
 pub use selection_mechanics::State;
 
 pub trait TileActionFunctionality: Debug + Send + Sync {
-    fn execute(&self, validated_selections: &[TileId], world: &mut World) -> ChangeLog;
+    fn execute(&self, validated_selections: &[SelectedTile], world: &mut World) -> ChangeLog;
 
     fn update_eligibility(&self, selection_status: &mut SelectionData, world: &World);
 }
@@ -80,11 +82,13 @@ impl TileActionProcessCache {
 
     pub fn try_select_tile_and_update_elligibility(
         &mut self,
-        tile: TileId,
+        hopeful_tile: SelectedTile,
         world: &World,
     ) -> Result<(), SelectionError> {
-        self.selections
-            .try_set_state(tile, selection_mechanics::State::Selected)?;
+        self.selections.try_set_state(
+            hopeful_tile.id,
+            selection_mechanics::State::Selected(hopeful_tile.direction),
+        )?;
 
         if self.selections.selection_count() >= self.action.tile_range_for_execution.end {
             self.selections.clear_elligibles();
@@ -120,7 +124,7 @@ impl TileActionProcessCache {
         &self.action.tile_range_for_execution
     }
 
-    pub fn selected_tiles(&self) -> &[TileId] {
+    pub fn selected_tiles(&self) -> &[SelectedTile] {
         self.selections.get_validated_ordered_selections()
     }
 }
@@ -135,6 +139,7 @@ mod tests {
         requests::ChangeLog,
         tile_based_actions::{
             TileAction, TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
+            selection_mechanics::SelectedTile,
         },
     };
 
@@ -150,7 +155,7 @@ mod tests {
         impl TileActionFunctionality for FailingAction {
             fn execute(
                 &self,
-                _validated_selections: &[crate::tile_mapping::TileId],
+                _validated_selections: &[SelectedTile],
                 _world: &mut bevy::ecs::world::World,
             ) -> crate::requests::ChangeLog {
                 ChangeLog::default()

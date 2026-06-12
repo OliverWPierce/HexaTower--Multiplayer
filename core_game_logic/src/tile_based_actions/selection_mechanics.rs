@@ -1,19 +1,27 @@
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{tile_mapping::TileId, tiles};
+use crate::{pieces::FacingHexDirection, tile_mapping::TileId, tiles};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum State {
     Elligible,
-    Selected,
+    Selected(FacingHexDirection),
     #[default]
     Neither,
 }
 #[derive(Debug)]
 pub struct SelectionData {
     all_tile_states: Box<[State]>,
-    ordered_selections: Vec<TileId>,
+    ordered_selections: Vec<SelectedTile>,
 }
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct SelectedTile {
+    pub id: TileId,
+    pub direction: FacingHexDirection,
+}
+
 #[derive(Debug, Error)]
 pub enum SelectionError {
     #[error("Tried to select a tile which was not elligible for selection.")]
@@ -45,12 +53,15 @@ impl SelectionData {
                 Ok(())
             }
 
-            State::Selected => {
+            State::Selected(direction) => {
                 if *state != State::Elligible {
                     Err(SelectionError::AttemptedToSelectInelligibleTile)
                 } else {
-                    *state = State::Selected;
-                    self.ordered_selections.push(tile);
+                    *state = State::Selected(direction);
+                    self.ordered_selections.push(SelectedTile {
+                        id: tile,
+                        direction,
+                    });
                     Ok(())
                 }
             }
@@ -64,7 +75,7 @@ impl SelectionData {
         }
     }
 
-    pub fn get_validated_ordered_selections(&self) -> &[TileId] {
+    pub fn get_validated_ordered_selections(&self) -> &[SelectedTile] {
         self.ordered_selections.as_slice()
     }
 
@@ -78,17 +89,21 @@ impl SelectionData {
 
     pub fn set_all_possible_elligible(&mut self) {
         for tile in self.all_tile_states.iter_mut() {
-            if *tile != State::Selected {
-                *tile = State::Elligible
+            if let State::Selected(..) = tile {
+                return;
             }
+
+            *tile = State::Elligible
         }
     }
 
     pub fn set_all_possible_inelligible(&mut self) {
         for tile in self.all_tile_states.iter_mut() {
-            if *tile != State::Selected {
-                *tile = State::Neither
+            if let State::Selected(..) = tile {
+                return;
             }
+
+            *tile = State::Neither
         }
     }
     /// Does not clear selected tiles, just elligible ones.
