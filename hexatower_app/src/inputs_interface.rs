@@ -12,7 +12,9 @@ use crate::{
     OperatingPlayer,
     functional_assets::LogicalWorld,
     ui_panels::OrderAtPieceIndex,
-    vis_pieces::{EndFreeRotationAnimation, PieceSpawned, StartFreeRotationAnimation},
+    vis_pieces::{
+        EndFreeRotationAnimation, PieceSpawned, RotatePieceMessage, StartFreeRotationAnimation,
+    },
     vis_tiles::{ActiveTile, TileTypeConverted},
 };
 
@@ -50,6 +52,15 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
         ActionEffect::RemovedFreeRotationComponent { from_piece_on_tile } => {
             commands.write_message(EndFreeRotationAnimation {
                 on_tile: from_piece_on_tile,
+            });
+        }
+        ActionEffect::PieceRotated {
+            on_tile,
+            new_rotation,
+        } => {
+            commands.write_message(RotatePieceMessage {
+                on_tile,
+                in_direction: new_rotation,
             });
         }
         _ => warn!("Display method not yet implemented..."),

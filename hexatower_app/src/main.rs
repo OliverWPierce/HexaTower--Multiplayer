@@ -1,14 +1,12 @@
-use std::f32::consts::PI;
-
-use bevy::{math::VectorSpace, post_process::bloom::Bloom, prelude::*};
+use bevy::{post_process::bloom::Bloom, prelude::*};
 use core_game_logic::players::PlayerId;
 
 use crate::{
-    functional_assets::{GameCreationSettings, SetUpBoard, StartupPlugin},
-    inputs_interface::{InputInterfacePlugin, LoadedAction},
+    functional_assets::{SetUpBoard, StartupPlugin},
+    inputs_interface::InputInterfacePlugin,
     ui_panels::UiPanelsPlugin,
     vis_pieces::VisPiecesPlugin,
-    vis_tiles::{BoardSize, VisTilesPlugin},
+    vis_tiles::VisTilesPlugin,
 };
 
 mod functional_assets;
@@ -31,10 +29,6 @@ fn main() {
         .add_systems(SetUpBoard, (cam_3d, lights))
         .add_systems(Update, move_3d_cam)
         .run();
-}
-
-fn clear_data_on_display_player_change(mut commands: Commands) {
-    commands.remove_resource::<LoadedAction>();
 }
 
 /// The player that the operator of the device is representing. A spectator of a match would be Option::None, since they are not acting as a player, just a spectator. However, they will have a display player, so that the game can know which player's inventory and stats to display to the spectator.

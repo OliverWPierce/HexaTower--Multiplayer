@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use core_game_logic::{
     pieces::{ArchetypeId, FacingHexDirection},
     players::PlayerId,
-    tile_mapping::TileId,
+    tile_mapping::{HexVector2d, TileId},
 };
 
 use crate::vis_pieces::visual_piece_archetypes_storage::{
@@ -18,12 +18,15 @@ impl Plugin for VisPiecesPlugin {
         app.add_message::<PieceSpawned>();
         app.add_message::<StartFreeRotationAnimation>();
         app.add_message::<EndFreeRotationAnimation>();
+        app.add_message::<RotatePieceMessage>();
+
         app.add_systems(
             Update,
             (
                 spawn_visuals,
                 start_free_rotation_animation,
                 end_free_rotation_animation,
+                update_backend_rotation_changes,
             )
                 .chain(),
         );
@@ -94,20 +97,6 @@ pub struct VisOccupies(pub TileId);
 
 const BASEPLATE_HEIGHT: f32 = 0.115;
 
-fn rotation_from_hex_direction(direction: &FacingHexDirection) -> Quat {
-    Quat::from_axis_angle(
-        Vec3::Y,
-        match direction {
-            FacingHexDirection::NorthEast => PI / 6.0,
-            FacingHexDirection::North => PI / 2.0,
-            FacingHexDirection::NorthWest => 5.0 * PI / 6.0,
-            FacingHexDirection::SouthWest => 7.0 * PI / 6.0,
-            FacingHexDirection::South => 3.0 * PI / 2.0,
-            FacingHexDirection::SouthEast => 11.0 * PI / 6.0,
-        } + PI / 2.0,
-    )
-}
-
 fn spawn_visuals(
     mut spawn_events: MessageReader<PieceSpawned>,
     mut commands: Commands,
@@ -124,7 +113,7 @@ fn spawn_visuals(
                 y: 0.0,
                 z: horizontal_location.y,
             })
-            .with_rotation(rotation_from_hex_direction(&spawn.direction)),
+            .looking_to(Vec3::from(HexVector2d::from(spawn.direction)), Vec3::Y),
             SceneRoot(base_plates.get_base_plate(spawn.owner)?.clone()),
             children![
                 SceneRoot(
@@ -156,9 +145,6 @@ pub struct EndFreeRotationAnimation {
 }
 #[derive(Debug, Component)]
 struct IndicatesPieceThatNeedsADirectionToFace;
-
-#[derive(Debug, Component)]
-struct ExclamationMark;
 
 fn start_free_rotation_animation(
     mut pieces_to_start: MessageReader<StartFreeRotationAnimation>,
@@ -210,4 +196,30 @@ fn end_free_rotation_animation(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Message)]
+pub struct RotatePieceMessage {
+    pub on_tile: TileId,
+    pub in_direction: FacingHexDirection,
+}
+
+fn update_backend_rotation_changes(
+    mut pieces_to_rotate: MessageReader<RotatePieceMessage>,
+    mut pieces: Query<(&mut Transform, &VisOccupies)>,
+) {
+    for &RotatePieceMessage {
+        on_tile,
+        in_direction,
+    } in pieces_to_rotate.read()
+    {
+        if let Some((mut transform, _)) = pieces.iter_mut().find(|(_, tile)| tile.0 == on_tile) {
+            transform.look_to(Vec3::from(HexVector2d::from(in_direction)), Vec3::Y);
+        } else {
+            warn!(
+                "Tried to rotate the visual piece, but no visual piece was found on tile {on_tile:?}",
+            )
+        };
+        continue;
+    }
 }
