@@ -5,7 +5,7 @@
 /// storing a wrapper of a tile id uses less memory than storing two entity ids. Foregoing a parent-child relationship
 /// between tiles and indicators comes at the cost of a) making tile movement more challenging, and b) clicking an indicator does
 /// not bubble up to the tile.
-use bevy::{asset::uuid::Error, prelude::*};
+use bevy::{asset::uuid::Error, math::FloatPow, prelude::*};
 use core_game_logic::{
     pieces::FacingHexDirection,
     requests::{ActionProcessCache, RotationTileStates},
@@ -54,6 +54,7 @@ impl Plugin for VisTilesPlugin {
         );
 
         app.add_observer(set_active_tile);
+        app.add_observer(tmp_indicate_direction);
     }
 }
 
@@ -77,8 +78,8 @@ fn spawn_tiles_and_initialize_inficators(
 
     let selected_indicator_mesh: Handle<Scene> =
         asset_server.load(GltfAssetLabel::Scene(0).from_asset("selected_tile_indicator.glb"));
-    let elligible_indicator_mesh: Handle<Scene> =
-        asset_server.load(GltfAssetLabel::Scene(0).from_asset("elligible_tile_indicator.glb"));
+    let elligible_indicator_mesh: Handle<Scene> = asset_server
+        .load(GltfAssetLabel::Scene(0).from_asset("directional_elligible_tile_indicator.glb"));
 
     commands.insert_resource(tile_models.clone());
 
@@ -104,7 +105,35 @@ fn spawn_tiles_and_initialize_inficators(
             .id();
 
         vis_tiles.push(new_vis_tile);
+
+        // {
+        //     const ELLIGIBLE_INDICATOR_HEIGHT: f32 = 0.05;
+
+        //     for direction in [
+        //         FacingHexDirection::North,
+        //         FacingHexDirection::South,
+        //         FacingHexDirection::NorthEast,
+        //         FacingHexDirection::SouthEast,
+        //         FacingHexDirection::NorthWest,
+        //         FacingHexDirection::SouthWest,
+        //     ] {
+        //         commands.spawn(
+        //             (Transform::from_translation(Vec3 {
+        //                 x: horizontal_location.x,
+        //                 y: ELLIGIBLE_INDICATOR_HEIGHT,
+        //                 z: horizontal_location.y,
+        //             })
+        //             .looking_to(Vec3::from(HexVector2d::from(direction)), Vec3::Y)),
+        //         );
+        //     }
+        // }
     }
+
+    commands.spawn((
+        Transform::default(),
+        SceneRoot(elligible_indicator_mesh.clone()),
+        Tmp_Indicator,
+    ));
 
     commands.insert_resource(VisualTileDirectory(vis_tiles.into_boxed_slice()));
 }
@@ -205,5 +234,51 @@ fn remove_active_tile_indicators(
 ) {
     for entity in indicators {
         commands.entity(entity).despawn();
+    }
+}
+#[derive(Debug, Component)]
+struct Tmp_Indicator;
+
+fn tmp_indicate_direction(
+    taco: On<Pointer<Move>>,
+    mut single: Single<&mut Transform, With<Tmp_Indicator>>,
+    tiles: Query<&TileId>,
+    meshes: Query<&ChildOf>,
+) {
+    if let Ok(&ChildOf(parent)) = meshes.get(taco.entity)
+        && let Ok(tile) = tiles.get(parent)
+        && let Some(target) = taco.hit.position
+    {
+        let tile_position = Vec2::from(HexVector2d::from(*tile));
+
+        let hit_vector_with_tile_as_origin = target.xz() - tile_position;
+
+        let hex_direction = {
+            if hit_vector_with_tile_as_origin.y > 0.0 {
+                if hit_vector_with_tile_as_origin.y < hit_vector_with_tile_as_origin.x * -SQRT_3 {
+                    println!("north west");
+                    SOUTH_EAST
+                } else if hit_vector_with_tile_as_origin.y
+                    < hit_vector_with_tile_as_origin.x * SQRT_3
+                {
+                    println!("north east");
+                    SOUTH_WEST
+                } else {
+                    println!("north");
+                    SOUTH
+                }
+            } else if hit_vector_with_tile_as_origin.y > hit_vector_with_tile_as_origin.x * -SQRT_3
+            {
+                NORTH_WEST
+            } else if hit_vector_with_tile_as_origin.y > hit_vector_with_tile_as_origin.x * SQRT_3 {
+                NORTH_EAST
+            } else {
+                println!("south");
+                NORTH
+            }
+        };
+
+        single.translation = Vec3::from(HexVector2d::from(*tile));
+        single.look_to(Vec3::from(hex_direction), Dir3::Y);
     }
 }

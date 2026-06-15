@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 #[component(immutable)]
 pub struct TileId(u32);
 
+pub const SQRT_3: f32 = 1.7320508;
+
 impl TileId {
     pub fn new(id: u32) -> Self {
         TileId(id)
@@ -150,8 +152,6 @@ impl From<HexVector2d> for TileId {
 
 impl From<HexVector2d> for Vec2 {
     fn from(hex_vec: HexVector2d) -> Self {
-        const SQRT_3: f32 = 1.7320508;
-
         let vec_from_a = Vec2 {
             x: 0.0,
             y: hex_vec.a as f32 * SQRT_3,
