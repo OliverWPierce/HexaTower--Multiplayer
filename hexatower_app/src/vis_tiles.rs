@@ -9,7 +9,7 @@ use bevy::{asset::uuid::Error, math::FloatPow, prelude::*};
 use core_game_logic::{
     pieces::FacingHexDirection,
     requests::{ActionProcessCache, RotationTileStates},
-    tile_based_actions::{self},
+    tile_based_actions::{self, SelectedTile},
     tile_mapping::*,
     tiles::TileType,
 };
@@ -53,8 +53,15 @@ impl Plugin for VisTilesPlugin {
             remove_active_tile_indicators.run_if(resource_removed::<ActiveTile>),
         );
 
+        app.add_systems(
+            Update,
+            (update_tile_selection_and_eligibility_indicators,)
+                .run_if(resource_changed_or_removed::<LoadedAction>),
+        );
+
         app.add_observer(set_active_tile);
-        app.add_observer(tmp_indicate_direction);
+        app.add_observer(indicate_direction);
+        app.add_observer(select_tile);
     }
 }
 
@@ -78,10 +85,21 @@ fn spawn_tiles_and_initialize_inficators(
 
     let selected_indicator_mesh: Handle<Scene> =
         asset_server.load(GltfAssetLabel::Scene(0).from_asset("selected_tile_indicator.glb"));
-    let elligible_indicator_mesh: Handle<Scene> = asset_server
-        .load(GltfAssetLabel::Scene(0).from_asset("directional_elligible_tile_indicator.glb"));
+    let elligible_indicator_mesh: Handle<Scene> =
+        asset_server.load(GltfAssetLabel::Scene(0).from_asset("elligible_tile_indicator.glb"));
 
     commands.insert_resource(tile_models.clone());
+
+    commands.spawn((
+        Transform::default(),
+        SceneRoot(
+            asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("directional_elligible_tile_indicator.glb"),
+            ),
+        ),
+        DirectionIndicator,
+        Visibility::Visible,
+    ));
 
     let rings_to_spawn = settings.board_size.ring_count();
 
@@ -106,34 +124,29 @@ fn spawn_tiles_and_initialize_inficators(
 
         vis_tiles.push(new_vis_tile);
 
-        // {
-        //     const ELLIGIBLE_INDICATOR_HEIGHT: f32 = 0.05;
-
-        //     for direction in [
-        //         FacingHexDirection::North,
-        //         FacingHexDirection::South,
-        //         FacingHexDirection::NorthEast,
-        //         FacingHexDirection::SouthEast,
-        //         FacingHexDirection::NorthWest,
-        //         FacingHexDirection::SouthWest,
-        //     ] {
-        //         commands.spawn(
-        //             (Transform::from_translation(Vec3 {
-        //                 x: horizontal_location.x,
-        //                 y: ELLIGIBLE_INDICATOR_HEIGHT,
-        //                 z: horizontal_location.y,
-        //             })
-        //             .looking_to(Vec3::from(HexVector2d::from(direction)), Vec3::Y)),
-        //         );
-        //     }
-        // }
+        commands.spawn((
+            IndicatorType::Elligible,
+            Visibility::Hidden,
+            Transform::from_translation(Vec3 {
+                x: horizontal_location.x,
+                y: 0.0,
+                z: horizontal_location.y,
+            }),
+            SceneRoot(elligible_indicator_mesh.clone()),
+            IndicatorWatches(tile_id),
+        ));
+        commands.spawn((
+            IndicatorType::Selected,
+            Visibility::Hidden,
+            Transform::from_translation(Vec3 {
+                x: horizontal_location.x,
+                y: 0.0,
+                z: horizontal_location.y,
+            }),
+            SceneRoot(selected_indicator_mesh.clone()),
+            IndicatorWatches(tile_id),
+        ));
     }
-
-    commands.spawn((
-        Transform::default(),
-        SceneRoot(elligible_indicator_mesh.clone()),
-        Tmp_Indicator,
-    ));
 
     commands.insert_resource(VisualTileDirectory(vis_tiles.into_boxed_slice()));
 }
@@ -215,6 +228,7 @@ fn visualize_active_tile(
             SceneRoot(
                 asset_server.load(GltfAssetLabel::Scene(0).from_asset("active_tile_indicator.glb")),
             ),
+            Pickable::IGNORE,
         ));
     } else {
         const SPEED: f32 = 1.0;
@@ -237,48 +251,161 @@ fn remove_active_tile_indicators(
     }
 }
 #[derive(Debug, Component)]
-struct Tmp_Indicator;
+struct DirectionIndicator;
 
-fn tmp_indicate_direction(
-    taco: On<Pointer<Move>>,
-    mut single: Single<&mut Transform, With<Tmp_Indicator>>,
+fn indicate_direction(
+    mut trigger: On<Pointer<Move>>,
+    direction_indicator: Single<(&mut Transform, &mut Visibility), With<DirectionIndicator>>,
     tiles: Query<&TileId>,
-    meshes: Query<&ChildOf>,
+    tile_meshes: Query<&ChildOf>,
 ) {
-    if let Ok(&ChildOf(parent)) = meshes.get(taco.entity)
-        && let Ok(tile) = tiles.get(parent)
-        && let Some(target) = taco.hit.position
-    {
-        let tile_position = Vec2::from(HexVector2d::from(*tile));
+    let (mut transform, mut visibility) = direction_indicator.into_inner();
 
-        let hit_vector_with_tile_as_origin = target.xz() - tile_position;
-
-        let hex_direction = {
-            if hit_vector_with_tile_as_origin.y > 0.0 {
-                if hit_vector_with_tile_as_origin.y < hit_vector_with_tile_as_origin.x * -SQRT_3 {
-                    println!("north west");
-                    SOUTH_EAST
-                } else if hit_vector_with_tile_as_origin.y
-                    < hit_vector_with_tile_as_origin.x * SQRT_3
-                {
-                    println!("north east");
-                    SOUTH_WEST
-                } else {
-                    println!("north");
-                    SOUTH
-                }
-            } else if hit_vector_with_tile_as_origin.y > hit_vector_with_tile_as_origin.x * -SQRT_3
-            {
-                NORTH_WEST
-            } else if hit_vector_with_tile_as_origin.y > hit_vector_with_tile_as_origin.x * SQRT_3 {
-                NORTH_EAST
-            } else {
-                println!("south");
-                NORTH
-            }
+    if let Ok(&ChildOf(parent)) = tile_meshes.get(trigger.entity) {
+        let Some(target) = trigger.hit.position else {
+            println!("oops...");
+            return;
+        };
+        let Ok(tile) = tiles.get(parent) else {
+            println!("bad bad...");
+            return;
         };
 
-        single.translation = Vec3::from(HexVector2d::from(*tile));
-        single.look_to(Vec3::from(hex_direction), Dir3::Y);
+        println!("making visible.");
+        trigger.propagate(false);
+        *visibility = Visibility::Visible;
+
+        let tile_position = Vec3::from(HexVector2d::from(*tile));
+
+        transform.translation = Vec3::from(HexVector2d::from(*tile));
+        transform.look_to(
+            Vec3::from(HexVector2d::from(hex_direction_from_click_data(
+                tile_position,
+                target,
+            ))),
+            Dir3::Y,
+        );
+    } else {
+        *visibility = Visibility::Hidden;
+        println!("hiding.");
+    }
+}
+
+fn hex_direction_from_click_data(tile_location: Vec3, hit_location: Vec3) -> FacingHexDirection {
+    let hit_vector_with_tile_as_origin = hit_location.xz() - tile_location.xz();
+
+    if hit_vector_with_tile_as_origin.y > 0.0 {
+        if hit_vector_with_tile_as_origin.y < hit_vector_with_tile_as_origin.x * -SQRT_3 {
+            FacingHexDirection::SouthEast
+        } else if hit_vector_with_tile_as_origin.y < hit_vector_with_tile_as_origin.x * SQRT_3 {
+            FacingHexDirection::SouthWest
+        } else {
+            FacingHexDirection::South
+        }
+    } else if hit_vector_with_tile_as_origin.y > hit_vector_with_tile_as_origin.x * -SQRT_3 {
+        FacingHexDirection::NorthWest
+    } else if hit_vector_with_tile_as_origin.y > hit_vector_with_tile_as_origin.x * SQRT_3 {
+        FacingHexDirection::NorthEast
+    } else {
+        FacingHexDirection::North
+    }
+}
+
+#[derive(Debug, Component, PartialEq, Clone, Copy)]
+enum IndicatorType {
+    Selected,
+    Elligible,
+}
+
+#[derive(Debug, Component)]
+struct IndicatorWatches(TileId);
+
+fn update_tile_selection_and_eligibility_indicators(
+    loaded_action: Option<Res<LoadedAction>>,
+    mut indicators: Query<(
+        &mut Visibility,
+        &mut Transform,
+        &IndicatorType,
+        &IndicatorWatches,
+    )>,
+) {
+    if loaded_action.is_none() {
+        for (mut visibility, ..) in indicators.iter_mut() {
+            *visibility = Visibility::Hidden;
+        }
+        return;
+    }
+
+    let action = loaded_action.unwrap();
+
+    match &action.cache {
+        ActionProcessCache::TileAction(tile_action_process_cache) => {
+            let selection_states = tile_action_process_cache.view_selection_states();
+
+            for (mut visibility, mut transform, indicator_type, tile_watched) in
+                indicators.iter_mut()
+            {
+                let Some(state) = selection_states.get(tile_watched.0.id() as usize) else {
+                    warn!("Tile indicator with invalid tile id {tile_watched:?}");
+                    continue;
+                };
+
+                match state {
+                    tile_based_actions::State::Elligible => {
+                        if *indicator_type == IndicatorType::Elligible {
+                            *visibility = Visibility::Visible
+                        } else {
+                            *visibility = Visibility::Hidden
+                        }
+                    }
+                    tile_based_actions::State::Selected(facing_hex_direction) => {
+                        if *indicator_type == IndicatorType::Selected {
+                            transform.look_to(
+                                Vec3::from(HexVector2d::from(*facing_hex_direction)),
+                                Vec3::Y,
+                            );
+                            *visibility = Visibility::Visible;
+                        } else {
+                            *visibility = Visibility::Hidden;
+                        }
+                    }
+                    tile_based_actions::State::Neither => *visibility = Visibility::Hidden,
+                }
+            }
+        }
+        ActionProcessCache::Ex1 => todo!(),
+    }
+}
+
+fn select_tile(
+    mut trigger: On<Pointer<Click>>,
+    tiles: Query<&TileId>,
+    mut loaded_action: If<ResMut<LoadedAction>>,
+    logical_world: Res<LogicalWorld>,
+) {
+    let Ok(tile_id) = tiles.get(trigger.entity) else {
+        return;
+    };
+
+    trigger.propagate(false);
+
+    let Some(hit_location) = trigger.hit.position else {
+        return;
+    };
+
+    match &mut loaded_action.0.cache {
+        ActionProcessCache::TileAction(tile_action_process_cache) => {
+            let tile = SelectedTile {
+                id: *tile_id,
+                direction: hex_direction_from_click_data(
+                    HexVector2d::from(*tile_id).into(),
+                    hit_location,
+                ),
+            };
+
+            let _ = tile_action_process_cache
+                .try_select_tile_and_update_elligibility(tile, &logical_world.0);
+        }
+        ActionProcessCache::Ex1 => todo!(),
     }
 }
