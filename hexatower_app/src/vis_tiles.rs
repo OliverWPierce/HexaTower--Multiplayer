@@ -5,13 +5,10 @@
 /// storing a wrapper of a tile id uses less memory than storing two entity ids. Foregoing a parent-child relationship
 /// between tiles and indicators comes at the cost of a) making tile movement more challenging, and b) clicking an indicator does
 /// not bubble up to the tile.
-use bevy::{
-    asset::uuid::Error, color::palettes::tailwind::AMBER_700, math::FloatPow, prelude::*,
-    scene::SceneInstance,
-};
+use bevy::{color::palettes::tailwind::AMBER_700, prelude::*};
 use core_game_logic::{
     pieces::FacingHexDirection,
-    requests::{ActionProcessCache, RotationTileStates},
+    requests::ActionProcessCache,
     tile_based_actions::{self, SelectedTile},
     tile_mapping::*,
     tiles::TileType,
@@ -388,6 +385,7 @@ fn select_tile(
     tiles: Query<&TileId>,
     mut loaded_action: If<ResMut<LoadedAction>>,
     logical_world: Res<LogicalWorld>,
+    direction_indicator: Single<&mut Visibility, With<DirectionIndicator>>,
 ) {
     let Ok(tile_id) = tiles.get(trigger.entity) else {
         return;
@@ -409,8 +407,12 @@ fn select_tile(
                 ),
             };
 
-            let _ = tile_action_process_cache
-                .try_select_tile_and_update_elligibility(tile, &logical_world.0);
+            if tile_action_process_cache
+                .try_select_tile_and_update_elligibility(tile, &logical_world.0)
+                .is_ok()
+            {
+                *direction_indicator.into_inner() = Visibility::Hidden;
+            }
         }
         ActionProcessCache::Ex1 => todo!(),
     }

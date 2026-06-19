@@ -254,7 +254,6 @@ mod execution_button {
     use core_game_logic::{
         pieces::{OccupiedByPiece, OrdersReceivable, PieceOwnedByPlayer},
         players::{ActivePlayer, PlayerDirectory, PlayerOrdersRemaining},
-        requests::RotationTileStates,
         tiles::TileDirectory,
     };
 
