@@ -5,16 +5,14 @@ use core_game_logic::{
         ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType,
         try_consume_request,
     },
-    tile_mapping::TileId,
 };
 
 use crate::{
     OperatingPlayer,
     functional_assets::LogicalWorld,
     ui_panels::OrderAtPieceIndex,
-    vis_pieces::{
-        EndFreeRotationAnimation, PieceSpawned, RotatePieceMessage, StartFreeRotationAnimation,
-    },
+    vis_markets::MarketSpawned,
+    vis_pieces::{PieceSpawned, RotatePieceMessage},
     vis_tiles::{ActiveTile, TileTypeConverted},
 };
 
@@ -52,6 +50,9 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
                 on_tile,
                 in_direction: new_rotation,
             });
+        }
+        ActionEffect::SpawnedNewMarket { tile, market } => {
+            commands.write_message(MarketSpawned { tile, market });
         }
         _ => warn!("Display method not yet implemented..."),
     }

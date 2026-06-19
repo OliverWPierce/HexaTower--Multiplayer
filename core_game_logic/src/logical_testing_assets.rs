@@ -61,7 +61,7 @@ pub const LOGICAL_MARKETS_FOR_TESTING: [LogicalMarket; 2] = [
 ];
 //only used in testing.
 #[allow(unused)]
-pub const STARTING_CARDS_FOR_TESTING: [CardId; 4] = [CardId(0), CardId(1), CardId(2), CardId(0)];
+pub const STARTING_CARDS_FOR_TESTING: [CardId; 4] = [CardId(0), CardId(1), CardId(2), CardId(3)];
 
 //only used in testing.
 #[allow(unused)]

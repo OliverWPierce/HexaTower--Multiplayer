@@ -42,8 +42,8 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
             tooltip: "Enjoy your very own piece".into(),
         },
         VisualCard {
-            image: asset_server.load("item_images/purple_potion.png"),
-            name: "THREE".into(),
+            image: asset_server.load("order_icons/single_dagger.png"),
+            name: "Market Spawner".into(),
             tooltip: "All your needed wares sold here!".into(),
         },
         VisualCard {
@@ -155,9 +155,6 @@ impl VisCardDirectory {
     pub fn get_card(&self, id: CardId) -> Result<&VisualCard, VisInvaildCardIdErr> {
         self.0.get(id.0 as usize).ok_or(VisInvaildCardIdErr(id))
     }
-    pub fn new(cards: &[VisualCard]) -> Self {
-        VisCardDirectory(cards.into())
-    }
 }
 
 #[derive(Debug, Component)]
@@ -181,9 +178,6 @@ impl VisOrderDirectory {
     pub fn get_order(&self, id: OrderId) -> Result<&VisOrder, VisInvaildOrderIdErr> {
         self.0.get(id.0 as usize).ok_or(VisInvaildOrderIdErr(id))
     }
-    pub fn new(orders: Box<[VisOrder]>) -> Self {
-        Self(orders)
-    }
 }
 
 #[derive(Debug)]
@@ -201,10 +195,7 @@ pub struct VisMarketDirectory(Box<[VisMarket]>);
 pub struct VisInvaildMarketIdErr(pub MarketId);
 
 impl VisMarketDirectory {
-    pub fn get_order(&self, id: MarketId) -> Result<&VisMarket, VisInvaildMarketIdErr> {
+    pub fn get_market(&self, id: MarketId) -> Result<&VisMarket, VisInvaildMarketIdErr> {
         self.0.get(id.0 as usize).ok_or(VisInvaildMarketIdErr(id))
-    }
-    pub fn new(orders: Box<[VisMarket]>) -> Self {
-        Self(orders)
     }
 }

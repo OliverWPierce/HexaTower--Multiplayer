@@ -6,6 +6,7 @@ use crate::{
     functional_assets::{SetUpBoard, StartupPlugin},
     inputs_interface::InputInterfacePlugin,
     ui_panels::UiPanelsPlugin,
+    vis_markets::VisMarketsPlugin,
     vis_pieces::VisPiecesPlugin,
     vis_tiles::VisTilesPlugin,
 };
@@ -13,6 +14,7 @@ use crate::{
 mod functional_assets;
 mod inputs_interface;
 mod ui_panels;
+mod vis_markets;
 mod vis_pieces;
 mod vis_tiles;
 
@@ -26,6 +28,7 @@ fn main() {
             InputInterfacePlugin,
             UiPanelsPlugin,
             VisPiecesPlugin,
+            VisMarketsPlugin,
             ObjPlugin,
         ))
         .add_systems(SetUpBoard, (cam_3d, lights))

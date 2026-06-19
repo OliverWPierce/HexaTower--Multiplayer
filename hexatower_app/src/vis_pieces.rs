@@ -16,21 +16,13 @@ pub struct VisPiecesPlugin;
 impl Plugin for VisPiecesPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<PieceSpawned>();
-        app.add_message::<StartFreeRotationAnimation>();
-        app.add_message::<EndFreeRotationAnimation>();
+
         app.add_message::<RotatePieceMessage>();
 
         app.add_systems(
             Update,
-            (
-                spawn_visuals,
-                start_free_rotation_animation,
-                end_free_rotation_animation,
-                update_backend_rotation_changes,
-            )
-                .chain(),
+            (spawn_visuals, update_backend_rotation_changes).chain(),
         );
-        app.add_systems(Update, spin_pieces_that_need_rotation);
     }
 }
 
@@ -129,70 +121,6 @@ fn spawn_visuals(
                 })
             ],
         ));
-    }
-
-    Ok(())
-}
-
-#[derive(Debug, Message)]
-pub struct StartFreeRotationAnimation {
-    pub on_tile: TileId,
-}
-
-#[derive(Debug, Message)]
-pub struct EndFreeRotationAnimation {
-    pub on_tile: TileId,
-}
-#[derive(Debug, Component)]
-struct IndicatesPieceThatNeedsADirectionToFace;
-
-fn start_free_rotation_animation(
-    mut pieces_to_start: MessageReader<StartFreeRotationAnimation>,
-    visual_pieces: Query<(Entity, &VisOccupies)>,
-    mut commands: Commands,
-) -> Result<(), BevyError> {
-    for StartFreeRotationAnimation { on_tile } in pieces_to_start.read() {
-        let vis_piece = visual_pieces
-            .iter()
-            .find(|(_, VisOccupies(tile))| *tile == *on_tile)
-            .ok_or("No visual for a piece on tile {on_tile:?}")?
-            .0;
-
-        commands
-            .entity(vis_piece)
-            .insert(IndicatesPieceThatNeedsADirectionToFace);
-    }
-
-    Ok(())
-}
-
-fn spin_pieces_that_need_rotation(
-    mut spinable_pieces: Query<&mut Transform, With<IndicatesPieceThatNeedsADirectionToFace>>,
-    time: Res<Time>,
-) {
-    const SPIN_SPEED: f32 = 0.3;
-    let delta = time.delta_secs();
-
-    for mut transform in spinable_pieces.iter_mut() {
-        transform.rotate_y(SPIN_SPEED * delta);
-    }
-}
-
-fn end_free_rotation_animation(
-    mut pieces_to_start: MessageReader<EndFreeRotationAnimation>,
-    visual_pieces: Query<(Entity, &VisOccupies)>,
-    mut commands: Commands,
-) -> Result<(), BevyError> {
-    for EndFreeRotationAnimation { on_tile } in pieces_to_start.read() {
-        let vis_piece = visual_pieces
-            .iter()
-            .find(|(_, VisOccupies(tile))| *tile == *on_tile)
-            .ok_or("No visual for a piece on tile {on_tile:?}")?
-            .0;
-
-        commands
-            .entity(vis_piece)
-            .remove::<IndicatesPieceThatNeedsADirectionToFace>();
     }
 
     Ok(())
