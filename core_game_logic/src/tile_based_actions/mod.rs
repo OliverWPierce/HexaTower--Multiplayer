@@ -8,7 +8,7 @@ use crate::{
     requests::ChangeLog,
     tile_based_actions::selection_mechanics::{SelectionData, SelectionError},
     tile_mapping::TileId,
-    tiles::TileDirectory,
+    tiles::{InvaildIDErr, TileDirectory},
 };
 
 pub mod change_tile_type;
@@ -126,6 +126,13 @@ impl TileActionProcessCache {
 
     pub fn selected_tiles(&self) -> &[SelectedTile] {
         self.selections.get_validated_ordered_selections()
+    }
+
+    pub fn get_tile_state(&self, tile: TileId) -> Result<&State, InvaildIDErr> {
+        self.selections
+            .get_states()
+            .get(tile.id() as usize)
+            .ok_or(InvaildIDErr(tile))
     }
 }
 

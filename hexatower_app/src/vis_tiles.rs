@@ -103,7 +103,7 @@ fn spawn_tiles_and_initialize_inficators(
             ..default()
         })),
         DirectionIndicator,
-        Visibility::Visible,
+        Visibility::Hidden,
         Pickable::IGNORE,
     ));
 
@@ -264,11 +264,16 @@ fn indicate_direction(
     direction_indicator: Single<(&mut Transform, &mut Visibility), With<DirectionIndicator>>,
     tiles: Query<&TileId>,
     tile_meshes: Query<&ChildOf>,
-) {
+    loaded_action: Option<Res<LoadedAction>>,
+) -> Result<(), BevyError> {
     let (mut transform, mut visibility) = direction_indicator.into_inner();
 
-    if let Ok(&ChildOf(parent)) = tile_meshes.get(trigger.entity)
+    if let Some(action) = loaded_action
+        && let Ok(&ChildOf(parent)) = tile_meshes.get(trigger.entity)
         && let Ok(tile) = tiles.get(parent)
+        && let ActionProcessCache::TileAction(selection_data) = &action.cache
+        && *selection_data.get_tile_state(*tile)?
+            == core_game_logic::tile_based_actions::State::Elligible
         && let Some(target) = trigger.hit.position
     {
         trigger.propagate(false);
@@ -284,9 +289,11 @@ fn indicate_direction(
             ))),
             Dir3::Y,
         );
+
+        Ok(())
     } else {
         *visibility = Visibility::Hidden;
-        println!("hiding.");
+        Ok(())
     }
 }
 
