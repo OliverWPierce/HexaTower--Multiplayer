@@ -646,7 +646,7 @@ fn render_order_execution_process(
         },
         ChildOf(parent_panel),
         children![(
-            Text::new("\"This is a lovely example tooltip...\""),
+            Text::new(format!("\"{}\"", order_details.tooltip)),
             TextFont::from_font_size(16.0),
             TextColor(Color::Hsva(Hsva {
                 hue: 0.0,

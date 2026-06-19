@@ -24,7 +24,7 @@ fn spin_markets(
     mut models_to_spin: Query<&mut Transform, With<MarketModel>>,
     delta_time: Res<Time>,
 ) {
-    const SPEED: f32 = 0.1;
+    const SPEED: f32 = 0.25;
 
     for mut transform in models_to_spin.iter_mut() {
         transform.rotate_y(SPEED * delta_time.delta_secs());
