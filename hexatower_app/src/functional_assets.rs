@@ -1,5 +1,7 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
-use core_game_logic::{CreationParameters, cards::CardId, orders::OrderId, players::PlayerId};
+use core_game_logic::{
+    CreationParameters, cards::CardId, markets::MarketId, orders::OrderId, players::PlayerId,
+};
 use thiserror::Error;
 
 use crate::{
@@ -53,6 +55,21 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
             image: asset_server.load("item_images/green_potion.png"),
             name: "FIVE".into(),
             tooltip: "Something witty about this piece will be established later.".into(),
+        },
+    ])));
+
+    commands.insert_resource(VisMarketDirectory(Box::new([
+        VisMarket {
+            model: asset_server
+                .load(GltfAssetLabel::Scene(0).from_asset("market_models/gray_yellow_market.glb")),
+            name: "Tarmart".into(),
+            description: "Basic supplies sold here!".into(),
+        },
+        VisMarket {
+            model: asset_server
+                .load(GltfAssetLabel::Scene(0).from_asset("market_models/purple_market.glb")),
+            name: "The Stalls of Angora".into(),
+            description: "Only the finest wares.".into(),
         },
     ])));
 
@@ -158,13 +175,36 @@ pub struct VisOrderDirectory(Box<[VisOrder]>);
 
 #[derive(Debug, Error)]
 #[error{"Tried to retrieve visual order data using an invalid OrderId {0:?}."}]
-pub struct VisInvaildIDErr(pub OrderId);
+pub struct VisInvaildOrderIdErr(pub OrderId);
 
 impl VisOrderDirectory {
-    pub fn get_order(&self, id: OrderId) -> Result<&VisOrder, VisInvaildIDErr> {
-        self.0.get(id.0 as usize).ok_or(VisInvaildIDErr(id))
+    pub fn get_order(&self, id: OrderId) -> Result<&VisOrder, VisInvaildOrderIdErr> {
+        self.0.get(id.0 as usize).ok_or(VisInvaildOrderIdErr(id))
     }
     pub fn new(orders: Box<[VisOrder]>) -> Self {
+        Self(orders)
+    }
+}
+
+#[derive(Debug)]
+pub struct VisMarket {
+    pub model: Handle<Scene>,
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Debug, Resource)]
+pub struct VisMarketDirectory(Box<[VisMarket]>);
+
+#[derive(Debug, Error)]
+#[error{"Tried to retrieve visual order data using an invalid OrderId {0:?}."}]
+pub struct VisInvaildMarketIdErr(pub MarketId);
+
+impl VisMarketDirectory {
+    pub fn get_order(&self, id: MarketId) -> Result<&VisMarket, VisInvaildMarketIdErr> {
+        self.0.get(id.0 as usize).ok_or(VisInvaildMarketIdErr(id))
+    }
+    pub fn new(orders: Box<[VisMarket]>) -> Self {
         Self(orders)
     }
 }
