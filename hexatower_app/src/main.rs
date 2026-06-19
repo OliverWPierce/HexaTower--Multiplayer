@@ -1,4 +1,5 @@
 use bevy::{post_process::bloom::Bloom, prelude::*};
+use bevy_obj::ObjPlugin;
 use core_game_logic::players::PlayerId;
 
 use crate::{
@@ -25,6 +26,7 @@ fn main() {
             InputInterfacePlugin,
             UiPanelsPlugin,
             VisPiecesPlugin,
+            ObjPlugin,
         ))
         .add_systems(SetUpBoard, (cam_3d, lights))
         .add_systems(Update, move_3d_cam)

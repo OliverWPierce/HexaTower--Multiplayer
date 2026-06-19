@@ -5,7 +5,10 @@
 /// storing a wrapper of a tile id uses less memory than storing two entity ids. Foregoing a parent-child relationship
 /// between tiles and indicators comes at the cost of a) making tile movement more challenging, and b) clicking an indicator does
 /// not bubble up to the tile.
-use bevy::{asset::uuid::Error, math::FloatPow, prelude::*};
+use bevy::{
+    asset::uuid::Error, color::palettes::tailwind::AMBER_700, math::FloatPow, prelude::*,
+    scene::SceneInstance,
+};
 use core_game_logic::{
     pieces::FacingHexDirection,
     requests::{ActionProcessCache, RotationTileStates},
@@ -77,6 +80,7 @@ fn spawn_tiles_and_initialize_inficators(
     mut commands: Commands,
     settings: Res<GameCreationSettings>,
     asset_server: ResMut<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let tile_models = TileModels {
         basic: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/basic_tile.glb")),
@@ -92,13 +96,15 @@ fn spawn_tiles_and_initialize_inficators(
 
     commands.spawn((
         Transform::default(),
-        SceneRoot(
-            asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("directional_elligible_tile_indicator.glb"),
-            ),
-        ),
+        Mesh3d(asset_server.load("elligible_direction_indicator.obj")),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: AMBER_700.into(),
+            emissive: LinearRgba::new(16.0, 14.0, 1.0, 1.0),
+            ..default()
+        })),
         DirectionIndicator,
         Visibility::Visible,
+        Pickable::IGNORE,
     ));
 
     let rings_to_spawn = settings.board_size.ring_count();
@@ -261,17 +267,10 @@ fn indicate_direction(
 ) {
     let (mut transform, mut visibility) = direction_indicator.into_inner();
 
-    if let Ok(&ChildOf(parent)) = tile_meshes.get(trigger.entity) {
-        let Some(target) = trigger.hit.position else {
-            println!("oops...");
-            return;
-        };
-        let Ok(tile) = tiles.get(parent) else {
-            println!("bad bad...");
-            return;
-        };
-
-        println!("making visible.");
+    if let Ok(&ChildOf(parent)) = tile_meshes.get(trigger.entity)
+        && let Ok(tile) = tiles.get(parent)
+        && let Some(target) = trigger.hit.position
+    {
         trigger.propagate(false);
         *visibility = Visibility::Visible;
 
