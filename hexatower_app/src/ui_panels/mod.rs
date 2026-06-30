@@ -6,6 +6,7 @@ use crate::{
     ui_panels::{mid_panel::VisualOrdersPlugin, upper_panel::VisualInventoryPlugin},
 };
 
+mod lower_panel;
 mod mid_panel;
 mod upper_panel;
 
@@ -252,9 +253,10 @@ mod hoverable_elements {
 mod execution_button {
     use bevy::{color::palettes::tailwind::*, prelude::*};
     use core_game_logic::{
+        markets::MarketDirectory,
         pieces::{OccupiedByPiece, OrdersReceivable, PieceOwnedByPlayer},
-        players::{ActivePlayer, PlayerDirectory, PlayerOrdersRemaining},
-        tiles::TileDirectory,
+        players::{ActivePlayer, Coins, PlayerDirectory, PlayerOrdersRemaining},
+        tiles::{MarketTile, TileDirectory},
     };
 
     use crate::{
@@ -302,6 +304,12 @@ mod execution_button {
                 ready_background: BackgroundColor(RED_500.into()),
                 ready_border: BorderColor::all(RED_600),
             },
+            Source::Market(slot_in_market) => ColorScheme {
+                unready_background: BackgroundColor(EMERALD_900.into()),
+                unready_border: BorderColor::all(EMERALD_950),
+                ready_background: BackgroundColor(EMERALD_500.into()),
+                ready_border: BorderColor::all(EMERALD_600),
+            },
         };
 
         commands.entity(panel.entity()).despawn_children();
@@ -335,6 +343,7 @@ mod execution_button {
             Text::new(match loaded_action.source {
                 Source::Card(..) => String::from("USE ITEM!"),
                 Source::Order(..) => String::from("ORDER!"),
+                Source::Market(..) => String::from("Purchase!"),
             }),
             TextFont {
                 font_size: 24.0,
@@ -461,8 +470,8 @@ mod execution_button {
                     .piece();
 
                 if logical_world.0.get::<OrdersReceivable>(logical_piece).expect("all pieces should have a component detailing how many orders they have and should have each round.").currently == 0 {
-                            return Ok(Some(Blocker("Piece is out of orders this round".into())))
-                        }
+                                    return Ok(Some(Blocker("Piece is out of orders this round".into())))
+                                }
 
                 let owner = logical_world.0.get::<PieceOwnedByPlayer>(logical_piece);
 
@@ -490,6 +499,22 @@ mod execution_button {
                     == 0
                 {
                     return Ok(Some(Blocker("You are out of orders this round".into())));
+                }
+            }
+            Source::Market(slot_in_market) => {
+                let coins_of_operating_player = logical_world.0.get::<Coins>(logical_world.0.resource::<PlayerDirectory>().get_player(operating_player.0)?).ok_or("A player lacked a component detailing the amount of currency they possesed.")?.0;
+                let browsed_market = logical_world.0.get::<MarketTile>(logical_world.0.resource::<TileDirectory>().get_entity(active_tile.ok_or("There was a loaded action with a market source, but no active tile.")?.0)?).ok_or("Loaded action had a market as its source, but the active tile was not a market tile")?.0;
+
+                if coins_of_operating_player
+                    < logical_world
+                        .0
+                        .resource::<MarketDirectory>()
+                        .get_market(browsed_market)?
+                        .get_card_and_price(slot_in_market)
+                        .1
+                        .0
+                {
+                    return Ok(Some(Blocker("Insufficient funds".into())));
                 }
             }
         }

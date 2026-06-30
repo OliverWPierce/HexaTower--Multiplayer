@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use core_game_logic::{
+    markets::SlotInMarket,
     players::InventoryIndex,
     requests::{
         ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType,
@@ -67,6 +68,7 @@ pub struct LoadedAction {
 pub enum Source {
     Card(InventoryIndex),
     Order(OrderAtPieceIndex),
+    Market(SlotInMarket),
 }
 
 #[derive(Event, Debug)]
@@ -84,20 +86,21 @@ fn try_execute_loaded_action(
         match &loaded_action.cache {
             ActionProcessCache::TileAction(tile_action_process_cache) => {
                 match loaded_action.source {
-                            Source::Card(inventory_index) => RequestType::UseCard {
-                                inventory_index,
-                                input: InputData::SelectedTiles(
-                                    tile_action_process_cache.selected_tiles().into(),
-                                ),
-                            },
-                            Source::Order(order_index) => RequestType::UseOrder {
-                                tile: active_tile.ok_or("Tried to execute an order while there was no active tile. An active tile is needed to tell which piece the order is being used on.")?.0,
-                                input: InputData::SelectedTiles(
-                                    tile_action_process_cache.selected_tiles().into(),
-                                ),
-                                index_of_order: order_index.0,
-                            },
-                        }
+                    Source::Card(inventory_index) => RequestType::UseCard {
+                                                inventory_index,
+                                                input: InputData::SelectedTiles(
+                                                    tile_action_process_cache.selected_tiles().into(),
+                                                ),
+                                            },
+                    Source::Order(order_index) => RequestType::UseOrder {
+                                                tile: active_tile.ok_or("Tried to execute an order while there was no active tile. An active tile is needed to tell which piece the order is being used on.")?.0,
+                                                input: InputData::SelectedTiles(
+                                                    tile_action_process_cache.selected_tiles().into(),
+                                                ),
+                                                index_of_order: order_index.0,
+                                            },
+                    Source::Market(_) => todo!(),
+                }
             }
             ActionProcessCache::Ex1 => todo!(),
         }

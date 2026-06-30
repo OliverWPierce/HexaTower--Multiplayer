@@ -18,13 +18,13 @@ impl Plugin for VisMarketsPlugin {
 
 // TODO: Make this a relationship component with the visual tile.
 #[derive(Debug, Component)]
-struct MarketModel(MarketId);
+struct MarketModel;
 
 fn spin_markets(
     mut models_to_spin: Query<&mut Transform, With<MarketModel>>,
     delta_time: Res<Time>,
 ) {
-    const SPEED: f32 = 0.25;
+    const SPEED: f32 = 0.17;
 
     for mut transform in models_to_spin.iter_mut() {
         transform.rotate_y(SPEED * delta_time.delta_secs());
@@ -45,7 +45,7 @@ fn add_markets(
     for MarketSpawned { tile, market } in markets_to_visualize.read() {
         commands.spawn((
             Transform::from_translation(Vec3::from(HexVector2d::from(*tile))),
-            MarketModel(*market),
+            MarketModel,
             SceneRoot(visual_details.get_market(*market)?.model.clone()),
         ));
     }
