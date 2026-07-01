@@ -30,6 +30,10 @@ impl MarketDirectory {
     pub fn get_market(&self, id: MarketId) -> Result<&LogicalMarket, InvaildIDErr> {
         self.0.get(id.0 as usize).ok_or(InvaildIDErr(id))
     }
+
+    pub(crate) fn new(markets: Box<[LogicalMarket]>) -> Self {
+        Self(markets)
+    }
 }
 
 impl LogicalMarket {

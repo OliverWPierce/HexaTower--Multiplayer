@@ -11,7 +11,7 @@ pub mod tiles;
 
 use crate::{
     cards::{CardId, LogicalCard, initialize_cards},
-    markets::LogicalMarket,
+    markets::{LogicalMarket, MarketDirectory},
     orders::{LogicalOrder, initialize_orders},
     pieces::{LogicalPieceArchetype, OccupiedByPiece, initialize_pieces},
     players::{ActivePlayer, PlayerId, initialize_players},
@@ -42,6 +42,8 @@ impl CreationParameters {
         initialize_players(&mut logical_world, self.player_count, &self.starting_cards);
         initialize_orders(&mut logical_world, self.orders);
         initialize_pieces(&mut logical_world, self.piece_archetypes);
+
+        logical_world.insert_resource(MarketDirectory::new(self.all_markets));
 
         logical_world.insert_resource(ActivePlayer(PlayerId(0)));
         let log = players::apply_start_turn_effects(&mut logical_world, PlayerId(0)).unwrap();

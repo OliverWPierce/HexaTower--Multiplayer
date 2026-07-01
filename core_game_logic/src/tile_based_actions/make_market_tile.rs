@@ -8,7 +8,7 @@ use crate::{
     tiles::{MarketTile, TileDirectory},
 };
 #[derive(Debug)]
-pub struct MakeMarketTile {
+pub(crate) struct MakeMarketTile {
     pub market: MarketId,
 }
 
