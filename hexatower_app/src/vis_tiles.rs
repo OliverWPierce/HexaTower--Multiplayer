@@ -185,9 +185,6 @@ fn swap_tile_mesh(
     Ok(())
 }
 
-#[derive(Debug, Resource)]
-pub struct ActiveTile(pub TileId);
-
 fn set_active_tile(
     mut click: On<Pointer<Click>>,
     vis_tiles: Query<&TileId>,

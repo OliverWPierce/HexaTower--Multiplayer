@@ -58,17 +58,91 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
         _ => warn!("Display method not yet implemented..."),
     }
 }
-#[derive(Debug, Resource)]
-pub struct LoadedAction {
-    pub source: Source,
-    pub cache: ActionProcessCache,
-}
 
-#[derive(Debug)]
-pub enum Source {
-    Card(InventoryIndex),
-    Order(OrderAtPieceIndex),
-    Market(SlotInMarket),
+mod loaded_action_invariance {
+    use bevy::prelude::Resource;
+    use core_game_logic::{
+        markets::SlotInMarket, players::InventoryIndex, requests::ActionProcessCache,
+        tile_mapping::TileId,
+    };
+    use thiserror::Error;
+
+    use crate::ui_panels::OrderAtPieceIndex;
+
+    #[derive(Debug, Resource, Default)]
+    pub struct PlayerActionInputSequence {
+        active_tile: Option<TileId>,
+        loaded_action: Option<FrontendAction>,
+    }
+
+    #[derive(Debug, Error)]
+    pub enum LoadActionError {
+        #[error("The action {0:?} requires a tile to be active.")]
+        ActiveTileMissing(FrontendAction),
+    }
+
+    #[derive(Debug)]
+    pub enum FrontendAction {
+        UseCard {
+            index: InventoryIndex,
+            cache: ActionProcessCache,
+        },
+        UseOrder {
+            index_of_order_on_active_piece: OrderAtPieceIndex,
+            cache: ActionProcessCache,
+        },
+        PurchaseCard {
+            slot: SlotInMarket,
+        },
+    }
+
+    impl Foo {
+        pub fn active_tile(&self) -> Option<TileId> {
+            self.active_tile
+        }
+
+        pub fn process_cache(&self) -> Option<&ActionProcessCache> {
+            if self.loaded_action.is_none() {
+                return None;
+            }
+
+            match self.loaded_action.as_ref().unwrap() {
+                FrontendAction::UseCard { cache, .. } => Some(cache),
+                FrontendAction::UseOrder { cache, .. } => Some(cache),
+                FrontendAction::PurchaseCard { .. } => None,
+            }
+        }
+        pub fn try_load_action(&mut self, action: FrontendAction) -> Result<(), LoadActionError> {
+            match &action {
+                FrontendAction::UseCard { .. } => {
+                    self.loaded_action = Some(action);
+                    Ok(())
+                }
+                _ => {
+                    if self.active_tile.is_none() {
+                        return Err(LoadActionError::ActiveTileMissing(action));
+                    }
+
+                    self.loaded_action = Some(action);
+
+                    Ok(())
+                }
+            }
+        }
+
+        pub fn set_active_tile(&mut self, tile: Option<TileId>) {
+            self.active_tile = tile;
+
+            if self.loaded_action.is_none() {
+                return;
+            }
+
+            match self.loaded_action.as_ref().unwrap() {
+                FrontendAction::UseCard { .. } => (),
+                _ => self.loaded_action = None,
+            }
+        }
+    }
 }
 
 #[derive(Event, Debug)]
