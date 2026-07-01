@@ -4,11 +4,11 @@ use thiserror::Error;
 
 use crate::{
     cards::{CardDirectory, CardId},
-    markets::{MarketDirectory, MarketId},
+    markets::{MarketDirectory, MarketId, SlotInMarket},
     orders::OrderDirectory,
     pieces::{
-        FacingHexDirection, GetsFreeRotation, IsWinCondition, OccupiedByPiece, Orders,
-        OrdersReceivable, OwnsPieces, PieceOwnedByPlayer,
+        FacingHexDirection, IsWinCondition, OccupiedByPiece, Orders, OrdersReceivable, OwnsPieces,
+        PieceOwnedByPlayer,
     },
     players::{
         self, ActivePlayer, Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory, PlayerId,
@@ -130,7 +130,7 @@ pub enum RequestType {
     },
     PurchaseCard {
         market_tile: TileId,
-        index_of_card: u8,
+        slot_in_market: SlotInMarket,
     },
     EndTurn,
     UseOrder {
@@ -153,10 +153,6 @@ struct UnexpectedInputType;
 #[derive(Debug, Error)]
 #[error("It is not player {0:?}'s turn.")]
 struct NotPlayersTurn(PlayerId);
-
-#[derive(Debug, Error)]
-#[error("Piece on tile {0:?} cannot be rotated for free.")]
-struct PieceCannotBeRotatedForFree(TileId);
 
 #[derive(Debug, Error)]
 pub enum PurchaseCardError {
@@ -246,7 +242,7 @@ pub fn try_consume_request(
         }
         RequestType::PurchaseCard {
             market_tile,
-            index_of_card,
+            slot_in_market,
         } => {
             let tile_entity = world.resource::<TileDirectory>().get_entity(market_tile)?;
             let player_ent = world
@@ -265,9 +261,7 @@ pub fn try_consume_request(
                 let (card, price) = *world
                     .resource::<MarketDirectory>()
                     .get_market(market)?
-                    .0
-                    .get(index_of_card as usize)
-                    .ok_or(PurchaseCardError::IndexOutOfBounds)?;
+                    .get_card_and_price(slot_in_market);
 
                 if world.get::<Coins>(player_ent).unwrap().0 >= price.0 {
                     world

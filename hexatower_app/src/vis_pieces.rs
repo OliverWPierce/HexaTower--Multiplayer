@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 use bevy::prelude::*;
 use core_game_logic::{
     pieces::{ArchetypeId, FacingHexDirection},

@@ -1,7 +1,7 @@
 use crate::{
     pieces::{
-        self, FacingHexDirection, GetsFreeRotation, GivesExtraPlayerOrder, Health, IsWinCondition,
-        OccupiedByPiece, OccupiesTile, OrdersReceivable, PieceOwnedByPlayer,
+        self, GivesExtraPlayerOrder, Health, IsWinCondition, OccupiedByPiece, OccupiesTile,
+        OrdersReceivable, PieceOwnedByPlayer,
     },
     players::{PlayerDirectory, PlayerId, PlayerState},
     requests::{ActionEffect, ChangeLog},
@@ -59,7 +59,6 @@ impl TileActionFunctionality for SpawnPieces {
                 },
                 blueprint.orders.clone(),
                 selection.direction,
-                GetsFreeRotation,
             ));
 
             if blueprint.gives_extra_player_order {
