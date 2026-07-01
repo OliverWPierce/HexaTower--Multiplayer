@@ -16,7 +16,7 @@ use core_game_logic::{
 
 use crate::{
     functional_assets::{GameCreationSettings, LogicalWorld, SetUpBoard},
-    inputs_interface::LoadedAction,
+    inputs_interface::ActionInputManager,
     vis_pieces::VisOccupies,
 };
 
@@ -45,18 +45,16 @@ impl Plugin for VisTilesPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(SetUpBoard, spawn_tiles_and_initialize_inficators);
         // switch this to a custom schedule later.
-        app.add_systems(Update, (swap_tile_mesh, visualize_active_tile));
+        app.add_systems(Update, (swap_tile_mesh, roate_active_tile_visual));
         app.add_message::<TileTypeConverted>();
 
         app.add_systems(
             Update,
-            remove_active_tile_indicators.run_if(resource_removed::<ActiveTile>),
-        );
-
-        app.add_systems(
-            Update,
-            (update_tile_selection_and_eligibility_indicators,)
-                .run_if(resource_changed_or_removed::<LoadedAction>),
+            (
+                update_tile_selection_and_eligibility_indicators,
+                manage_active_tile_visual,
+            )
+                .run_if(resource_changed_or_removed::<ActionInputManager>),
         );
 
         app.add_observer(set_active_tile);
@@ -189,67 +187,70 @@ fn set_active_tile(
     mut click: On<Pointer<Click>>,
     vis_tiles: Query<&TileId>,
     vis_pieces: Query<&VisOccupies>,
-    loaded_action: Option<Res<LoadedAction>>,
-    mut commands: Commands,
+    mut input_manager: ResMut<ActionInputManager>,
 ) {
-    if loaded_action.is_some() {
+    if let Some(cache) = input_manager.process_cache()
+        && let ActionProcessCache::TileAction(..) = cache
+    {
         return;
     }
 
     if let Ok(&tile) = vis_tiles.get(click.entity) {
         click.propagate(false);
-        commands.insert_resource(ActiveTile(tile));
+        input_manager.set_active_tile(Some(tile));
     } else if let Ok(&VisOccupies(tile)) = vis_pieces.get(click.entity) {
         click.propagate(false);
-        commands.insert_resource(ActiveTile(tile));
+        input_manager.set_active_tile(Some(tile));
     }
 }
 
 #[derive(Debug, Component)]
 struct ActiveTileIndicator;
 
-fn visualize_active_tile(
+fn manage_active_tile_visual(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
-    mut alread_existing_indicators: Query<&mut Transform, With<ActiveTileIndicator>>,
-    active_tile: If<Res<ActiveTile>>,
-    time: Res<Time>,
+    alread_existing_indicators: Option<Single<(Entity, &mut Transform), With<ActiveTileIndicator>>>,
+    active_tile: Res<ActionInputManager>,
 ) {
-    let horizontal_location: Vec2 = HexVector2d::from(active_tile.0.0).into();
+    if let Some(active_tile) = active_tile.active_tile() {
+        let horizontal_location: Vec2 = HexVector2d::from(active_tile).into();
 
-    if alread_existing_indicators.is_empty() {
-        commands.spawn((
-            Transform::from_translation(Vec3 {
-                x: horizontal_location.x,
-                y: 1.0,
-                z: horizontal_location.y,
-            }),
-            ActiveTileIndicator,
-            SceneRoot(
-                asset_server.load(GltfAssetLabel::Scene(0).from_asset("active_tile_indicator.glb")),
-            ),
-            Pickable::IGNORE,
-        ));
+        if let Some(mut indicator) = alread_existing_indicators {
+            let transform = &mut indicator.1;
+
+            transform.translation.x = horizontal_location.x;
+            transform.translation.z = horizontal_location.y;
+        } else {
+            commands.spawn((
+                Transform::from_translation(Vec3 {
+                    x: horizontal_location.x,
+                    y: 1.0,
+                    z: horizontal_location.y,
+                }),
+                ActiveTileIndicator,
+                SceneRoot(
+                    asset_server
+                        .load(GltfAssetLabel::Scene(0).from_asset("active_tile_indicator.glb")),
+                ),
+                Pickable::IGNORE,
+            ));
+        }
     } else {
-        const SPEED: f32 = 1.0;
-
-        for mut ring in alread_existing_indicators.iter_mut() {
-            ring.translation.x = horizontal_location.x;
-            ring.translation.z = horizontal_location.y;
-
-            ring.rotate_y(SPEED * time.delta_secs());
+        if let Some(indicator) = alread_existing_indicators {
+            commands.entity(indicator.0).despawn();
         }
     }
 }
 
-fn remove_active_tile_indicators(
-    mut commands: Commands,
-    indicators: Query<Entity, With<ActiveTileIndicator>>,
+fn roate_active_tile_visual(
+    mut indicator: Single<&mut Transform, With<ActiveTileIndicator>>,
+    time: Res<Time>,
 ) {
-    for entity in indicators {
-        commands.entity(entity).despawn();
-    }
+    const SPEED: f32 = 1.0;
+    indicator.rotate_y(SPEED * time.delta_secs());
 }
+
 #[derive(Debug, Component)]
 struct DirectionIndicator;
 
@@ -258,14 +259,13 @@ fn indicate_direction(
     direction_indicator: Single<(&mut Transform, &mut Visibility), With<DirectionIndicator>>,
     tiles: Query<&TileId>,
     tile_meshes: Query<&ChildOf>,
-    loaded_action: Option<Res<LoadedAction>>,
+    loaded_action: Res<ActionInputManager>,
 ) -> Result<(), BevyError> {
     let (mut transform, mut visibility) = direction_indicator.into_inner();
 
-    if let Some(action) = loaded_action
-        && let Ok(&ChildOf(parent)) = tile_meshes.get(trigger.entity)
+    if let Ok(&ChildOf(parent)) = tile_meshes.get(trigger.entity)
         && let Ok(tile) = tiles.get(parent)
-        && let ActionProcessCache::TileAction(selection_data) = &action.cache
+        && let Some(ActionProcessCache::TileAction(selection_data)) = loaded_action.process_cache()
         && *selection_data.get_tile_state(*tile)?
             == core_game_logic::tile_based_actions::State::Elligible
         && let Some(target) = trigger.hit.position
@@ -321,7 +321,7 @@ enum IndicatorType {
 struct IndicatorWatches(TileId);
 
 fn update_tile_selection_and_eligibility_indicators(
-    loaded_action: Option<Res<LoadedAction>>,
+    loaded_action: Res<ActionInputManager>,
     mut indicators: Query<(
         &mut Visibility,
         &mut Transform,
@@ -329,58 +329,48 @@ fn update_tile_selection_and_eligibility_indicators(
         &IndicatorWatches,
     )>,
 ) {
-    if loaded_action.is_none() {
+    if let Some(ActionProcessCache::TileAction(cache)) = loaded_action.process_cache() {
+        let selection_states = cache.view_selection_states();
+
+        for (mut visibility, mut transform, indicator_type, tile_watched) in indicators.iter_mut() {
+            let Some(state) = selection_states.get(tile_watched.0.id() as usize) else {
+                warn!("Tile indicator with invalid tile id {tile_watched:?}");
+                continue;
+            };
+
+            match state {
+                tile_based_actions::State::Elligible => {
+                    if *indicator_type == IndicatorType::Elligible {
+                        *visibility = Visibility::Visible
+                    } else {
+                        *visibility = Visibility::Hidden
+                    }
+                }
+                tile_based_actions::State::Selected(facing_hex_direction) => {
+                    if *indicator_type == IndicatorType::Selected {
+                        transform.look_to(
+                            Vec3::from(HexVector2d::from(*facing_hex_direction)),
+                            Vec3::Y,
+                        );
+                        *visibility = Visibility::Visible;
+                    } else {
+                        *visibility = Visibility::Hidden;
+                    }
+                }
+                tile_based_actions::State::Neither => *visibility = Visibility::Hidden,
+            }
+        }
+    } else {
         for (mut visibility, ..) in indicators.iter_mut() {
             *visibility = Visibility::Hidden;
         }
-        return;
-    }
-
-    let action = loaded_action.unwrap();
-
-    match &action.cache {
-        ActionProcessCache::TileAction(tile_action_process_cache) => {
-            let selection_states = tile_action_process_cache.view_selection_states();
-
-            for (mut visibility, mut transform, indicator_type, tile_watched) in
-                indicators.iter_mut()
-            {
-                let Some(state) = selection_states.get(tile_watched.0.id() as usize) else {
-                    warn!("Tile indicator with invalid tile id {tile_watched:?}");
-                    continue;
-                };
-
-                match state {
-                    tile_based_actions::State::Elligible => {
-                        if *indicator_type == IndicatorType::Elligible {
-                            *visibility = Visibility::Visible
-                        } else {
-                            *visibility = Visibility::Hidden
-                        }
-                    }
-                    tile_based_actions::State::Selected(facing_hex_direction) => {
-                        if *indicator_type == IndicatorType::Selected {
-                            transform.look_to(
-                                Vec3::from(HexVector2d::from(*facing_hex_direction)),
-                                Vec3::Y,
-                            );
-                            *visibility = Visibility::Visible;
-                        } else {
-                            *visibility = Visibility::Hidden;
-                        }
-                    }
-                    tile_based_actions::State::Neither => *visibility = Visibility::Hidden,
-                }
-            }
-        }
-        ActionProcessCache::Ex1 => todo!(),
     }
 }
 
 fn select_tile(
     mut trigger: On<Pointer<Click>>,
     tiles: Query<&TileId>,
-    mut loaded_action: If<ResMut<LoadedAction>>,
+    mut loaded_action: ResMut<ActionInputManager>,
     logical_world: Res<LogicalWorld>,
     direction_indicator: Single<&mut Visibility, With<DirectionIndicator>>,
 ) {
@@ -390,12 +380,10 @@ fn select_tile(
 
     trigger.propagate(false);
 
-    let Some(hit_location) = trigger.hit.position else {
-        return;
-    };
-
-    match &mut loaded_action.0.cache {
-        ActionProcessCache::TileAction(tile_action_process_cache) => {
+    if let Some(hit_location) = trigger.hit.position
+        && let Some(ActionProcessCache::TileAction(cache)) = loaded_action.process_cache_mut()
+    {
+        {
             let tile = SelectedTile {
                 id: *tile_id,
                 direction: hex_direction_from_click_data(
@@ -404,13 +392,12 @@ fn select_tile(
                 ),
             };
 
-            if tile_action_process_cache
+            if cache
                 .try_select_tile_and_update_elligibility(tile, &logical_world.0)
                 .is_ok()
             {
                 *direction_indicator.into_inner() = Visibility::Hidden;
             }
         }
-        ActionProcessCache::Ex1 => todo!(),
     }
 }

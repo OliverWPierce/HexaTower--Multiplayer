@@ -8,6 +8,8 @@ use core_game_logic::{
     },
 };
 
+pub use loaded_action_invariance::*;
+
 use crate::{
     OperatingPlayer,
     functional_assets::LogicalWorld,
@@ -70,7 +72,7 @@ mod loaded_action_invariance {
     use crate::ui_panels::OrderAtPieceIndex;
 
     #[derive(Debug, Resource, Default)]
-    pub struct PlayerActionInputSequence {
+    pub struct ActionInputManager {
         active_tile: Option<TileId>,
         loaded_action: Option<FrontendAction>,
     }
@@ -96,7 +98,7 @@ mod loaded_action_invariance {
         },
     }
 
-    impl Foo {
+    impl ActionInputManager {
         pub fn active_tile(&self) -> Option<TileId> {
             self.active_tile
         }
@@ -112,6 +114,19 @@ mod loaded_action_invariance {
                 FrontendAction::PurchaseCard { .. } => None,
             }
         }
+
+        pub fn process_cache_mut(&mut self) -> Option<&mut ActionProcessCache> {
+            if let Some(action) = &mut self.loaded_action {
+                match action {
+                    FrontendAction::UseCard { cache, .. } => Some(cache),
+                    FrontendAction::UseOrder { cache, .. } => Some(cache),
+                    FrontendAction::PurchaseCard { .. } => None,
+                }
+            } else {
+                None
+            }
+        }
+
         pub fn try_load_action(&mut self, action: FrontendAction) -> Result<(), LoadActionError> {
             match &action {
                 FrontendAction::UseCard { .. } => {
@@ -141,6 +156,10 @@ mod loaded_action_invariance {
                 FrontendAction::UseCard { .. } => (),
                 _ => self.loaded_action = None,
             }
+        }
+
+        pub fn loaded_action(&self) -> Option<&FrontendAction> {
+            self.loaded_action.as_ref()
         }
     }
 }
