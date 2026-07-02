@@ -54,7 +54,7 @@ impl Plugin for VisTilesPlugin {
                 update_tile_selection_and_eligibility_indicators,
                 manage_active_tile_visual,
             )
-                .run_if(resource_changed_or_removed::<ActionInputManager>),
+                .run_if(resource_changed::<ActionInputManager>),
         );
 
         app.add_observer(set_active_tile);

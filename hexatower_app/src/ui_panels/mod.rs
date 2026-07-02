@@ -453,12 +453,9 @@ mod execution_button {
 
         if let Some(cache) = {
             match action {
-                FrontendAction::UseCard { index, cache } => Some(cache),
-                FrontendAction::UseOrder {
-                    index_of_order_on_active_piece,
-                    cache,
-                } => Some(cache),
-                FrontendAction::PurchaseCard { slot } => None,
+                FrontendAction::UseCard { cache, .. } => Some(cache),
+                FrontendAction::UseOrder { cache, .. } => Some(cache),
+                FrontendAction::PurchaseCard { .. } => None,
             }
         } {
             match cache {
@@ -477,12 +474,6 @@ mod execution_button {
         match action {
             FrontendAction::UseCard { .. } => (),
             FrontendAction::UseOrder { .. } => {
-                let Some(tile) = action_manager.active_tile() else {
-                    return Err(BevyError::from(
-                        "An order was loaded with no accompanying active tile.",
-                    ));
-                };
-
                 let logical_piece = logical_world
                     .0
                     .get::<OccupiedByPiece>(

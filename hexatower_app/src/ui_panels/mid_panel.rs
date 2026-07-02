@@ -24,7 +24,7 @@ impl Plugin for VisualOrdersPlugin {
 
         app.add_systems(
             Update,
-            manage_orders_panel.run_if(resource_changed_or_removed::<ActionInputManager>),
+            manage_orders_panel.run_if(resource_changed::<ActionInputManager>),
         );
 
         app.add_observer(load_order);

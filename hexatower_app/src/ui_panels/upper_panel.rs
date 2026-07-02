@@ -25,7 +25,7 @@ impl Plugin for VisualInventoryPlugin {
             Update,
             manage_inventory_panel
                 .before(execution_button::update_panel)
-                .run_if(resource_changed_or_removed::<ActionInputManager>),
+                .run_if(resource_changed::<ActionInputManager>),
         );
 
         app.add_systems(
