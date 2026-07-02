@@ -2,7 +2,7 @@ use bevy::{color::palettes::tailwind::*, prelude::*};
 
 use crate::{
     functional_assets::SetUpBoard,
-    inputs_interface::ActionInputManager,
+    inputs_interface::{ActionInputManager, TryEndTurn},
     ui_panels::{
         lower_panel::VisualMarketUIPlugin, mid_panel::VisualOrdersPlugin,
         upper_panel::VisualInventoryPlugin,
@@ -42,6 +42,7 @@ pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
 
 pub fn spawn_basic_ui_layout(mut commands: Commands) {
     pub const SIDE_PANELS_WIDTH_AS_A_PERCENT: f32 = 25.0;
+    const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
 
     let overall_parent = commands
         .spawn((
@@ -61,7 +62,6 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
     // the inventory, orders, and market panels
     {
         const OVERALL_PANEL_HEIGHTS: Val = Val::Percent(32.0);
-        const OVERALL_PANEL_WIDTHS: Val = Val::Percent(96.0);
         const PANEL_BACKGROUNDS: Color = Color::Srgba(STONE_700);
         const PANEL_BORDERS: Color = Color::Srgba(STONE_800);
 
@@ -82,7 +82,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                 (
                     InventoryPanel,
                     Node {
-                        width: OVERALL_PANEL_WIDTHS,
+                        width: SUB_PANEL_WIDTHS,
                         height: OVERALL_PANEL_HEIGHTS,
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                         flex_direction: FlexDirection::Column,
@@ -97,7 +97,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                 (
                     OrdersPanel,
                     Node {
-                        width: OVERALL_PANEL_WIDTHS,
+                        width: SUB_PANEL_WIDTHS,
                         height: OVERALL_PANEL_HEIGHTS,
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                         flex_direction: FlexDirection::Column,
@@ -112,7 +112,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                 (
                     MarketPanel,
                     Node {
-                        width: OVERALL_PANEL_WIDTHS,
+                        width: SUB_PANEL_WIDTHS,
                         height: OVERALL_PANEL_HEIGHTS,
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                         flex_direction: FlexDirection::Column,
@@ -128,18 +128,46 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
         ));
     }
 
-    commands.spawn((
-        Node {
-            width: Val::Percent(SIDE_PANELS_WIDTH_AS_A_PERCENT),
-            height: Val::Percent(100.0),
-            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-            ..default()
-        },
-        BorderColor::all(UNIVERSAL_BORDER),
-        BackgroundColor(UNIVERSAL_BACKGROUND),
-        ChildOf(overall_parent),
-    ));
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(SIDE_PANELS_WIDTH_AS_A_PERCENT),
+                height: Val::Percent(100.0),
+                border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceAround,
+                ..default()
+            },
+            BorderColor::all(UNIVERSAL_BORDER),
+            BackgroundColor(UNIVERSAL_BACKGROUND),
+            ChildOf(overall_parent),
+            children![(
+                Node {
+                    width: SUB_PANEL_WIDTHS,
+                    height: Val::Px(65.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                    ..Default::default()
+                },
+                BorderColor::all(SLATE_900),
+                BackgroundColor(SLATE_600.into()),
+                EndTurnButton,
+                children![(
+                    Text::new("End Turn"),
+                    TextFont {
+                        font_size: 24.0,
+                        ..default()
+                    },
+                )]
+            )],
+        ))
+        .observe(|_: On<Pointer<Click>>, mut commands: Commands| commands.trigger(TryEndTurn));
 }
+
+#[derive(Debug, Component)]
+pub struct EndTurnButton;
 
 #[derive(Debug, Component)]
 struct InventoryPanel;
