@@ -236,10 +236,8 @@ fn manage_active_tile_visual(
                 Pickable::IGNORE,
             ));
         }
-    } else {
-        if let Some(indicator) = alread_existing_indicators {
-            commands.entity(indicator.0).despawn();
-        }
+    } else if let Some(indicator) = alread_existing_indicators {
+        commands.entity(indicator.0).despawn();
     }
 }
 

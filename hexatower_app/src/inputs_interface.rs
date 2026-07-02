@@ -98,9 +98,7 @@ mod loaded_action_invariance {
         }
 
         pub fn process_cache(&self) -> Option<&ActionProcessCache> {
-            if self.loaded_action.is_none() {
-                return None;
-            }
+            self.loaded_action()?;
 
             match self.loaded_action.as_ref().unwrap() {
                 FrontendAction::UseCard { cache, .. } => Some(cache),
@@ -207,7 +205,7 @@ fn try_execute_loaded_action(
         &mut logical_world.0,
     )?;
 
-    action_manager.try_load_action(None);
+    action_manager.try_load_action(None)?;
 
     println!("Changelog is as follows: {change_log:?}");
 

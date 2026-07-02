@@ -265,7 +265,10 @@ mod execution_button {
     use core_game_logic::{
         markets::MarketDirectory,
         pieces::{OccupiedByPiece, OrdersReceivable, PieceOwnedByPlayer},
-        players::{ActivePlayer, Coins, PlayerDirectory, PlayerOrdersRemaining},
+        players::{
+            ActivePlayer, Coins, PlayerCardInventory, PlayerDirectory, PlayerId,
+            PlayerOrdersRemaining,
+        },
         tiles::{MarketTile, TileDirectory},
     };
 
@@ -518,18 +521,53 @@ mod execution_button {
                 }
             }
             FrontendAction::PurchaseCard { slot } => {
-                let coins_of_operating_player = logical_world.0.get::<Coins>(logical_world.0.resource::<PlayerDirectory>().get_player(operating_player.0)?).ok_or("A player lacked a component detailing the amount of currency they possesed.")?.0;
-                let browsed_market = logical_world.0.get::<MarketTile>(logical_world.0.resource::<TileDirectory>().get_entity(action_manager.active_tile().ok_or("Tried to calculate execution blockers for a purchase action, but there was no active tile.")?)?).ok_or("Loaded action had a market as its source, but the active tile was not a market tile")?.0;
+                let active_tile = action_manager.active_tile().ok_or("Tried to calculate execution blockers for a purchase action, but there was no active tile.")?;
 
-                if coins_of_operating_player
-                    < logical_world
-                        .0
-                        .resource::<MarketDirectory>()
-                        .get_market(browsed_market)?
-                        .get_card_and_price(*slot)
-                        .1
-                        .0
+                let logical_tile = logical_world
+                    .0
+                    .resource::<TileDirectory>()
+                    .get_entity(active_tile)?;
+
+                let MarketTile(browsed_market) = logical_world
+                    .0
+                    .get::<MarketTile>(logical_tile)
+                    .ok_or("This tile is not a market tile")?;
+
+                let a_piece_the_player_owns_occupies_this_tile: bool = if let Some(piece) =
+                    logical_world.0.get::<OccupiedByPiece>(logical_tile)
+                    && let Some(owner) = logical_world.0.get::<PieceOwnedByPlayer>(piece.piece())
+                    && let Some(owner_id) = logical_world.0.get::<PlayerId>(owner.0)
+                    && *owner_id == operating_player.0
                 {
+                    let inventory = logical_world
+                        .0
+                        .get::<PlayerCardInventory>(owner.0)
+                        .expect("all players should have a card inventory");
+
+                    if inventory.all_cards().len() >= inventory.max_card_capacity() as usize {
+                        return Ok(Some(Blocker("Inventory is full".into())));
+                    }
+
+                    true
+                } else {
+                    false
+                };
+
+                if !a_piece_the_player_owns_occupies_this_tile {
+                    return Ok(Some(Blocker("You do not occupy this market.".into())));
+                }
+
+                let coins_of_operating_player = logical_world.0.get::<Coins>(logical_world.0.resource::<PlayerDirectory>().get_player(operating_player.0)?).ok_or("A player lacked a component detailing the amount of currency they possesed.")?.0;
+
+                let price_of_card = logical_world
+                    .0
+                    .resource::<MarketDirectory>()
+                    .get_market(*browsed_market)?
+                    .get_card_and_price(*slot)
+                    .1
+                    .0;
+
+                if coins_of_operating_player < price_of_card {
                     return Ok(Some(Blocker("Insufficient funds".into())));
                 }
             }

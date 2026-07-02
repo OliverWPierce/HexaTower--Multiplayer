@@ -33,9 +33,7 @@ impl Plugin for VisualMarketUIPlugin {
             manage_market_ui_panel.after(spawn_basic_ui_layout),
         );
 
-        // app.add_observer(hover_slot);
-        // app.add_observer(unhover_slot);
-        // app.add_observer(load_card_action);
+        app.add_observer(load_purchase_action);
     }
 }
 
@@ -394,6 +392,7 @@ fn manage_market_ui_panel(
             )?
         }
     } else {
+        commands.entity(panel.entity()).despawn_children();
         commands.spawn((
             Text::new("Activate a tile with a market to view its offers."),
             TextFont::from_font_size(24.0),
@@ -410,3 +409,19 @@ fn manage_market_ui_panel(
 
 #[derive(Debug, Component)]
 struct IndicatesSlotInMarket(SlotInMarket);
+
+fn load_purchase_action(
+    mut trigger: On<Pointer<Click>>,
+    card_purchase_icons: Query<&IndicatesSlotInMarket>,
+    mut action_manager: ResMut<ActionInputManager>,
+) -> Result<(), BevyError> {
+    let Ok(slot) = card_purchase_icons.get(trigger.entity) else {
+        return Ok(());
+    };
+
+    trigger.propagate(false);
+
+    action_manager.try_load_action(Some(FrontendAction::PurchaseCard { slot: slot.0 }))?;
+
+    Ok(())
+}

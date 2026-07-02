@@ -297,7 +297,7 @@ fn load_order(
             )?
             .functionality
             .action_cache(active_piece, &logical_world.0)?,
-    }));
+    }))?;
 
     Ok(())
 }
