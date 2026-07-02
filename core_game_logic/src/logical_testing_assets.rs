@@ -86,7 +86,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
         orders: Orders([
             Some(OrderId(1)),
             Some(OrderId(0)),
-            Some(OrderId(1)),
+            Some(OrderId(2)),
             None,
             None,
         ]),

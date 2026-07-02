@@ -5,8 +5,10 @@ use core_game_logic::{
 use thiserror::Error;
 
 use crate::{
-    OperatingPlayer, inputs_interface::ActionInputManager,
-    vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetype, vis_tiles::BoardSize,
+    OperatingPlayer,
+    inputs_interface::{ActionInputManager, MultiplayerNetworkingMode},
+    vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetype,
+    vis_tiles::BoardSize,
 };
 
 pub struct StartupPlugin;
@@ -24,6 +26,7 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
         board_size: BoardSize::Standard,
     });
     commands.insert_resource(OperatingPlayer(PlayerId(0)));
+    commands.insert_resource(MultiplayerNetworkingMode::SingleDevice);
 
     commands.insert_resource(ActionInputManager::default());
 

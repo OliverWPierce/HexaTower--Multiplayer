@@ -18,10 +18,48 @@ pub struct InputInterfacePlugin;
 impl Plugin for InputInterfacePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(try_execute_loaded_action);
+        app.add_observer(end_turn);
     }
 }
 
-fn write_message(effect: ActionEffect, commands: &mut Commands) {
+#[derive(Debug, Resource)]
+pub enum MultiplayerNetworkingMode {
+    SingleDevice,
+    Online,
+}
+#[derive(Debug, Event)]
+pub struct TryEndTurn;
+
+fn end_turn(
+    _trigger: On<TryEndTurn>,
+    mut logical_world: ResMut<LogicalWorld>,
+    mut commands: Commands,
+    mut action_input_manager: ResMut<ActionInputManager>,
+    networking_mode: Res<MultiplayerNetworkingMode>,
+    acting_player: Res<OperatingPlayer>,
+) -> Result<(), BevyError> {
+    let change_log = try_consume_request(
+        BackendRequest {
+            acting_player: acting_player.0,
+            request: RequestType::EndTurn,
+        },
+        &mut logical_world.0,
+    )?;
+
+    for item in change_log.read() {
+        write_message(item.clone(), &mut commands, &networking_mode);
+    }
+
+    *action_input_manager = ActionInputManager::default();
+
+    Ok(())
+}
+
+fn write_message(
+    effect: ActionEffect,
+    commands: &mut Commands,
+    networking_mode: &MultiplayerNetworkingMode,
+) {
     match effect {
         ActionEffect::ConvertedTileType { tile, new_type } => {
             commands.write_message(TileTypeConverted { tile, new_type });
@@ -51,6 +89,12 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
         ActionEffect::SpawnedNewMarket { tile, market } => {
             commands.write_message(MarketSpawned { tile, market });
         }
+        ActionEffect::BeganTurn(new_acting_player) => match networking_mode {
+            MultiplayerNetworkingMode::SingleDevice => {
+                commands.insert_resource(OperatingPlayer(new_acting_player))
+            }
+            MultiplayerNetworkingMode::Online => todo!(),
+        },
         _ => warn!("Display method not yet implemented..."),
     }
 }
@@ -171,6 +215,7 @@ fn try_execute_loaded_action(
     acting_player: Res<OperatingPlayer>,
     mut logical_world: ResMut<LogicalWorld>,
     mut commands: Commands,
+    networking_mode: Res<MultiplayerNetworkingMode>,
 ) -> Result<(), BevyError> {
     let Some(action) = action_manager.loaded_action() else {
         warn!("tried to execute an action, but there was no action loaded.");
@@ -210,7 +255,7 @@ fn try_execute_loaded_action(
     println!("Changelog is as follows: {change_log:?}");
 
     for item in change_log.read() {
-        write_message(item.clone(), &mut commands);
+        write_message(item.clone(), &mut commands, &networking_mode);
     }
 
     Ok(())
