@@ -9,13 +9,11 @@ use crate::{
     functional_assets::{
         LogicalWorld, SetUpBoard, VisCardDirectory, VisMarket, VisMarketDirectory,
     },
-    inputs_interface::LoadedAction,
     ui_panels::{
         LEFT_SIDE_HEADER_PARAMS, MarketPanel, UnloadActionButton,
         execution_button::{self, ExecutionButtonPanel},
         hoverable_elements, spawn_basic_ui_layout,
     },
-    vis_tiles::ActiveTile,
 };
 
 pub struct VisualMarketUIPlugin;

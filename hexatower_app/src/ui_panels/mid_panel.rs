@@ -9,12 +9,11 @@ use core_game_logic::{
 use crate::{
     OperatingPlayer,
     functional_assets::{LogicalWorld, SetUpBoard, VisOrderDirectory},
-    inputs_interface::{LoadedAction, Source},
+    inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
         LEFT_SIDE_HEADER_PARAMS, OrdersPanel, UnloadActionButton,
         execution_button::ExecutionButtonPanel, hoverable_elements, spawn_basic_ui_layout,
     },
-    vis_tiles::ActiveTile,
 };
 
 pub struct VisualOrdersPlugin;
@@ -25,10 +24,7 @@ impl Plugin for VisualOrdersPlugin {
 
         app.add_systems(
             Update,
-            manage_orders_panel.run_if(
-                resource_changed_or_removed::<ActiveTile>
-                    .or(resource_changed_or_removed::<LoadedAction>),
-            ),
+            manage_orders_panel.run_if(resource_changed_or_removed::<ActionInputManager>),
         );
 
         app.add_observer(load_order);
@@ -260,16 +256,21 @@ pub struct OrderAtPieceIndex(pub u8);
 
 fn load_order(
     click: On<Pointer<Click>>,
-    mut commands: Commands,
     orders: Query<&OrderAtPieceIndex>,
-    active_piece: If<Res<ActiveTile>>,
     logical_world: Res<LogicalWorld>,
+    mut input_manager: ResMut<ActionInputManager>,
 ) -> Result<(), BevyError> {
     let Ok(&order_index) = orders.get(click.entity) else {
         return Ok(());
     };
-    commands.insert_resource(LoadedAction {
-        source: Source::Order(order_index),
+
+    let Some(active_piece) = input_manager.active_tile() else {
+        warn!("Player clicked an icon to load an order, but there was no active tile");
+        return Ok(());
+    };
+
+    input_manager.try_load_action(Some(FrontendAction::UseOrder {
+        index_of_order_on_active_piece: order_index,
         cache: logical_world
             .0
             .resource::<OrderDirectory>()
@@ -283,7 +284,7 @@ fn load_order(
                                 logical_world
                                     .0
                                     .resource::<TileDirectory>()
-                                    .get_entity(active_piece.0.0)?,
+                                    .get_entity(active_piece)?,
                             )
                             .ok_or("Tile was unnoccupied")?
                             .piece(),
@@ -295,49 +296,42 @@ fn load_order(
                     .ok_or("No order found at this index for this piece")?,
             )?
             .functionality
-            .action_cache(active_piece.0.0, &logical_world.0)?,
-    });
+            .action_cache(active_piece, &logical_world.0)?,
+    }));
 
     Ok(())
 }
 
 fn manage_orders_panel(
     overarching_order_panel: Single<Entity, With<OrdersPanel>>,
-    loaded_action: Option<Res<LoadedAction>>,
-    active_tile: Option<Res<ActiveTile>>,
+    input_manager: Res<ActionInputManager>,
     logical_world: Res<LogicalWorld>,
     visual_order_data: Res<VisOrderDirectory>,
     operating_player: Res<OperatingPlayer>,
     mut commands: Commands,
 ) -> Result<(), BevyError> {
-    if let Some(tile_of_active_piece) = active_tile
+    if let Some(tile_of_active_piece) = input_manager.active_tile()
         && let Some(active_piece_log_entity) = logical_world.0.get::<OccupiedByPiece>(
             logical_world
                 .0
                 .resource::<TileDirectory>()
-                .get_entity(tile_of_active_piece.0)?,
+                .get_entity(tile_of_active_piece)?,
         )
     {
-        if let Some(action) = loaded_action {
-            match action.source {
-                Source::Order(order_index) => render_order_execution_process(
-                    &mut commands,
-                    &logical_world,
-                    overarching_order_panel.entity(),
-                    active_piece_log_entity.piece(),
-                    order_index,
-                    &visual_order_data,
-                    &operating_player,
-                ), // render the order execution process panel,
-                _ => render_orders_of_active_piece(
-                    overarching_order_panel.entity(),
-                    active_piece_log_entity.piece(),
-                    &logical_world,
-                    &visual_order_data,
-                    &operating_player,
-                    &mut commands,
-                ),
-            }
+        if let Some(&FrontendAction::UseOrder {
+            index_of_order_on_active_piece,
+            ..
+        }) = input_manager.loaded_action()
+        {
+            render_order_execution_process(
+                &mut commands,
+                &logical_world,
+                overarching_order_panel.entity(),
+                active_piece_log_entity.piece(),
+                index_of_order_on_active_piece,
+                &visual_order_data,
+                &operating_player,
+            )
         } else {
             render_orders_of_active_piece(
                 overarching_order_panel.entity(),

@@ -2,7 +2,7 @@ use bevy::{color::palettes::tailwind::*, prelude::*};
 
 use crate::{
     functional_assets::SetUpBoard,
-    inputs_interface::LoadedAction,
+    inputs_interface::ActionInputManager,
     ui_panels::{
         lower_panel::VisualMarketUIPlugin, mid_panel::VisualOrdersPlugin,
         upper_panel::VisualInventoryPlugin,
@@ -26,7 +26,8 @@ impl Plugin for UiPanelsPlugin {
 
         app.add_systems(
             Update,
-            execution_button::update_panel.run_if(resource_exists_and_changed::<LoadedAction>),
+            execution_button::update_panel
+                .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 
         app.add_plugins(VisualInventoryPlugin);
@@ -171,10 +172,12 @@ pub struct UnloadActionButton;
 fn unload_action_button(
     trigger: On<Pointer<Click>>,
     buttons: Query<(), With<UnloadActionButton>>,
-    mut commands: Commands,
+    mut manager: ResMut<ActionInputManager>,
 ) {
     if buttons.get(trigger.entity).is_ok() {
-        commands.remove_resource::<LoadedAction>();
+        manager
+            .try_load_action(None)
+            .expect("This function cannot error when given an input of None.")
     }
 }
 
@@ -269,8 +272,7 @@ mod execution_button {
     use crate::{
         OperatingPlayer,
         functional_assets::LogicalWorld,
-        inputs_interface::{LoadedAction, Source, TryExecuteLoadedAction},
-        vis_tiles::ActiveTile,
+        inputs_interface::{ActionInputManager, FrontendAction, TryExecuteLoadedAction},
     };
 
     #[derive(Debug, Component)]
@@ -278,18 +280,18 @@ mod execution_button {
 
     pub fn update_panel(
         mut commands: Commands,
-        loaded_action: Res<LoadedAction>,
+        action_manager: Res<ActionInputManager>,
         panel: Single<Entity, With<ExecutionButtonPanel>>,
         operating_player: Res<OperatingPlayer>,
-        active_tile: Option<Res<ActiveTile>>,
         logical_world: Res<LogicalWorld>,
     ) -> Result<(), BevyError> {
-        let blockers_for_action_execution = action_blockers(
-            &loaded_action,
-            &logical_world,
-            &operating_player,
-            active_tile.as_ref(),
-        )?;
+        let Some(action) = action_manager.loaded_action() else {
+            warn!("Tried to update the execution button, but there was no loaded action.");
+            return Ok(());
+        };
+
+        let blockers_for_action_execution =
+            action_blockers(&action_manager, &logical_world, &operating_player)?;
 
         struct ColorScheme {
             unready_background: BackgroundColor,
@@ -298,20 +300,20 @@ mod execution_button {
             ready_border: BorderColor,
         }
 
-        let colors = match loaded_action.source {
-            Source::Card(..) => ColorScheme {
+        let colors = match action {
+            FrontendAction::UseCard { .. } => ColorScheme {
                 unready_background: BackgroundColor(BLUE_900.into()),
                 unready_border: BorderColor::all(BLUE_950),
                 ready_background: BackgroundColor(BLUE_500.into()),
                 ready_border: BorderColor::all(BLUE_600),
             },
-            Source::Order(..) => ColorScheme {
+            FrontendAction::UseOrder { .. } => ColorScheme {
                 unready_background: BackgroundColor(RED_900.into()),
                 unready_border: BorderColor::all(RED_950),
                 ready_background: BackgroundColor(RED_500.into()),
                 ready_border: BorderColor::all(RED_600),
             },
-            Source::Market(slot_in_market) => ColorScheme {
+            FrontendAction::PurchaseCard { .. } => ColorScheme {
                 unready_background: BackgroundColor(EMERALD_900.into()),
                 unready_border: BorderColor::all(EMERALD_950),
                 ready_background: BackgroundColor(EMERALD_500.into()),
@@ -347,10 +349,10 @@ mod execution_button {
             .id();
 
         commands.spawn((
-            Text::new(match loaded_action.source {
-                Source::Card(..) => String::from("USE ITEM!"),
-                Source::Order(..) => String::from("ORDER!"),
-                Source::Market(..) => String::from("Purchase!"),
+            Text::new(match action {
+                FrontendAction::UseCard { .. } => String::from("USE ITEM!"),
+                FrontendAction::UseOrder { .. } => String::from("ORDER!"),
+                FrontendAction::PurchaseCard { .. } => String::from("Purchase!"),
             }),
             TextFont {
                 font_size: 24.0,
@@ -387,51 +389,53 @@ mod execution_button {
             ));
         }
 
-        match &loaded_action.cache {
-            core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
-                let selection_progress_bar = commands
-                    .spawn((
-                        Node {
-                            width: Val::Percent(100.0),
-                            min_height: Val::Percent(20.0),
-                            justify_content: JustifyContent::SpaceEvenly,
-                            padding: UiRect::all(Val::Px(2.0)),
-                            ..default()
-                        },
-                        BackgroundColor(ZINC_900.into()),
-                        ChildOf(panel.entity()),
-                    ))
-                    .id();
+        if let Some(cache) = action_manager.process_cache() {
+            match &cache {
+                core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
+                    let selection_progress_bar = commands
+                        .spawn((
+                            Node {
+                                width: Val::Percent(100.0),
+                                min_height: Val::Percent(20.0),
+                                justify_content: JustifyContent::SpaceEvenly,
+                                padding: UiRect::all(Val::Px(2.0)),
+                                ..default()
+                            },
+                            BackgroundColor(ZINC_900.into()),
+                            ChildOf(panel.entity()),
+                        ))
+                        .id();
 
-                for box_number in 0..cache.selection_bounds().end {
-                    commands.spawn((
-                        Node {
-                            height: Val::Percent(90.0),
-                            width: Val::Percent(100.0 / (cache.selection_bounds().end as f32)),
-                            border: UiRect::all(Val::Px(3.0)),
-                            ..default()
-                        },
-                        {
-                            if box_number >= cache.amount_currently_selected() {
-                                (
-                                    BackgroundColor(STONE_900.into()),
-                                    BorderColor::all(STONE_950),
-                                )
-                            } else if box_number >= cache.selection_bounds().start {
-                                (
-                                    BackgroundColor(EMERALD_500.into()),
-                                    BorderColor::all(EMERALD_700),
-                                )
-                            } else {
-                                (BackgroundColor(SKY_500.into()), BorderColor::all(SKY_700))
-                            }
-                        },
-                        ChildOf(selection_progress_bar),
-                    ));
+                    for box_number in 0..cache.selection_bounds().end {
+                        commands.spawn((
+                            Node {
+                                height: Val::Percent(90.0),
+                                width: Val::Percent(100.0 / (cache.selection_bounds().end as f32)),
+                                border: UiRect::all(Val::Px(3.0)),
+                                ..default()
+                            },
+                            {
+                                if box_number >= cache.amount_currently_selected() {
+                                    (
+                                        BackgroundColor(STONE_900.into()),
+                                        BorderColor::all(STONE_950),
+                                    )
+                                } else if box_number >= cache.selection_bounds().start {
+                                    (
+                                        BackgroundColor(EMERALD_500.into()),
+                                        BorderColor::all(EMERALD_700),
+                                    )
+                                } else {
+                                    (BackgroundColor(SKY_500.into()), BorderColor::all(SKY_700))
+                                }
+                            },
+                            ChildOf(selection_progress_bar),
+                        ));
+                    }
                 }
-            }
 
-            core_game_logic::requests::ActionProcessCache::Ex1 => (),
+                core_game_logic::requests::ActionProcessCache::Ex1 => (),
+            }
         }
         Ok(())
     }
@@ -439,27 +443,41 @@ mod execution_button {
     struct Blocker(String);
 
     fn action_blockers(
-        loaded_action: &LoadedAction,
+        action_manager: &ActionInputManager,
         logical_world: &LogicalWorld,
         operating_player: &OperatingPlayer,
-        active_tile: Option<&Res<ActiveTile>>,
     ) -> Result<Option<Blocker>, BevyError> {
-        match &loaded_action.cache {
-            core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
-                if cache.selection_bounds().start > cache.amount_currently_selected() {
-                    return Ok(Some(Blocker(format!(
-                        "select at least {} more tiles",
-                        cache.selection_bounds().start - cache.amount_currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
-                    ))));
-                }
+        let action = action_manager.loaded_action().ok_or(
+            "Tried to calculate action execution blockers, but there was no loaded action",
+        )?;
+
+        if let Some(cache) = {
+            match action {
+                FrontendAction::UseCard { index, cache } => Some(cache),
+                FrontendAction::UseOrder {
+                    index_of_order_on_active_piece,
+                    cache,
+                } => Some(cache),
+                FrontendAction::PurchaseCard { slot } => None,
             }
-            core_game_logic::requests::ActionProcessCache::Ex1 => (),
+        } {
+            match cache {
+                core_game_logic::requests::ActionProcessCache::TileAction(cache) => {
+                    if cache.selection_bounds().start > cache.amount_currently_selected() {
+                        return Ok(Some(Blocker(format!(
+                            "select at least {} more tiles",
+                            cache.selection_bounds().start - cache.amount_currently_selected() // note this will not result in a negative number, because the cache will not allow for selections beyond the maximum allowed number of selections.
+                        ))));
+                    }
+                }
+                core_game_logic::requests::ActionProcessCache::Ex1 => (),
+            }
         }
 
-        match loaded_action.source {
-            Source::Card(..) => (),
-            Source::Order(..) => {
-                let Some(tile) = active_tile else {
+        match action {
+            FrontendAction::UseCard { .. } => (),
+            FrontendAction::UseOrder { .. } => {
+                let Some(tile) = action_manager.active_tile() else {
                     return Err(BevyError::from(
                         "An order was loaded with no accompanying active tile.",
                     ));
@@ -471,7 +489,7 @@ mod execution_button {
                         logical_world
                             .0
                             .resource::<TileDirectory>()
-                            .get_entity(tile.0)?,
+                            .get_entity(action_manager.active_tile().ok_or("Tried to generate execution blockers for an order, but there was no active tile.")?)?,
                     )
                     .ok_or("An order was loaded but the active tile was vacant")?
                     .piece();
@@ -508,16 +526,16 @@ mod execution_button {
                     return Ok(Some(Blocker("You are out of orders this round".into())));
                 }
             }
-            Source::Market(slot_in_market) => {
+            FrontendAction::PurchaseCard { slot } => {
                 let coins_of_operating_player = logical_world.0.get::<Coins>(logical_world.0.resource::<PlayerDirectory>().get_player(operating_player.0)?).ok_or("A player lacked a component detailing the amount of currency they possesed.")?.0;
-                let browsed_market = logical_world.0.get::<MarketTile>(logical_world.0.resource::<TileDirectory>().get_entity(active_tile.ok_or("There was a loaded action with a market source, but no active tile.")?.0)?).ok_or("Loaded action had a market as its source, but the active tile was not a market tile")?.0;
+                let browsed_market = logical_world.0.get::<MarketTile>(logical_world.0.resource::<TileDirectory>().get_entity(action_manager.active_tile().ok_or("Tried to calculate execution blockers for a purchase action, but there was no active tile.")?)?).ok_or("Loaded action had a market as its source, but the active tile was not a market tile")?.0;
 
                 if coins_of_operating_player
                     < logical_world
                         .0
                         .resource::<MarketDirectory>()
                         .get_market(browsed_market)?
-                        .get_card_and_price(slot_in_market)
+                        .get_card_and_price(*slot)
                         .1
                         .0
                 {
@@ -537,18 +555,14 @@ mod execution_button {
         mut click: On<Pointer<Click>>,
         operating_player: Res<OperatingPlayer>,
         logical_world: Res<LogicalWorld>,
-        active_tile: Option<Res<ActiveTile>>,
-        action: Res<LoadedAction>,
+        action_manager: Res<ActionInputManager>,
         mut commands: Commands,
     ) -> Result<(), BevyError> {
         click.propagate(false);
 
-        if let Some(Blocker(message)) = action_blockers(
-            &action,
-            &logical_world,
-            &operating_player,
-            active_tile.as_ref(),
-        )? {
+        if let Some(Blocker(message)) =
+            action_blockers(&action_manager, &logical_world, &operating_player)?
+        {
             warn!(message);
         } else {
             commands.trigger(TryExecuteLoadedAction);

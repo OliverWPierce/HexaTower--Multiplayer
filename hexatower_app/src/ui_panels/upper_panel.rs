@@ -7,7 +7,7 @@ use core_game_logic::{
 use crate::{
     OperatingPlayer,
     functional_assets::{LogicalWorld, SetUpBoard, VisCardDirectory, VisualCardId},
-    inputs_interface::{LoadedAction, Source},
+    inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
         LEFT_SIDE_HEADER_PARAMS, UnloadActionButton,
         execution_button::{self, ExecutionButtonPanel},
@@ -25,7 +25,7 @@ impl Plugin for VisualInventoryPlugin {
             Update,
             manage_inventory_panel
                 .before(execution_button::update_panel)
-                .run_if(resource_changed_or_removed::<LoadedAction>),
+                .run_if(resource_changed_or_removed::<ActionInputManager>),
         );
 
         app.add_systems(
@@ -201,7 +201,7 @@ fn unhover_slot(
 fn load_card_action(
     trigger: On<Pointer<Click>>,
     cards_in_inventory: Query<(&VisualCardIndex, &VisualCardId)>,
-    mut commands: Commands,
+    mut loaded_action: ResMut<ActionInputManager>,
     logical_world: Res<LogicalWorld>,
 ) -> Result<(), BevyError> {
     let Ok((VisualCardIndex(index_in_the_players_inventory), VisualCardId(card))) =
@@ -210,15 +210,15 @@ fn load_card_action(
         return Ok(());
     };
 
-    commands.insert_resource(LoadedAction {
-        source: Source::Card(*index_in_the_players_inventory),
+    loaded_action.try_load_action(Some(FrontendAction::UseCard {
+        index: *index_in_the_players_inventory,
         cache: logical_world
             .0
             .resource::<CardDirectory>()
             .get_card(*card)?
             .functionality
             .action_cache(&logical_world.0)?,
-    });
+    }))?;
 
     Ok(())
 }
@@ -386,36 +386,25 @@ fn render_card_execution_panel(
 fn manage_inventory_panel(
     parent_panel: Single<Entity, With<InventoryPanel>>,
     display_player: Res<OperatingPlayer>,
-    loaded_action: Option<Res<LoadedAction>>,
+    loaded_action: Res<ActionInputManager>,
     log_world: Res<LogicalWorld>,
     mut commands: Commands,
     vis_cards: Res<VisCardDirectory>,
 ) -> Result<(), BevyError> {
     debug!("managing");
 
-    if let Some(action) = loaded_action {
-        match action.source {
-            Source::Card(inventory_index) => {
-                let card = log_world
+    if let Some(FrontendAction::UseCard { index, .. }) = loaded_action.loaded_action() {
+        let card = log_world
+            .0
+            .get::<PlayerCardInventory>(
+                log_world
                     .0
-                    .get::<PlayerCardInventory>(
-                        log_world
-                            .0
-                            .resource::<PlayerDirectory>()
-                            .get_player(display_player.0)?,
-                    )
-                    .expect("all players should have an inventory")
-                    .get_card(inventory_index)?;
-                render_card_execution_panel(parent_panel.entity(), &vis_cards, &mut commands, card)
-            }
-            _ => render_inventory(
-                &mut commands,
-                parent_panel.entity(),
-                &vis_cards,
-                &log_world,
-                &display_player,
-            ),
-        }
+                    .resource::<PlayerDirectory>()
+                    .get_player(display_player.0)?,
+            )
+            .expect("all players should have an inventory")
+            .get_card(*index)?;
+        render_card_execution_panel(parent_panel.entity(), &vis_cards, &mut commands, card)
     } else {
         render_inventory(
             &mut commands,
