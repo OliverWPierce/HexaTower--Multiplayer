@@ -9,13 +9,12 @@ use crate::{
     functional_assets::{
         LogicalWorld, SetUpBoard, VisCardDirectory, VisMarket, VisMarketDirectory,
     },
-    inputs_interface::LoadedAction,
+    inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
         LEFT_SIDE_HEADER_PARAMS, MarketPanel, UnloadActionButton,
         execution_button::{self, ExecutionButtonPanel},
         hoverable_elements, spawn_basic_ui_layout,
     },
-    vis_tiles::ActiveTile,
 };
 
 pub struct VisualMarketUIPlugin;
@@ -26,10 +25,7 @@ impl Plugin for VisualMarketUIPlugin {
             Update,
             manage_market_ui_panel
                 .before(execution_button::update_panel)
-                .run_if(
-                    resource_changed_or_removed::<ActiveTile>
-                        .or(resource_changed_or_removed::<LoadedAction>),
-                ),
+                .run_if(resource_changed::<ActionInputManager>),
         );
 
         app.add_systems(
@@ -37,9 +33,7 @@ impl Plugin for VisualMarketUIPlugin {
             manage_market_ui_panel.after(spawn_basic_ui_layout),
         );
 
-        // app.add_observer(hover_slot);
-        // app.add_observer(unhover_slot);
-        // app.add_observer(load_card_action);
+        app.add_observer(load_purchase_action);
     }
 }
 
@@ -362,30 +356,27 @@ fn render_card_execution_panel(
 }
 
 fn manage_market_ui_panel(
-    active_tile: Option<Res<ActiveTile>>,
     panel: Single<Entity, With<MarketPanel>>,
+    manager: Res<ActionInputManager>,
     logical_world: Res<LogicalWorld>,
-    loaded_action: Option<Res<LoadedAction>>,
     visual_markets: Res<VisMarketDirectory>,
     visual_cards: Res<VisCardDirectory>,
     mut commands: Commands,
 ) -> Result<(), BevyError> {
-    if let Some(tile) = active_tile
+    if let Some(active_tile) = manager.active_tile()
         && let Some(&MarketTile(market)) = logical_world.0.get::<MarketTile>(
             logical_world
                 .0
                 .resource::<TileDirectory>()
-                .get_entity(tile.0)?,
+                .get_entity(active_tile)?,
         )
     {
-        if let Some(action) = loaded_action
-            && let crate::inputs_interface::Source::Market(slot) = action.source
-        {
+        if let Some(FrontendAction::PurchaseCard { slot }) = manager.loaded_action() {
             let (card, price) = logical_world
                 .0
                 .resource::<MarketDirectory>()
                 .get_market(market)?
-                .get_card_and_price(slot);
+                .get_card_and_price(*slot);
 
             render_card_execution_panel(panel.entity(), &visual_cards, &mut commands, price, card)?
         } else {
@@ -402,7 +393,6 @@ fn manage_market_ui_panel(
         }
     } else {
         commands.entity(panel.entity()).despawn_children();
-
         commands.spawn((
             Text::new("Activate a tile with a market to view its offers."),
             TextFont::from_font_size(24.0),
@@ -420,48 +410,18 @@ fn manage_market_ui_panel(
 #[derive(Debug, Component)]
 struct IndicatesSlotInMarket(SlotInMarket);
 
-// fn load_purchase_action(
-//     click: On<Pointer<Click>>,
-//     mut commands: Commands,
-//     orders: Query<&IndicatesSlotInMarket>,
-//     active_piece: If<Res<ActiveTile>>,
-//     logical_world: Res<LogicalWorld>,
-// ) -> Result<(), BevyError> {
-//     let Ok(&order_index) = orders.get(click.entity) else {
-//         return Ok(());
-//     };
+fn load_purchase_action(
+    mut trigger: On<Pointer<Click>>,
+    card_purchase_icons: Query<&IndicatesSlotInMarket>,
+    mut action_manager: ResMut<ActionInputManager>,
+) -> Result<(), BevyError> {
+    let Ok(slot) = card_purchase_icons.get(trigger.entity) else {
+        return Ok(());
+    };
 
-//     click.propagate(false);
+    trigger.propagate(false);
 
-//     commands.insert_resource(LoadedAction {
-//         source: crate::inputs_interface::Source::Market(order_index),
-//         cache: logical_world
-//             .0
-//             .resource::<OrderDirectory>()
-//             .get_order(
-//                 logical_world
-//                     .0
-//                     .get::<Orders>(
-//                         logical_world
-//                             .0
-//                             .get::<OccupiedByPiece>(
-//                                 logical_world
-//                                     .0
-//                                     .resource::<TileDirectory>()
-//                                     .get_entity(active_piece.0.0)?,
-//                             )
-//                             .ok_or("Tile was unnoccupied")?
-//                             .piece(),
-//                     )
-//                     .expect("all pieces should store data about the orders they use")
-//                     .0
-//                     .get(order_index.0 as usize)
-//                     .unwrap()
-//                     .ok_or("No order found at this index for this piece")?,
-//             )?
-//             .functionality
-//             .action_cache(active_piece.0.0, &logical_world.0)?,
-//     });
+    action_manager.try_load_action(Some(FrontendAction::PurchaseCard { slot: slot.0 }))?;
 
-//     Ok(())
-// }
+    Ok(())
+}

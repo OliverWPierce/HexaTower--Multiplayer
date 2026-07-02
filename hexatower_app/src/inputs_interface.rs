@@ -1,20 +1,16 @@
 use bevy::prelude::*;
-use core_game_logic::{
-    markets::SlotInMarket,
-    players::InventoryIndex,
-    requests::{
-        ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType,
-        try_consume_request,
-    },
+use core_game_logic::requests::{
+    ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType, try_consume_request,
 };
+
+pub use loaded_action_invariance::*;
 
 use crate::{
     OperatingPlayer,
     functional_assets::LogicalWorld,
-    ui_panels::OrderAtPieceIndex,
     vis_markets::MarketSpawned,
     vis_pieces::{PieceSpawned, RotatePieceMessage},
-    vis_tiles::{ActiveTile, TileTypeConverted},
+    vis_tiles::TileTypeConverted,
 };
 
 pub struct InputInterfacePlugin;
@@ -58,17 +54,112 @@ fn write_message(effect: ActionEffect, commands: &mut Commands) {
         _ => warn!("Display method not yet implemented..."),
     }
 }
-#[derive(Debug, Resource)]
-pub struct LoadedAction {
-    pub source: Source,
-    pub cache: ActionProcessCache,
-}
 
-#[derive(Debug)]
-pub enum Source {
-    Card(InventoryIndex),
-    Order(OrderAtPieceIndex),
-    Market(SlotInMarket),
+mod loaded_action_invariance {
+    use bevy::prelude::Resource;
+    use core_game_logic::{
+        markets::SlotInMarket, players::InventoryIndex, requests::ActionProcessCache,
+        tile_mapping::TileId,
+    };
+    use thiserror::Error;
+
+    use crate::ui_panels::OrderAtPieceIndex;
+
+    #[derive(Debug, Resource, Default)]
+    pub struct ActionInputManager {
+        active_tile: Option<TileId>,
+        loaded_action: Option<FrontendAction>,
+    }
+
+    #[derive(Debug, Error)]
+    pub enum LoadActionError {
+        #[error("The action {0:?} requires a tile to be active.")]
+        ActiveTileMissing(FrontendAction),
+    }
+
+    #[derive(Debug)]
+    pub enum FrontendAction {
+        UseCard {
+            index: InventoryIndex,
+            cache: ActionProcessCache,
+        },
+        UseOrder {
+            index_of_order_on_active_piece: OrderAtPieceIndex,
+            cache: ActionProcessCache,
+        },
+        PurchaseCard {
+            slot: SlotInMarket,
+        },
+    }
+
+    impl ActionInputManager {
+        pub fn active_tile(&self) -> Option<TileId> {
+            self.active_tile
+        }
+
+        pub fn process_cache(&self) -> Option<&ActionProcessCache> {
+            self.loaded_action()?;
+
+            match self.loaded_action.as_ref().unwrap() {
+                FrontendAction::UseCard { cache, .. } => Some(cache),
+                FrontendAction::UseOrder { cache, .. } => Some(cache),
+                FrontendAction::PurchaseCard { .. } => None,
+            }
+        }
+
+        pub fn process_cache_mut(&mut self) -> Option<&mut ActionProcessCache> {
+            if let Some(action) = &mut self.loaded_action {
+                match action {
+                    FrontendAction::UseCard { cache, .. } => Some(cache),
+                    FrontendAction::UseOrder { cache, .. } => Some(cache),
+                    FrontendAction::PurchaseCard { .. } => None,
+                }
+            } else {
+                None
+            }
+        }
+
+        pub fn try_load_action(
+            &mut self,
+            action: Option<FrontendAction>,
+        ) -> Result<(), LoadActionError> {
+            if let Some(action) = action {
+                match &action {
+                    FrontendAction::UseCard { .. } => {
+                        self.loaded_action = Some(action);
+                    }
+                    _ => {
+                        if self.active_tile.is_none() {
+                            return Err(LoadActionError::ActiveTileMissing(action));
+                        }
+
+                        self.loaded_action = Some(action);
+                    }
+                }
+            } else {
+                self.loaded_action = None;
+            }
+
+            Ok(())
+        }
+
+        pub fn set_active_tile(&mut self, tile: Option<TileId>) {
+            self.active_tile = tile;
+
+            if self.loaded_action.is_none() {
+                return;
+            }
+
+            match self.loaded_action.as_ref().unwrap() {
+                FrontendAction::UseCard { .. } => (),
+                _ => self.loaded_action = None,
+            }
+        }
+
+        pub fn loaded_action(&self) -> Option<&FrontendAction> {
+            self.loaded_action.as_ref()
+        }
+    }
 }
 
 #[derive(Event, Debug)]
@@ -76,33 +167,33 @@ pub struct TryExecuteLoadedAction;
 
 fn try_execute_loaded_action(
     _trigger: On<TryExecuteLoadedAction>,
-    loaded_action: Res<LoadedAction>,
+    mut action_manager: ResMut<ActionInputManager>,
     acting_player: Res<OperatingPlayer>,
-    active_tile: Option<Res<ActiveTile>>,
     mut logical_world: ResMut<LogicalWorld>,
     mut commands: Commands,
 ) -> Result<(), BevyError> {
+    let Some(action) = action_manager.loaded_action() else {
+        warn!("tried to execute an action, but there was no action loaded.");
+        return Ok(());
+    };
+
     let request = {
-        match &loaded_action.cache {
-            ActionProcessCache::TileAction(tile_action_process_cache) => {
-                match loaded_action.source {
-                    Source::Card(inventory_index) => RequestType::UseCard {
-                                                inventory_index,
-                                                input: InputData::SelectedTiles(
-                                                    tile_action_process_cache.selected_tiles().into(),
-                                                ),
-                                            },
-                    Source::Order(order_index) => RequestType::UseOrder {
-                                                tile: active_tile.ok_or("Tried to execute an order while there was no active tile. An active tile is needed to tell which piece the order is being used on.")?.0,
-                                                input: InputData::SelectedTiles(
-                                                    tile_action_process_cache.selected_tiles().into(),
-                                                ),
-                                                index_of_order: order_index.0,
-                                            },
-                    Source::Market(_) => todo!(),
-                }
-            }
-            ActionProcessCache::Ex1 => todo!(),
+        match action {
+            FrontendAction::UseCard { index, cache } => {
+                RequestType::UseCard { inventory_index: *index, input: match cache {
+                    ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
+                    ActionProcessCache::Ex1 => todo!(),
+                },  }
+            },
+            FrontendAction::UseOrder { index_of_order_on_active_piece, cache } => {
+                RequestType::UseOrder { tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, index_of_order: index_of_order_on_active_piece.0, input: match cache {
+                    ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
+                    ActionProcessCache::Ex1 => todo!(),
+                }, }
+            },
+            FrontendAction::PurchaseCard { slot } => {
+                RequestType::PurchaseCard { market_tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, slot_in_market: *slot }
+            },
         }
     };
 
@@ -114,7 +205,7 @@ fn try_execute_loaded_action(
         &mut logical_world.0,
     )?;
 
-    commands.remove_resource::<LoadedAction>();
+    action_manager.try_load_action(None)?;
 
     println!("Changelog is as follows: {change_log:?}");
 

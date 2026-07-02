@@ -163,5 +163,3 @@ impl From<FacingHexDirection> for HexVector2d {
         }
     }
 }
-#[derive(Debug, Component)]
-pub struct GetsFreeRotation;

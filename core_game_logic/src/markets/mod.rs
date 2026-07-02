@@ -15,7 +15,7 @@ pub struct CardPrice(pub u32);
 #[derive(Debug, Copy, Clone)]
 pub struct LogicalMarket(pub [(CardId, CardPrice); 3]);
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Deserialize, Serialize)]
 pub enum SlotInMarket {
     First,
     Second,
