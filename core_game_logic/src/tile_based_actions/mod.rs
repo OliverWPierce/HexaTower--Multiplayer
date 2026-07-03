@@ -185,12 +185,11 @@ mod tests {
             fn forensic_description(
                 &self,
             ) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
-                Box::new([crate::forensic_action_descriptions::TextSnippet {
-                    special_color: None,
-                    content: crate::forensic_action_descriptions::SnippetContent::PlainText(
-                        "No description implemented yet.".into(),
+                Box::new([
+                    crate::forensic_action_descriptions::TextSnippet::new_basic_text(
+                        "No description implemented yet.",
                     ),
-                }])
+                ])
             }
         }
 

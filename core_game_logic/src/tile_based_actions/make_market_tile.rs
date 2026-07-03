@@ -1,4 +1,5 @@
 use crate::{
+    forensic_action_descriptions::{ForensicDescribe, LinkedGamplayElement, TextSnippet},
     markets::MarketId,
     requests::ActionEffect,
     tile_based_actions::{
@@ -53,4 +54,16 @@ impl TileActionFunctionality for MakeMarketTile {
 
 impl TileActionFunctionalityCapabilityConstants for MakeMarketTile {
     const ACCEPTABLE_SELECTION_COUNTS: std::ops::Range<usize> = 0..usize::MAX;
+}
+
+impl ForensicDescribe for MakeMarketTile {
+    fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
+        Box::new([
+            TextSnippet::new_basic_text("Spawns"),
+            TextSnippet::Link(LinkedGamplayElement::Market(self.market)),
+            TextSnippet::new_basic_text(
+                "on selected tiles. You must occupy a market in order to purchase its wares.",
+            ),
+        ])
+    }
 }

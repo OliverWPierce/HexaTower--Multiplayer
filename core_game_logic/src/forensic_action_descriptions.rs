@@ -1,9 +1,13 @@
-use crate::{cards::CardId, markets::MarketId, pieces::ArchetypeId};
+use crate::{
+    cards::CardId, markets::MarketId, pieces::ArchetypeId, players::PlayerId, tiles::TileType,
+};
 
 pub enum LinkedGamplayElement {
     Card(CardId),
     Piece(ArchetypeId),
     Market(MarketId),
+    Tile(TileType),
+    Player(PlayerId),
 }
 
 pub enum ColorIndicators {
@@ -14,30 +18,27 @@ pub enum ColorIndicators {
     Unimportant,
 }
 
-pub enum SnippetContent {
-    PlainText(String),
+pub enum TextSnippet {
+    PlainText {
+        text: String,
+        color: Option<ColorIndicators>,
+    },
     Link(LinkedGamplayElement),
 }
 
-pub struct TextSnippet {
-    pub special_color: Option<ColorIndicators>,
-    pub content: SnippetContent,
-}
-
 impl TextSnippet {
-    fn new(text: &str) -> Self {
-        Self {
-            special_color: None,
-            content: SnippetContent::PlainText(text.into()),
+    pub fn new_basic_text(text: &str) -> Self {
+        Self::PlainText {
+            text: text.into(),
+            color: None,
         }
     }
 }
 
 pub trait ForensicDescribe {
     fn forensic_description(&self) -> Box<[TextSnippet]> {
-        Box::new([TextSnippet {
-            special_color: None,
-            content: SnippetContent::PlainText("No description implemented yet.".into()),
-        }])
+        Box::new([TextSnippet::new_basic_text(
+            "No description implemented yet.",
+        )])
     }
 }

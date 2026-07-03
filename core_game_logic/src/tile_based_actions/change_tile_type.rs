@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use crate::{
+    forensic_action_descriptions::{ForensicDescribe, LinkedGamplayElement, TextSnippet},
     requests::{ActionEffect, ChangeLog},
     tile_based_actions::{
         TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
@@ -86,6 +87,16 @@ impl TileActionFunctionality for ConvertTileTo {
                 )
                 .unwrap(); // Since we already made sure the TileId is valid for this board size, and we're not trying to select a tile, this is fine.
         }
+    }
+}
+
+impl ForensicDescribe for ConvertTileTo {
+    fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
+        Box::new([
+            TextSnippet::new_basic_text("Convert selected tiles into"),
+            TextSnippet::Link(LinkedGamplayElement::Tile(self.target_type.clone())),
+            TextSnippet::new_basic_text("tiles."),
+        ])
     }
 }
 
