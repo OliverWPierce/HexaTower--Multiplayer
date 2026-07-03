@@ -4,6 +4,7 @@ use thiserror::Error;
 
 use crate::{
     cards::{CardDirectory, CardId},
+    forensic_action_descriptions::ForensicDescribe,
     markets::{MarketDirectory, MarketId, SlotInMarket},
     orders::OrderDirectory,
     pieces::{
@@ -109,6 +110,17 @@ pub enum RotationTileStates {
 pub enum ActionProcessCache {
     TileAction(TileActionProcessCache),
     Ex1,
+}
+
+impl ForensicDescribe for ActionProcessCache {
+    fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
+        match self {
+            ActionProcessCache::TileAction(tile_action_process_cache) => {
+                tile_action_process_cache.forensic_describe()
+            }
+            ActionProcessCache::Ex1 => todo!(),
+        }
+    }
 }
 
 impl From<TileActionProcessCache> for ActionProcessCache {
