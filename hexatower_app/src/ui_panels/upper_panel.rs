@@ -11,6 +11,7 @@ use crate::{
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
         LEFT_SIDE_HEADER_PARAMS, UnloadActionButton,
+        display_themes::DEFAULT_COLOR_THEME,
         execution_button::{self, ExecutionButtonPanel},
         hoverable_elements,
     },
@@ -361,12 +362,12 @@ fn render_card_execution_panel(
             TextSnippet::PlainText { text, color } => {
                 if let Some(color) = color {
                     commands.spawn((ChildOf(description_block), TextFont::from_font_size(DESCRIPTION_FONT_SIZE + 2.0), TextSpan::new(text), TextColor(match color {
-                    core_game_logic::forensic_action_descriptions::ColorIndicators::Money => AMBER_600,
-                    core_game_logic::forensic_action_descriptions::ColorIndicators::Damage =>RED_600,
-                    core_game_logic::forensic_action_descriptions::ColorIndicators::Health => GREEN_600,
-                    core_game_logic::forensic_action_descriptions::ColorIndicators::GeneralHighlight => CYAN_600,
-                    core_game_logic::forensic_action_descriptions::ColorIndicators::Unimportant => GRAY_600,
-                }.into())));
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Money => DEFAULT_COLOR_THEME.money_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Damage => DEFAULT_COLOR_THEME.negative_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Health => DEFAULT_COLOR_THEME.positive_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::GeneralHighlight => DEFAULT_COLOR_THEME.highlight_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Unimportant => DEFAULT_COLOR_THEME.unimportant_color,
+                })));
                 } else {
                     commands.spawn((
                         ChildOf(description_block),

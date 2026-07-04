@@ -12,6 +12,7 @@ use crate::{
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
         LEFT_SIDE_HEADER_PARAMS, MarketPanel, UnloadActionButton,
+        display_themes::DEFAULT_COLOR_THEME,
         execution_button::{self, ExecutionButtonPanel},
         hoverable_elements, spawn_basic_ui_layout,
     },
@@ -150,7 +151,7 @@ fn display_options(
                         justify: Justify::Center,
                         linebreak: LineBreak::WordBoundary,
                     },
-                    TextColor(AMBER_300.into()),
+                    TextColor(DEFAULT_COLOR_THEME.money_color),
                 )
             ],
         ));
@@ -255,7 +256,7 @@ fn render_card_execution_panel(
                             justify: Justify::Center,
                             linebreak: LineBreak::WordBoundary,
                         },
-                        TextColor(AMBER_300.into()),
+                        TextColor(DEFAULT_COLOR_THEME.money_color),
                     ),
                 ]
             ),

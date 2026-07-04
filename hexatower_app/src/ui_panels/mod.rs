@@ -212,6 +212,25 @@ fn unload_action_button(
 #[derive(Debug, Component)]
 pub struct TextLinkToGameplayElement(pub LinkedGamplayElement);
 
+mod display_themes {
+    use bevy::color::{Color, palettes::tailwind::*};
+
+    pub struct ColorTheme {
+        pub money_color: Color,
+        pub negative_color: Color,
+        pub positive_color: Color,
+        pub highlight_color: Color,
+        pub unimportant_color: Color,
+    }
+    pub const DEFAULT_COLOR_THEME: ColorTheme = ColorTheme {
+        money_color: Color::Srgba(AMBER_300),
+        negative_color: Color::Srgba(RED_600),
+        positive_color: Color::Srgba(GREEN_600),
+        highlight_color: Color::Srgba(CYAN_600),
+        unimportant_color: Color::Srgba(GRAY_600),
+    };
+}
+
 mod hoverable_elements {
     use bevy::prelude::*;
 
