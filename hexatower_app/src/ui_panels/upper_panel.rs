@@ -1,6 +1,7 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     cards::{CardDirectory, CardId},
+    forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     players::{InventoryIndex, PlayerCardInventory, PlayerDirectory},
 };
 
@@ -227,6 +228,7 @@ fn render_card_execution_panel(
     parent_panel: Entity,
     visual_cards: &VisCardDirectory,
     commands: &mut Commands,
+    description: Box<[TextSnippet]>,
     card: CardId,
 ) -> Result<(), BevyError> {
     let card_details = visual_cards.get_card(card)?;
@@ -335,32 +337,53 @@ fn render_card_execution_panel(
         ],
     ));
 
-    commands.spawn((
-        Node {
-            max_width: LEFT_SIDE_HEADER_PARAMS.width,
-            width: LEFT_SIDE_HEADER_PARAMS.width,
-            border: UiRect::top(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::SpaceBetween,
-            align_items: AlignItems::Center,
-            ..default()
-        },
-        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-        ChildOf(parent_panel.entity()),
-        children![
-            (
-                Text::new("This is a purely forensic description of what this order does.... It is such a long description that it stretches for many lines until it is far too cumbersome for the eyes to manage in a single sitting."),
-                TextLayout {
-                    justify: Justify::Center,
-                    linebreak: LineBreak::WordBoundary,
-                },
-                TextFont {
-                    font_size: 16.0,
-                    ..default()
+    const DESCRIPTION_FONT_SIZE: f32 = 16.0;
+
+    let description_block = commands
+        .spawn((
+            Node {
+                max_width: LEFT_SIDE_HEADER_PARAMS.width,
+                width: LEFT_SIDE_HEADER_PARAMS.width,
+                border: UiRect::top(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+            ChildOf(parent_panel.entity()),
+            Text::new(""),
+        ))
+        .id();
+
+    for snippet in description {
+        match snippet {
+            TextSnippet::PlainText { text, color } => {
+                if let Some(color) = color {
+                    commands.spawn((ChildOf(description_block), TextFont::from_font_size(DESCRIPTION_FONT_SIZE + 2.0), TextSpan::new(text), TextColor(match color {
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Money => AMBER_600,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Damage =>RED_600,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Health => GREEN_600,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::GeneralHighlight => CYAN_600,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Unimportant => GRAY_600,
+                }.into())));
+                } else {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextSpan::new(text),
+                    ));
                 }
-            ),
-        ],
-    ));
+            }
+            TextSnippet::Link(linked_gamplay_element) => {
+                commands.spawn((
+                    ChildOf(description_block),
+                    TextSpan::new("LINK"),
+                    TextFont::from_font_size(DESCRIPTION_FONT_SIZE + 2.0),
+                ));
+            }
+        }
+    }
 
     commands.spawn((
         Node {
@@ -393,7 +416,7 @@ fn manage_inventory_panel(
 ) -> Result<(), BevyError> {
     debug!("managing");
 
-    if let Some(FrontendAction::UseCard { index, .. }) = loaded_action.loaded_action() {
+    if let Some(FrontendAction::UseCard { index, cache }) = loaded_action.loaded_action() {
         let card = log_world
             .0
             .get::<PlayerCardInventory>(
@@ -404,7 +427,13 @@ fn manage_inventory_panel(
             )
             .expect("all players should have an inventory")
             .get_card(*index)?;
-        render_card_execution_panel(parent_panel.entity(), &vis_cards, &mut commands, card)
+        render_card_execution_panel(
+            parent_panel.entity(),
+            &vis_cards,
+            &mut commands,
+            cache.forensic_description(),
+            card,
+        )
     } else {
         render_inventory(
             &mut commands,

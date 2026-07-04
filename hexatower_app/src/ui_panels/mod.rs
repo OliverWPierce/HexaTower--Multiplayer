@@ -1,4 +1,5 @@
-use bevy::{color::palettes::tailwind::*, prelude::*};
+use bevy::{color::palettes::tailwind::*, ecs::component::Immutable, prelude::*};
+use core_game_logic::forensic_action_descriptions::{LinkedGamplayElement, TextSnippet};
 
 use crate::{
     functional_assets::SetUpBoard,
@@ -208,6 +209,8 @@ fn unload_action_button(
             .expect("This function cannot error when given an input of None.")
     }
 }
+#[derive(Debug, Component)]
+pub struct TextLinkToGameplayElement(pub LinkedGamplayElement);
 
 mod hoverable_elements {
     use bevy::prelude::*;

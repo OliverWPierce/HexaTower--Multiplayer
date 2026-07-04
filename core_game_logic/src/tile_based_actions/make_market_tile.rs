@@ -59,10 +59,10 @@ impl TileActionFunctionalityCapabilityConstants for MakeMarketTile {
 impl ForensicDescribe for MakeMarketTile {
     fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
         Box::new([
-            TextSnippet::new_basic_text("Spawns"),
+            TextSnippet::new_basic_text("Spawns "),
             TextSnippet::Link(LinkedGamplayElement::Market(self.market)),
             TextSnippet::new_basic_text(
-                "on selected tiles. You must occupy a market in order to purchase its wares.",
+                " on selected tiles. You must occupy a market in order to purchase its wares.",
             ),
         ])
     }

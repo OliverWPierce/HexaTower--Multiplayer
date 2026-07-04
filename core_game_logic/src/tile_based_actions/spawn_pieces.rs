@@ -106,11 +106,11 @@ impl TileActionFunctionality for SpawnPieces {
 impl ForensicDescribe for SpawnPieces {
     fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
         Box::new([
-            TextSnippet::new_basic_text("Spawn"),
+            TextSnippet::new_basic_text("Spawn "),
             TextSnippet::Link(LinkedGamplayElement::Piece(self.archetype)),
-            TextSnippet::new_basic_text("on selected tiles."),
+            TextSnippet::new_basic_text(" on selected tiles."),
             TextSnippet::Link(LinkedGamplayElement::Player(self.owner)),
-            TextSnippet::new_basic_text("will own and command this piece."),
+            TextSnippet::new_basic_text(" will own and command this piece."),
         ])
     }
 }
