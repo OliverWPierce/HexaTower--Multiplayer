@@ -214,6 +214,7 @@ pub struct TextLinkToGameplayElement(pub LinkedGamplayElement);
 
 mod display_themes {
     use bevy::color::{Color, palettes::tailwind::*};
+    use core_game_logic::tiles::TileType;
 
     pub struct ColorTheme {
         pub money_color: Color,
@@ -224,11 +225,28 @@ mod display_themes {
     }
     pub const DEFAULT_COLOR_THEME: ColorTheme = ColorTheme {
         money_color: Color::Srgba(AMBER_300),
-        negative_color: Color::Srgba(RED_600),
-        positive_color: Color::Srgba(GREEN_600),
-        highlight_color: Color::Srgba(CYAN_600),
+        negative_color: Color::Srgba(RED_300),
+        positive_color: Color::Srgba(GREEN_300),
+        highlight_color: Color::Srgba(CYAN_300),
         unimportant_color: Color::Srgba(GRAY_600),
     };
+
+    pub const DESCRIPTION_FONT_SIZE: f32 = 16.0;
+    pub const TOOLTIP_FONT_SIZE: f32 = 10.0;
+
+    pub fn color_for_tile_type_under_default_theme(tile_type: &TileType) -> Color {
+        match tile_type {
+            TileType::Basic => SLATE_500.into(),
+            TileType::Ex1 => PURPLE_400.into(),
+        }
+    }
+
+    pub fn name_for_tile_type_under_default_theme(tile_type: &TileType) -> String {
+        match tile_type {
+            TileType::Basic => "Basic".into(),
+            TileType::Ex1 => "Corrupted".into(),
+        }
+    }
 }
 
 mod hoverable_elements {

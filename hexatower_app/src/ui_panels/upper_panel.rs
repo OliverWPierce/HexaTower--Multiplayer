@@ -1,20 +1,23 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     cards::{CardDirectory, CardId},
-    forensic_action_descriptions::{ForensicDescribe, TextSnippet},
+    forensic_action_descriptions::{ForensicDescribe, LinkedGamplayElement, TextSnippet},
     players::{InventoryIndex, PlayerCardInventory, PlayerDirectory},
 };
 
 use crate::{
     OperatingPlayer,
-    functional_assets::{LogicalWorld, SetUpBoard, VisCardDirectory, VisualCardId},
+    functional_assets::{
+        LogicalWorld, SetUpBoard, VisCardDirectory, VisMarketDirectory, VisualCardId,
+    },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, UnloadActionButton,
-        display_themes::DEFAULT_COLOR_THEME,
+        LEFT_SIDE_HEADER_PARAMS, TextLinkToGameplayElement, UnloadActionButton,
+        display_themes::{self, DEFAULT_COLOR_THEME},
         execution_button::{self, ExecutionButtonPanel},
         hoverable_elements,
     },
+    vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
 
 use super::{InventoryPanel, spawn_basic_ui_layout};
@@ -225,9 +228,13 @@ fn load_card_action(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_card_execution_panel(
     parent_panel: Entity,
     visual_cards: &VisCardDirectory,
+    vis_markets: &VisMarketDirectory,
+    vis_pieces: &VisualPieceArchetypeDirectory,
+    operating_player: &OperatingPlayer,
     commands: &mut Commands,
     description: Box<[TextSnippet]>,
     card: CardId,
@@ -361,7 +368,7 @@ fn render_card_execution_panel(
         match snippet {
             TextSnippet::PlainText { text, color } => {
                 if let Some(color) = color {
-                    commands.spawn((ChildOf(description_block), TextFont::from_font_size(DESCRIPTION_FONT_SIZE + 2.0), TextSpan::new(text), TextColor(match color {
+                    commands.spawn((ChildOf(description_block), TextFont::from_font_size(DESCRIPTION_FONT_SIZE), TextSpan::new(text), TextColor(match color {
                     core_game_logic::forensic_action_descriptions::ColorIndicators::Money => DEFAULT_COLOR_THEME.money_color,
                     core_game_logic::forensic_action_descriptions::ColorIndicators::Damage => DEFAULT_COLOR_THEME.negative_color,
                     core_game_logic::forensic_action_descriptions::ColorIndicators::Health => DEFAULT_COLOR_THEME.positive_color,
@@ -376,13 +383,71 @@ fn render_card_execution_panel(
                     ));
                 }
             }
-            TextSnippet::Link(linked_gamplay_element) => {
-                commands.spawn((
-                    ChildOf(description_block),
-                    TextSpan::new("LINK"),
-                    TextFont::from_font_size(DESCRIPTION_FONT_SIZE + 2.0),
-                ));
-            }
+            TextSnippet::Link(linked_gamplay_element) => match linked_gamplay_element {
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Card(
+                    card_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(visual_cards.get_card(card_id)?.name.clone()),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextLinkToGameplayElement(linked_gamplay_element),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Piece(
+                    archetype_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(vis_pieces.get_visual_details(archetype_id)?.name.clone()),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextLinkToGameplayElement(linked_gamplay_element),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Market(
+                    market_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(vis_markets.get_market(market_id)?.name.clone()),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextLinkToGameplayElement(linked_gamplay_element),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Tile(
+                    tile_type,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(display_themes::color_for_tile_type_under_default_theme(
+                            &tile_type,
+                        )),
+                        TextSpan::new(display_themes::name_for_tile_type_under_default_theme(
+                            &tile_type,
+                        )),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextLinkToGameplayElement(LinkedGamplayElement::Tile(tile_type)),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Player(
+                    player_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextLinkToGameplayElement(linked_gamplay_element),
+                        TextSpan::new(if operating_player.0 == player_id {
+                            "You"
+                        } else {
+                            "PLAYER NAME HERE"
+                        }),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                    ));
+                }
+            },
         }
     }
 
@@ -414,6 +479,8 @@ fn manage_inventory_panel(
     log_world: Res<LogicalWorld>,
     mut commands: Commands,
     vis_cards: Res<VisCardDirectory>,
+    vis_markets: Res<VisMarketDirectory>,
+    vis_pieces: Res<VisualPieceArchetypeDirectory>,
 ) -> Result<(), BevyError> {
     debug!("managing");
 
@@ -431,6 +498,9 @@ fn manage_inventory_panel(
         render_card_execution_panel(
             parent_panel.entity(),
             &vis_cards,
+            &vis_markets,
+            &vis_pieces,
+            &display_player,
             &mut commands,
             cache.forensic_description(),
             card,

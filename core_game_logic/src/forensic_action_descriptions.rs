@@ -2,7 +2,7 @@ use crate::{
     cards::CardId, markets::MarketId, pieces::ArchetypeId, players::PlayerId, tiles::TileType,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LinkedGamplayElement {
     Card(CardId),
     Piece(ArchetypeId),
