@@ -228,11 +228,11 @@ mod display_themes {
         negative_color: Color::Srgba(RED_300),
         positive_color: Color::Srgba(GREEN_300),
         highlight_color: Color::Srgba(CYAN_300),
-        unimportant_color: Color::Srgba(GRAY_600),
+        unimportant_color: Color::Srgba(GRAY_300),
     };
 
-    pub const DESCRIPTION_FONT_SIZE: f32 = 16.0;
-    pub const TOOLTIP_FONT_SIZE: f32 = 10.0;
+    pub const DESCRIPTION_FONT_SIZE: f32 = 18.0;
+    pub const TOOLTIP_FONT_SIZE: f32 = 16.0;
 
     pub fn color_for_tile_type_under_default_theme(tile_type: &TileType) -> Color {
         match tile_type {

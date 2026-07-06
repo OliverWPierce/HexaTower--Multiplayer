@@ -13,7 +13,7 @@ use crate::{
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
         LEFT_SIDE_HEADER_PARAMS, TextLinkToGameplayElement, UnloadActionButton,
-        display_themes::{self, DEFAULT_COLOR_THEME},
+        display_themes::{self, DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::{self, ExecutionButtonPanel},
         hoverable_elements,
     },
@@ -345,8 +345,6 @@ fn render_card_execution_panel(
         ],
     ));
 
-    const DESCRIPTION_FONT_SIZE: f32 = 16.0;
-
     let description_block = commands
         .spawn((
             Node {
@@ -459,13 +457,8 @@ fn render_card_execution_panel(
         ChildOf(parent_panel),
         children![(
             Text::new(format!("\"{}\"", card_details.tooltip)),
-            TextFont::from_font_size(16.0),
-            TextColor(Color::Hsva(Hsva {
-                hue: 0.0,
-                saturation: 0.0,
-                value: 0.7,
-                alpha: 1.0,
-            }))
+            TextFont::from_font_size(TOOLTIP_FONT_SIZE),
+            TextColor(DEFAULT_COLOR_THEME.unimportant_color)
         )],
     ));
 

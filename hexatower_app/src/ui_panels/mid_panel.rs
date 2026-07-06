@@ -1,5 +1,6 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
+    forensic_action_descriptions::{ForensicDescribe, LinkedGamplayElement, TextSnippet},
     orders::OrderDirectory,
     pieces::{OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
     players::{PlayerDirectory, PlayerId, PlayerOrdersRemaining},
@@ -8,12 +9,17 @@ use core_game_logic::{
 
 use crate::{
     OperatingPlayer,
-    functional_assets::{LogicalWorld, SetUpBoard, VisOrderDirectory},
+    functional_assets::{
+        LogicalWorld, SetUpBoard, VisCardDirectory, VisMarketDirectory, VisOrderDirectory,
+    },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, UnloadActionButton,
-        execution_button::ExecutionButtonPanel, hoverable_elements, spawn_basic_ui_layout,
+        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, TextLinkToGameplayElement, UnloadActionButton,
+        display_themes::{self, DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
+        execution_button::ExecutionButtonPanel,
+        hoverable_elements, spawn_basic_ui_layout,
     },
+    vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
 
 pub struct VisualOrdersPlugin;
@@ -308,6 +314,9 @@ fn manage_orders_panel(
     logical_world: Res<LogicalWorld>,
     visual_order_data: Res<VisOrderDirectory>,
     operating_player: Res<OperatingPlayer>,
+    vis_cards: Res<VisCardDirectory>,
+    vis_markets: Res<VisMarketDirectory>,
+    vis_pieces: Res<VisualPieceArchetypeDirectory>,
     mut commands: Commands,
 ) -> Result<(), BevyError> {
     if let Some(tile_of_active_piece) = input_manager.active_tile()
@@ -318,9 +327,9 @@ fn manage_orders_panel(
                 .get_entity(tile_of_active_piece)?,
         )
     {
-        if let Some(&FrontendAction::UseOrder {
+        if let Some(FrontendAction::UseOrder {
             index_of_order_on_active_piece,
-            ..
+            cache,
         }) = input_manager.loaded_action()
         {
             render_order_execution_process(
@@ -331,6 +340,10 @@ fn manage_orders_panel(
                 index_of_order_on_active_piece,
                 &visual_order_data,
                 &operating_player,
+                cache.forensic_description(),
+                &vis_cards,
+                &vis_markets,
+                &vis_pieces,
             )
         } else {
             render_orders_of_active_piece(
@@ -367,9 +380,13 @@ fn render_order_execution_process(
     logical_world: &LogicalWorld,
     parent_panel: Entity,
     logical_piece: Entity,
-    order_index: OrderAtPieceIndex,
+    order_index: &OrderAtPieceIndex,
     visual_order_data: &VisOrderDirectory,
     operating_player: &OperatingPlayer,
+    description: Box<[TextSnippet]>,
+    visual_cards: &VisCardDirectory,
+    vis_markets: &VisMarketDirectory,
+    vis_pieces: &VisualPieceArchetypeDirectory,
 ) -> Result<(), BevyError> {
     let order_details = {
         let order = logical_world
@@ -606,32 +623,109 @@ fn render_order_execution_process(
         }
     }
 
-    commands.spawn((
-        Node {
-            max_width: LEFT_SIDE_HEADER_PARAMS.width,
-            width: LEFT_SIDE_HEADER_PARAMS.width,
-            border: UiRect::top(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::SpaceBetween,
-            align_items: AlignItems::Center,
-            ..default()
-        },
-        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-        ChildOf(parent_panel.entity()),
-        children![
-            (
-                Text::new("This is a purely forensic description of what this order does.... It is such a long description that it stretches for many lines until it is far too cumbersome for the eyes to manage in a single sitting."),
-                TextLayout {
-                    justify: Justify::Center,
-                    linebreak: LineBreak::WordBoundary,
-                },
-                TextFont {
-                    font_size: 16.0,
-                    ..default()
+    let description_block = commands
+        .spawn((
+            Node {
+                max_width: LEFT_SIDE_HEADER_PARAMS.width,
+                width: LEFT_SIDE_HEADER_PARAMS.width,
+                border: UiRect::top(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+            ChildOf(parent_panel.entity()),
+            Text::new(""),
+        ))
+        .id();
+
+    for snippet in description {
+        match snippet {
+            TextSnippet::PlainText { text, color } => {
+                if let Some(color) = color {
+                    commands.spawn((ChildOf(description_block), TextFont::from_font_size(DESCRIPTION_FONT_SIZE), TextSpan::new(text), TextColor(match color {
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Money => DEFAULT_COLOR_THEME.money_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Damage => DEFAULT_COLOR_THEME.negative_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Health => DEFAULT_COLOR_THEME.positive_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::GeneralHighlight => DEFAULT_COLOR_THEME.highlight_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Unimportant => DEFAULT_COLOR_THEME.unimportant_color,
+                })));
+                } else {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextSpan::new(text),
+                    ));
                 }
-            ),
-        ],
-    ));
+            }
+            TextSnippet::Link(linked_gamplay_element) => match linked_gamplay_element {
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Card(
+                    card_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(visual_cards.get_card(card_id)?.name.clone()),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextLinkToGameplayElement(linked_gamplay_element),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Piece(
+                    archetype_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(vis_pieces.get_visual_details(archetype_id)?.name.clone()),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextLinkToGameplayElement(linked_gamplay_element),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Market(
+                    market_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(vis_markets.get_market(market_id)?.name.clone()),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextLinkToGameplayElement(linked_gamplay_element),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Tile(
+                    tile_type,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(display_themes::color_for_tile_type_under_default_theme(
+                            &tile_type,
+                        )),
+                        TextSpan::new(display_themes::name_for_tile_type_under_default_theme(
+                            &tile_type,
+                        )),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                        TextLinkToGameplayElement(LinkedGamplayElement::Tile(tile_type)),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Player(
+                    player_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(description_block),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextLinkToGameplayElement(linked_gamplay_element),
+                        TextSpan::new(if operating_player.0 == player_id {
+                            "You"
+                        } else {
+                            "PLAYER NAME HERE"
+                        }),
+                        TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                    ));
+                }
+            },
+        }
+    }
 
     commands.spawn((
         Node {
@@ -641,13 +735,8 @@ fn render_order_execution_process(
         ChildOf(parent_panel),
         children![(
             Text::new(format!("\"{}\"", order_details.tooltip)),
-            TextFont::from_font_size(16.0),
-            TextColor(Color::Hsva(Hsva {
-                hue: 0.0,
-                saturation: 0.0,
-                value: 0.7,
-                alpha: 1.0,
-            }))
+            TextFont::from_font_size(TOOLTIP_FONT_SIZE),
+            TextColor(DEFAULT_COLOR_THEME.unimportant_color)
         )],
     ));
 
