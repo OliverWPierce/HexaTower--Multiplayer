@@ -1,4 +1,5 @@
-use bevy::{color::palettes::tailwind::*, prelude::*};
+use bevy::{color::palettes::tailwind::*, ecs::component::Immutable, prelude::*};
+use core_game_logic::forensic_action_descriptions::{LinkedGamplayElement, TextSnippet};
 
 use crate::{
     functional_assets::SetUpBoard,
@@ -206,6 +207,45 @@ fn unload_action_button(
         manager
             .try_load_action(None)
             .expect("This function cannot error when given an input of None.")
+    }
+}
+#[derive(Debug, Component)]
+pub struct TextLinkToGameplayElement(pub LinkedGamplayElement);
+
+mod display_themes {
+    use bevy::color::{Color, palettes::tailwind::*};
+    use core_game_logic::tiles::TileType;
+
+    pub struct ColorTheme {
+        pub money_color: Color,
+        pub negative_color: Color,
+        pub positive_color: Color,
+        pub highlight_color: Color,
+        pub unimportant_color: Color,
+    }
+    pub const DEFAULT_COLOR_THEME: ColorTheme = ColorTheme {
+        money_color: Color::Srgba(AMBER_300),
+        negative_color: Color::Srgba(RED_300),
+        positive_color: Color::Srgba(GREEN_300),
+        highlight_color: Color::Srgba(CYAN_300),
+        unimportant_color: Color::Srgba(GRAY_300),
+    };
+
+    pub const DESCRIPTION_FONT_SIZE: f32 = 18.0;
+    pub const TOOLTIP_FONT_SIZE: f32 = 16.0;
+
+    pub fn color_for_tile_type_under_default_theme(tile_type: &TileType) -> Color {
+        match tile_type {
+            TileType::Basic => SLATE_500.into(),
+            TileType::Ex1 => PURPLE_400.into(),
+        }
+    }
+
+    pub fn name_for_tile_type_under_default_theme(tile_type: &TileType) -> String {
+        match tile_type {
+            TileType::Basic => "Basic".into(),
+            TileType::Ex1 => "Corrupted".into(),
+        }
     }
 }
 

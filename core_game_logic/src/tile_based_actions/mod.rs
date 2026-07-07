@@ -4,7 +4,7 @@ use bevy::ecs::world::World;
 use thiserror::Error;
 
 use crate::{
-    pieces::FacingHexDirection,
+    forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     requests::ChangeLog,
     tile_based_actions::selection_mechanics::{SelectionData, SelectionError},
     tile_mapping::TileId,
@@ -19,7 +19,7 @@ pub mod spawn_pieces;
 pub use selection_mechanics::SelectedTile;
 pub use selection_mechanics::State;
 
-pub trait TileActionFunctionality: Debug + Send + Sync {
+pub trait TileActionFunctionality: Debug + Send + Sync + ForensicDescribe {
     fn execute(&self, validated_selections: &[SelectedTile], world: &mut World) -> ChangeLog;
 
     fn update_eligibility(&self, selection_status: &mut SelectionData, world: &World);
@@ -78,6 +78,10 @@ impl TileActionProcessCache {
             action,
             selections: initial_selection_data,
         }
+    }
+
+    pub fn forensic_describe(&self) -> Box<[TextSnippet]> {
+        self.action.action_functionality.forensic_description()
     }
 
     pub fn try_select_tile_and_update_elligibility(
@@ -143,6 +147,7 @@ pub struct SelectedTooFewTiles;
 #[cfg(test)]
 mod tests {
     use crate::{
+        forensic_action_descriptions::ForensicDescribe,
         requests::ChangeLog,
         tile_based_actions::{
             TileAction, TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
@@ -173,6 +178,18 @@ mod tests {
                 _selection_status: &mut super::selection_mechanics::SelectionData,
                 _world: &bevy::ecs::world::World,
             ) {
+            }
+        }
+
+        impl ForensicDescribe for FailingAction {
+            fn forensic_description(
+                &self,
+            ) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
+                Box::new([
+                    crate::forensic_action_descriptions::TextSnippet::new_basic_text(
+                        "No description implemented yet.",
+                    ),
+                ])
             }
         }
 

@@ -1,4 +1,5 @@
 use crate::{
+    forensic_action_descriptions::{ForensicDescribe, LinkedGamplayElement, TextSnippet},
     pieces::{
         self, GivesExtraPlayerOrder, Health, IsWinCondition, OccupiedByPiece, OccupiesTile,
         OrdersReceivable, PieceOwnedByPlayer,
@@ -99,5 +100,17 @@ impl TileActionFunctionality for SpawnPieces {
 
             // unwrap is fine, since we're not trying to select anything and we already know the tile ids are within the game's bounds.
         }
+    }
+}
+
+impl ForensicDescribe for SpawnPieces {
+    fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
+        Box::new([
+            TextSnippet::new_basic_text("Spawn "),
+            TextSnippet::Link(LinkedGamplayElement::Piece(self.archetype)),
+            TextSnippet::new_basic_text(" on selected tiles."),
+            TextSnippet::Link(LinkedGamplayElement::Player(self.owner)),
+            TextSnippet::new_basic_text(" will own and command this piece."),
+        ])
     }
 }

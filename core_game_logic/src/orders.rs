@@ -1,12 +1,11 @@
 use std::ops::Range;
 
-use bevy::ecs::{query::With, resource::Resource, world::World};
+use bevy::ecs::{resource::Resource, world::World};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    pieces::OccupiedByPiece,
-    requests::{ActionProcessCache, RotationTileStates},
+    requests::ActionProcessCache,
     tile_based_actions::{
         TileAction, TileActionProcessCache,
         change_tile_type::{AdjecentRestriction, ConvertTileTo},
