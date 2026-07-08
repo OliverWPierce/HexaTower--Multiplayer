@@ -5,8 +5,11 @@ use core_game_logic::{
     tile_mapping::{HexVector2d, TileId},
 };
 
-use crate::vis_pieces::visual_piece_archetypes_storage::{
-    BasePlatesDirectory, VisualPieceArchetypeDirectory,
+use crate::{
+    AppState,
+    vis_pieces::visual_piece_archetypes_storage::{
+        BasePlatesDirectory, VisualPieceArchetypeDirectory,
+    },
 };
 
 pub struct VisPiecesPlugin;
@@ -19,7 +22,9 @@ impl Plugin for VisPiecesPlugin {
 
         app.add_systems(
             Update,
-            (spawn_visuals, update_backend_rotation_changes).chain(),
+            (spawn_visuals, update_backend_rotation_changes)
+                .chain()
+                .run_if(in_state(AppState::InGame)),
         );
     }
 }

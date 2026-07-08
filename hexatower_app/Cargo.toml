@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0"
-bevy = "0.19"
+bevy = { version = "0.19", features = ["debug"] }
 thiserror = "2.0"
 serde = { version = "1", features = ["derive"] }
 core_game_logic = { path = ".././core_game_logic" }

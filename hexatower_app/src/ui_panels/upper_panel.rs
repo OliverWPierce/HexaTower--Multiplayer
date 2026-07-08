@@ -6,7 +6,7 @@ use core_game_logic::{
 };
 
 use crate::{
-    OperatingPlayer,
+    AppState, OperatingPlayer,
     functional_assets::{
         LogicalWorld, SetUpBoard, VisCardDirectory, VisMarketDirectory, VisualCardId,
     },
@@ -30,7 +30,8 @@ impl Plugin for VisualInventoryPlugin {
             Update,
             manage_inventory_panel
                 .before(execution_button::update_panel)
-                .run_if(resource_changed::<ActionInputManager>),
+                .run_if(in_state(AppState::InGame))
+                .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 
         app.add_systems(
@@ -38,9 +39,9 @@ impl Plugin for VisualInventoryPlugin {
             manage_inventory_panel.after(spawn_basic_ui_layout),
         );
 
-        app.add_observer(hover_slot);
-        app.add_observer(unhover_slot);
-        app.add_observer(load_card_action);
+        app.add_observer(hover_slot.run_if(in_state(AppState::InGame)));
+        app.add_observer(unhover_slot.run_if(in_state(AppState::InGame)));
+        app.add_observer(load_card_action.run_if(in_state(AppState::InGame)));
     }
 }
 #[derive(Debug, Component)]

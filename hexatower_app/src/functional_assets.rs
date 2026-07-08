@@ -5,7 +5,7 @@ use core_game_logic::{
 use thiserror::Error;
 
 use crate::{
-    OperatingPlayer,
+    AppState, OperatingPlayer,
     inputs_interface::{ActionInputManager, MultiplayerNetworkingMode},
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetype,
     vis_tiles::BoardSize,
@@ -15,13 +15,13 @@ pub struct StartupPlugin;
 
 impl Plugin for StartupPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, tmp_startup);
+        app.add_systems(OnEnter(AppState::InGame), tmp_create_board);
     }
 }
 #[derive(Debug, ScheduleLabel, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SetUpBoard;
 
-fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
+fn tmp_create_board(mut commands: Commands, asset_server: ResMut<AssetServer>) {
     commands.insert_resource(GameCreationSettings {
         board_size: BoardSize::Standard,
     });

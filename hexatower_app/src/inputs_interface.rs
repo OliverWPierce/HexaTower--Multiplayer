@@ -6,7 +6,7 @@ use core_game_logic::requests::{
 pub use loaded_action_invariance::*;
 
 use crate::{
-    OperatingPlayer,
+    AppState, OperatingPlayer,
     functional_assets::LogicalWorld,
     vis_markets::MarketSpawned,
     vis_pieces::{PieceSpawned, RotatePieceMessage},
@@ -17,8 +17,8 @@ pub struct InputInterfacePlugin;
 
 impl Plugin for InputInterfacePlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(try_execute_loaded_action);
-        app.add_observer(end_turn);
+        app.add_observer(try_execute_loaded_action.run_if(in_state(AppState::InGame)));
+        app.add_observer(end_turn.run_if(in_state(AppState::InGame)));
     }
 }
 

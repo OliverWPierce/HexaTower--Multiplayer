@@ -2,6 +2,7 @@ use bevy::{color::palettes::tailwind::*, ecs::component::Immutable, prelude::*};
 use core_game_logic::forensic_action_descriptions::{LinkedGamplayElement, TextSnippet};
 
 use crate::{
+    AppState,
     functional_assets::SetUpBoard,
     inputs_interface::{ActionInputManager, TryEndTurn},
     ui_panels::{
@@ -21,13 +22,14 @@ pub struct UiPanelsPlugin;
 impl Plugin for UiPanelsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(SetUpBoard, spawn_basic_ui_layout);
-        app.add_observer(hoverable_elements::hover_colors);
-        app.add_observer(hoverable_elements::un_hover_colors);
-        app.add_observer(unload_action_button);
+        app.add_observer(hoverable_elements::hover_colors.run_if(in_state(AppState::InGame)));
+        app.add_observer(hoverable_elements::un_hover_colors.run_if(in_state(AppState::InGame)));
+        app.add_observer(unload_action_button.run_if(in_state(AppState::InGame)));
 
         app.add_systems(
             Update,
             execution_button::update_panel
+                .run_if(in_state(AppState::InGame))
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 

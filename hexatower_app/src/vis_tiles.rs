@@ -15,6 +15,7 @@ use core_game_logic::{
 };
 
 use crate::{
+    AppState,
     functional_assets::{GameCreationSettings, LogicalWorld, SetUpBoard},
     inputs_interface::ActionInputManager,
     vis_pieces::VisOccupies,
@@ -45,7 +46,10 @@ impl Plugin for VisTilesPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(SetUpBoard, spawn_tiles_and_initialize_inficators);
         // switch this to a custom schedule later.
-        app.add_systems(Update, (swap_tile_mesh, roate_active_tile_visual));
+        app.add_systems(
+            Update,
+            (swap_tile_mesh, roate_active_tile_visual).run_if(in_state(AppState::InGame)),
+        );
         app.add_message::<TileTypeConverted>();
 
         app.add_systems(
@@ -54,12 +58,13 @@ impl Plugin for VisTilesPlugin {
                 update_tile_selection_and_eligibility_indicators,
                 manage_active_tile_visual,
             )
-                .run_if(resource_changed::<ActionInputManager>),
+                .run_if(in_state(AppState::InGame))
+                .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 
-        app.add_observer(set_active_tile);
-        app.add_observer(indicate_direction);
-        app.add_observer(select_tile);
+        app.add_observer(set_active_tile.run_if(in_state(AppState::InGame)));
+        app.add_observer(indicate_direction.run_if(in_state(AppState::InGame)));
+        app.add_observer(select_tile.run_if(in_state(AppState::InGame)));
     }
 }
 

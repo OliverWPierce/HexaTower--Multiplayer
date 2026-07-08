@@ -4,7 +4,7 @@ use core_game_logic::{
     tile_mapping::{HexVector2d, TileId},
 };
 
-use crate::functional_assets::VisMarketDirectory;
+use crate::{AppState, functional_assets::VisMarketDirectory};
 
 pub struct VisMarketsPlugin;
 
@@ -12,7 +12,10 @@ impl Plugin for VisMarketsPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<MarketSpawned>();
 
-        app.add_systems(Update, (spin_markets, add_markets));
+        app.add_systems(
+            Update,
+            (spin_markets, add_markets).run_if(in_state(AppState::InGame)),
+        );
     }
 }
 

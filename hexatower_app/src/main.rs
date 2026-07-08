@@ -31,14 +31,24 @@ fn main() {
             VisMarketsPlugin,
             ObjPlugin,
         ))
+        .init_state::<AppState>()
         .add_systems(SetUpBoard, (cam_3d, lights))
-        .add_systems(Update, move_3d_cam)
+        .add_systems(Update, move_3d_cam.run_if(in_state(AppState::InGame)))
         .run();
 }
 
 /// The player that the operator of the device is representing. A spectator of a match would be Option::None, since they are not acting as a player, just a spectator. However, they will have a display player, so that the game can know which player's inventory and stats to display to the spectator.
 #[derive(Debug, Resource)]
 pub struct OperatingPlayer(PlayerId);
+
+#[derive(Debug, States, Clone, Copy, Default, Eq, Hash, PartialEq)]
+pub enum AppState {
+    #[default]
+    MainMenu,
+    ParametersScreen,
+    PreGame,
+    InGame,
+}
 
 fn cam_3d(mut commands: Commands) {
     let desired_transform = Transform::default()

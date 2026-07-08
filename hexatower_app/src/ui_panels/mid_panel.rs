@@ -8,7 +8,7 @@ use core_game_logic::{
 };
 
 use crate::{
-    OperatingPlayer,
+    AppState, OperatingPlayer,
     functional_assets::{
         LogicalWorld, SetUpBoard, VisCardDirectory, VisMarketDirectory, VisOrderDirectory,
     },
@@ -30,10 +30,12 @@ impl Plugin for VisualOrdersPlugin {
 
         app.add_systems(
             Update,
-            manage_orders_panel.run_if(resource_changed::<ActionInputManager>),
+            manage_orders_panel
+                .run_if(in_state(AppState::InGame))
+                .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 
-        app.add_observer(load_order);
+        app.add_observer(load_order.run_if(in_state(AppState::InGame)));
     }
 }
 

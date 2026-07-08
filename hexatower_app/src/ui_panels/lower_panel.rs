@@ -7,7 +7,7 @@ use core_game_logic::{
 };
 
 use crate::{
-    OperatingPlayer,
+    AppState, OperatingPlayer,
     functional_assets::{
         LogicalWorld, SetUpBoard, VisCardDirectory, VisMarket, VisMarketDirectory,
     },
@@ -29,7 +29,8 @@ impl Plugin for VisualMarketUIPlugin {
             Update,
             manage_market_ui_panel
                 .before(execution_button::update_panel)
-                .run_if(resource_changed::<ActionInputManager>),
+                .run_if(in_state(AppState::InGame))
+                .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 
         app.add_systems(
@@ -37,7 +38,7 @@ impl Plugin for VisualMarketUIPlugin {
             manage_market_ui_panel.after(spawn_basic_ui_layout),
         );
 
-        app.add_observer(load_purchase_action);
+        app.add_observer(load_purchase_action.run_if(in_state(AppState::InGame)));
     }
 }
 
