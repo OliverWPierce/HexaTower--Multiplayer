@@ -5,6 +5,7 @@ use core_game_logic::players::PlayerId;
 use crate::{
     functional_assets::{SetUpBoard, StartupPlugin},
     inputs_interface::InputInterfacePlugin,
+    main_menu::MainMenuAndLobbyPluggin,
     ui_panels::UiPanelsPlugin,
     vis_markets::VisMarketsPlugin,
     vis_pieces::VisPiecesPlugin,
@@ -13,6 +14,7 @@ use crate::{
 
 mod functional_assets;
 mod inputs_interface;
+mod main_menu;
 mod ui_panels;
 mod vis_markets;
 mod vis_pieces;
@@ -30,6 +32,7 @@ fn main() {
             VisPiecesPlugin,
             VisMarketsPlugin,
             ObjPlugin,
+            MainMenuAndLobbyPluggin,
         ))
         .init_state::<AppState>()
         .add_systems(SetUpBoard, (cam_3d, lights))

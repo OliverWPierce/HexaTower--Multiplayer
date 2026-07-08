@@ -22,8 +22,8 @@ pub struct UiPanelsPlugin;
 impl Plugin for UiPanelsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(SetUpBoard, spawn_basic_ui_layout);
-        app.add_observer(hoverable_elements::hover_colors.run_if(in_state(AppState::InGame)));
-        app.add_observer(hoverable_elements::un_hover_colors.run_if(in_state(AppState::InGame)));
+        app.add_observer(hoverable_elements::hover_colors);
+        app.add_observer(hoverable_elements::un_hover_colors);
         app.add_observer(unload_action_button.run_if(in_state(AppState::InGame)));
 
         app.add_systems(
@@ -254,19 +254,19 @@ mod display_themes {
     }
 }
 
-mod hoverable_elements {
+pub mod hoverable_elements {
     use bevy::prelude::*;
 
     /// This module provides an easy way to make UI elements hoverable. Simply use the "create_hoverable_ui_bundle" function when spawning an entity, and the rest is handled.
 
-    #[derive(Debug, Component, Default)]
+    #[derive(Debug, Component, Default, Clone)]
     #[require(BackgroundColor, BorderColor, ColorsForDormantUI)]
     pub struct ColorsForHoveredUI {
         border: BorderColor,
         background: BackgroundColor,
     }
 
-    #[derive(Debug, Component, Default)]
+    #[derive(Debug, Component, Default, Clone)]
     #[require(BackgroundColor, BorderColor)]
     pub struct ColorsForDormantUI {
         border: BorderColor,
