@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use crate::{
     AppState,
+    inputs_interface::MultiplayerNetworkingMode,
     ui_panels::{self, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER_WIDTH},
 };
 
@@ -59,27 +60,49 @@ fn render_main_menu(mut commands: Commands) {
         ),
     );
 
-    commands.spawn((
-        button_bundle.clone(),
-        children![(
-            Text::new("Join Online Game"),
-            TextFont::from_font_size(BUTTON_TEXT_SIZE),
-        )],
-    ));
+    commands
+        .spawn((
+            button_bundle.clone(),
+            children![(
+                Text::new("Join Online Game"),
+                TextFont::from_font_size(BUTTON_TEXT_SIZE),
+            )],
+        ))
+        .observe(
+            |_: On<Pointer<Click>>,
+             mut commands: Commands,
+             mut state: ResMut<NextState<AppState>>| {
+                commands.insert_resource(MultiplayerNetworkingMode::Client);
+                state.set(AppState::ParametersScreen);
+            },
+        );
 
-    commands.spawn((
-        button_bundle.clone(),
-        children![(
-            Text::new("Host Online Game"),
-            TextFont::from_font_size(BUTTON_TEXT_SIZE),
-        )],
-    ));
+    commands
+        .spawn((
+            button_bundle.clone(),
+            children![(
+                Text::new("Host Online Game"),
+                TextFont::from_font_size(BUTTON_TEXT_SIZE),
+            )],
+        ))
+        .observe(
+            |_: On<Pointer<Click>>,
+             mut commands: Commands,
+             mut state: ResMut<NextState<AppState>>| {
+                commands.insert_resource(MultiplayerNetworkingMode::Host);
+                state.set(AppState::ParametersScreen);
+            },
+        );
 
-    commands.spawn((
-        button_bundle.clone(),
-        children![(
-            Text::new("Exit"),
-            TextFont::from_font_size(BUTTON_TEXT_SIZE),
-        )],
-    ));
+    commands
+        .spawn((
+            button_bundle.clone(),
+            children![(
+                Text::new("Exit"),
+                TextFont::from_font_size(BUTTON_TEXT_SIZE),
+            )],
+        ))
+        .observe(|_: On<Pointer<Click>>, mut commands: Commands| {
+            commands.write_message(AppExit::Success);
+        });
 }

@@ -25,7 +25,8 @@ impl Plugin for InputInterfacePlugin {
 #[derive(Debug, Resource)]
 pub enum MultiplayerNetworkingMode {
     SingleDevice,
-    Online,
+    Host,
+    Client,
 }
 #[derive(Debug, Event)]
 pub struct TryEndTurn;
@@ -93,7 +94,7 @@ fn write_message(
             MultiplayerNetworkingMode::SingleDevice => {
                 commands.insert_resource(OperatingPlayer(new_acting_player))
             }
-            MultiplayerNetworkingMode::Online => todo!(),
+            _ => todo!(),
         },
         _ => warn!("Display method not yet implemented..."),
     }
