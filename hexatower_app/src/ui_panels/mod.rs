@@ -158,7 +158,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                 children![(
                     Text::new("End Turn"),
                     TextFont {
-                        font_size: 24.0,
+                        font_size: FontSize::Px(24.0),
                         ..default()
                     },
                 )]
@@ -183,16 +183,16 @@ pub struct HeaderParameters {
     pub border_thickness: Val,
     pub height: Val,
     pub width: Val,
-    pub text_size_px: f32,
+    pub text_size: FontSize,
 }
 
 pub const LEFT_SIDE_HEADER_PARAMS: HeaderParameters = HeaderParameters {
     border_color: Color::Srgba(ZINC_900),
     background_color: Color::Srgba(ZINC_600),
     border_thickness: Val::Px(3.0),
-    height: Val::Px(30.0),
+    height: Val::Vh(4.0),
     width: Val::Percent(96.0),
-    text_size_px: 24.0,
+    text_size: FontSize::Vh(3.0),
 };
 
 #[derive(Debug, Component)]
@@ -213,7 +213,10 @@ fn unload_action_button(
 pub struct TextLinkToGameplayElement(pub LinkedGamplayElement);
 
 mod display_themes {
-    use bevy::color::{Color, palettes::tailwind::*};
+    use bevy::{
+        color::{Color, palettes::tailwind::*},
+        text::FontSize,
+    };
     use core_game_logic::tiles::TileType;
 
     pub struct ColorTheme {
@@ -231,8 +234,8 @@ mod display_themes {
         unimportant_color: Color::Srgba(GRAY_300),
     };
 
-    pub const DESCRIPTION_FONT_SIZE: f32 = 18.0;
-    pub const TOOLTIP_FONT_SIZE: f32 = 16.0;
+    pub const DESCRIPTION_FONT_SIZE: FontSize = FontSize::Vh(2.25);
+    pub const TOOLTIP_FONT_SIZE: FontSize = FontSize::Vh(2.0);
 
     pub fn color_for_tile_type_under_default_theme(tile_type: &TileType) -> Color {
         match tile_type {
@@ -344,6 +347,7 @@ mod execution_button {
         OperatingPlayer,
         functional_assets::LogicalWorld,
         inputs_interface::{ActionInputManager, FrontendAction, TryExecuteLoadedAction},
+        ui_panels::LEFT_SIDE_HEADER_PARAMS,
     };
 
     #[derive(Debug, Component)]
@@ -426,7 +430,7 @@ mod execution_button {
                 FrontendAction::PurchaseCard { .. } => String::from("Purchase!"),
             }),
             TextFont {
-                font_size: 24.0,
+                font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                 ..default()
             },
             ChildOf(button),
@@ -453,7 +457,7 @@ mod execution_button {
             commands.spawn((
                 Text::new(blocker.0),
                 TextFont {
-                    font_size: 12.0,
+                    font_size: FontSize::Vh(1.5),
                     ..default()
                 },
                 ChildOf(button),

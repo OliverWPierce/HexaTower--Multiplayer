@@ -46,7 +46,7 @@ fn add_markets(
         commands.spawn((
             Transform::from_translation(Vec3::from(HexVector2d::from(*tile))),
             MarketModel,
-            SceneRoot(visual_details.get_market(*market)?.model.clone()),
+            WorldAssetRoot(visual_details.get_market(*market)?.model.clone()),
         ));
     }
 

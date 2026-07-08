@@ -67,7 +67,7 @@ fn display_options(
             Header,
             Text::new(visual_market.name.clone()),
             TextFont {
-                font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                 ..default()
             },
             TextLayout {
@@ -147,7 +147,7 @@ fn display_options(
                 (
                     Text::new(format!("{}", price.0)),
                     TextFont {
-                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                         ..default()
                     },
                     TextLayout {
@@ -170,7 +170,7 @@ fn display_options(
         children![(
             Text::new(visual_market.description.clone()),
             TextFont {
-                font_size: 18.0,
+                font_size: DESCRIPTION_FONT_SIZE,
                 ..default()
             },
             TextLayout {
@@ -222,7 +222,7 @@ fn render_card_execution_panel(
                 children![(
                     Text::new("<--"),
                     TextFont {
-                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                         ..default()
                     },
                     TextLayout {
@@ -245,7 +245,7 @@ fn render_card_execution_panel(
                     (
                         Text::new(format!("Buy {}, for ", card_details.name)),
                         TextFont {
-                            font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                            font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                             ..default()
                         },
                         TextLayout {
@@ -256,7 +256,7 @@ fn render_card_execution_panel(
                     (
                         Text::new(format!("{}", price.0)),
                         TextFont {
-                            font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                            font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                             ..default()
                         },
                         TextLayout {

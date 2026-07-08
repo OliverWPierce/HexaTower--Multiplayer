@@ -187,7 +187,7 @@ impl VisOrderDirectory {
 
 #[derive(Debug)]
 pub struct VisMarket {
-    pub model: Handle<Scene>,
+    pub model: Handle<WorldAsset>,
     pub name: String,
     pub description: String,
 }

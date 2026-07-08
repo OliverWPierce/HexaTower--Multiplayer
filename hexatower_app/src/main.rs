@@ -66,7 +66,7 @@ fn lights(mut commands: Commands) {
     commands.spawn((
         DirectionalLight {
             illuminance: 6000.0,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         Transform::default()
@@ -77,7 +77,7 @@ fn lights(mut commands: Commands) {
     commands.spawn((
         PointLight {
             intensity: 120000.0,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         Transform::default().with_translation(vec3(0.0, 3.0, 0.0)),
