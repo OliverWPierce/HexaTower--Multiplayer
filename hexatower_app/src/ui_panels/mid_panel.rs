@@ -76,7 +76,7 @@ fn render_orders_of_active_piece(
             Header,
             Text::new(ORDER_LIBRARY_LABEL),
             TextFont {
-                font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                 ..default()
             },
             TextLayout {
@@ -425,7 +425,7 @@ fn render_order_execution_process(
                 children![(
                     Text::new("<--"),
                     TextFont {
-                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                         ..default()
                     },
                     TextLayout {
@@ -447,7 +447,7 @@ fn render_order_execution_process(
                 children![(
                     Text::new(order_details.name.clone()),
                     TextFont {
-                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                         ..default()
                     },
                     TextLayout {

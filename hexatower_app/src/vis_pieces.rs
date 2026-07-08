@@ -53,23 +53,26 @@ pub mod visual_piece_archetypes_storage {
     }
     #[derive(Debug, Clone)]
     pub struct VisualPieceArchetype {
-        pub model: Handle<Scene>,
+        pub model: Handle<WorldAsset>,
         pub name: String,
     }
 
     #[derive(Debug, Resource)]
-    pub struct BasePlatesDirectory(Box<[Handle<Scene>]>);
+    pub struct BasePlatesDirectory(Box<[Handle<WorldAsset>]>);
 
     #[derive(Debug, Error)]
     #[error("Could not find a baseplate model for player {0:?}.")]
     pub struct MissingBaseplate(PlayerId);
 
     impl BasePlatesDirectory {
-        pub fn get_base_plate(&self, id: PlayerId) -> Result<&Handle<Scene>, MissingBaseplate> {
+        pub fn get_base_plate(
+            &self,
+            id: PlayerId,
+        ) -> Result<&Handle<WorldAsset>, MissingBaseplate> {
             self.0.get(id.0 as usize).ok_or(MissingBaseplate(id))
         }
 
-        pub fn new(models: &[Handle<Scene>]) -> Self {
+        pub fn new(models: &[Handle<WorldAsset>]) -> Self {
             Self(models.into())
         }
     }
@@ -104,9 +107,9 @@ fn spawn_visuals(
                 z: horizontal_location.y,
             })
             .looking_to(Vec3::from(HexVector2d::from(spawn.direction)), Vec3::Y),
-            SceneRoot(base_plates.get_base_plate(spawn.owner)?.clone()),
+            WorldAssetRoot(base_plates.get_base_plate(spawn.owner)?.clone()),
             children![
-                SceneRoot(
+                WorldAssetRoot(
                     piece_details
                         .get_visual_details(spawn.archetype)?
                         .model

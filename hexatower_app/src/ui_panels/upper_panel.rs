@@ -71,7 +71,7 @@ fn render_inventory(
             Header,
             Text::new(INVENTORY_LABEL),
             TextFont {
-                font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                 ..default()
             },
             TextLayout {
@@ -266,7 +266,7 @@ fn render_card_execution_panel(
                 children![(
                     Text::new("<--"),
                     TextFont {
-                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                         ..default()
                     },
                     TextLayout {
@@ -288,7 +288,7 @@ fn render_card_execution_panel(
                 children![(
                     Text::new(card_details.name.clone()),
                     TextFont {
-                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size_px,
+                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                         ..default()
                     },
                     TextLayout {

@@ -67,8 +67,8 @@ impl Plugin for VisTilesPlugin {
 struct VisualTileDirectory(Box<[Entity]>);
 #[derive(Debug, Resource, Clone)]
 struct TileModels {
-    basic: Handle<Scene>,
-    ex1: Handle<Scene>,
+    basic: Handle<WorldAsset>,
+    ex1: Handle<WorldAsset>,
 }
 
 fn spawn_tiles_and_initialize_inficators(
@@ -82,9 +82,9 @@ fn spawn_tiles_and_initialize_inficators(
         ex1: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/example_tile.glb")),
     };
 
-    let selected_indicator_mesh: Handle<Scene> =
+    let selected_indicator_mesh: Handle<WorldAsset> =
         asset_server.load(GltfAssetLabel::Scene(0).from_asset("selected_tile_indicator.glb"));
-    let elligible_indicator_mesh: Handle<Scene> =
+    let elligible_indicator_mesh: Handle<WorldAsset> =
         asset_server.load(GltfAssetLabel::Scene(0).from_asset("elligible_tile_indicator.glb"));
 
     commands.insert_resource(tile_models.clone());
@@ -119,7 +119,7 @@ fn spawn_tiles_and_initialize_inficators(
                     z: horizontal_location.y,
                 }),
                 InheritedVisibility::VISIBLE,
-                children![SceneRoot(tile_models.basic.clone()),],
+                children![WorldAssetRoot(tile_models.basic.clone()),],
             ))
             .id();
 
@@ -133,7 +133,7 @@ fn spawn_tiles_and_initialize_inficators(
                 y: 0.0,
                 z: horizontal_location.y,
             }),
-            SceneRoot(elligible_indicator_mesh.clone()),
+            WorldAssetRoot(elligible_indicator_mesh.clone()),
             IndicatorWatches(tile_id),
         ));
         commands.spawn((
@@ -144,7 +144,7 @@ fn spawn_tiles_and_initialize_inficators(
                 y: 0.0,
                 z: horizontal_location.y,
             }),
-            SceneRoot(selected_indicator_mesh.clone()),
+            WorldAssetRoot(selected_indicator_mesh.clone()),
             IndicatorWatches(tile_id),
         ));
     }
@@ -172,7 +172,7 @@ fn swap_tile_mesh(
 
         commands.entity(*parent).despawn_children();
         commands.spawn((
-            SceneRoot(match event.new_type {
+            WorldAssetRoot(match event.new_type {
                 TileType::Basic => models.basic.clone(),
                 TileType::Ex1 => models.ex1.clone(),
             }),
@@ -229,7 +229,7 @@ fn manage_active_tile_visual(
                     z: horizontal_location.y,
                 }),
                 ActiveTileIndicator,
-                SceneRoot(
+                WorldAssetRoot(
                     asset_server
                         .load(GltfAssetLabel::Scene(0).from_asset("active_tile_indicator.glb")),
                 ),
