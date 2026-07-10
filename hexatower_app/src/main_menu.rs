@@ -1,3 +1,7 @@
+use std::fmt::Display;
+use std::marker::PhantomData;
+
+use bevy::ecs::component::{ComponentMutability, Mutable};
 use bevy::prelude::*;
 use bevy::text::EditableText;
 use bevy::{color::palettes::tailwind::*, text::TextCursorStyle};
@@ -209,6 +213,12 @@ fn render_parameters_screen(
                     )
                 ],
             ));
+
+            let board_size_ui = display_clickthrough_selectors::<PresetBoardSizes>(&mut commands);
+
+            commands
+                .entity(background_node.entity())
+                .add_child(board_size_ui);
         }
         MultiplayerNetworkingMode::Client => todo!(),
     }
@@ -218,3 +228,136 @@ fn render_parameters_screen(
 struct IpAdressCollectionNode;
 #[derive(Debug, Component)]
 struct GamertagCollectionNode;
+
+trait ClickThroughSelector: Resource<Mutability = Mutable> + Default {
+    fn next_option(&mut self);
+
+    fn previous_option(&mut self);
+
+    fn display_text(&self) -> String;
+}
+#[derive(Debug, Resource, Default)]
+enum PresetBoardSizes {
+    Small,
+    #[default]
+    Regular,
+    Large,
+}
+
+impl ClickThroughSelector for PresetBoardSizes {
+    fn next_option(&mut self) {
+        *self = match self {
+            PresetBoardSizes::Small => Self::Regular,
+            PresetBoardSizes::Regular => Self::Large,
+            PresetBoardSizes::Large => Self::Small,
+        };
+    }
+
+    fn previous_option(&mut self) {
+        *self = match self {
+            PresetBoardSizes::Small => Self::Large,
+            PresetBoardSizes::Regular => Self::Small,
+            PresetBoardSizes::Large => Self::Regular,
+        };
+    }
+
+    fn display_text(&self) -> String {
+        String::from(match self {
+            PresetBoardSizes::Small => "Small",
+            PresetBoardSizes::Regular => "Regular",
+            PresetBoardSizes::Large => "Large",
+        })
+    }
+}
+
+fn display_clickthrough_selectors<C: ClickThroughSelector>(commands: &mut Commands) -> Entity {
+    commands.insert_resource(C::default());
+
+    const CENTER_FONTSIZE: FontSize = FontSize::Vh(3.0);
+
+    let overall_box = commands
+        .spawn(Node {
+            width: Val::Vw(20.0),
+            justify_content: JustifyContent::SpaceBetween,
+            ..default()
+        })
+        .id();
+
+    let button_colors = ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+        BorderColor::all(SLATE_800),
+        BackgroundColor(SLATE_600.into()),
+        BorderColor::all(SLATE_500),
+        BackgroundColor(SLATE_400.into()),
+    );
+
+    commands
+        .spawn((
+            ChildOf(overall_box),
+            Node {
+                height: Val::Percent(100.0),
+                border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                border_radius: BorderRadius {
+                    top_left: Val::Px(5.0),
+                    bottom_left: Val::Px(5.0),
+                    ..default()
+                },
+                ..default()
+            },
+            button_colors.clone(),
+            children![(Text::new("<"), TextFont::from_font_size(CENTER_FONTSIZE),)],
+        ))
+        .observe(
+            |_: On<Pointer<Click>>,
+             mut resource: ResMut<C>,
+             mut text: Single<&mut Text, With<EntityWithTextRepresentingResource<C>>>| {
+                resource.previous_option();
+                text.0 = resource.display_text();
+            },
+        );
+
+    #[derive(Debug, Component)]
+    struct EntityWithTextRepresentingResource<C: ClickThroughSelector>(PhantomData<C>);
+
+    commands.spawn((
+        ChildOf(overall_box),
+        Node {
+            flex_grow: 2.0,
+            border: UiRect::top(UNIVERSAL_BORDER_WIDTH).with_bottom(UNIVERSAL_BORDER_WIDTH),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        children![(
+            Text::new(C::default().display_text()),
+            TextFont::from_font_size(CENTER_FONTSIZE),
+            EntityWithTextRepresentingResource::<C>(PhantomData)
+        )],
+    ));
+
+    commands
+        .spawn((
+            ChildOf(overall_box),
+            Node {
+                height: Val::Percent(100.0),
+                border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                border_radius: BorderRadius {
+                    top_right: Val::Px(5.0),
+                    bottom_right: Val::Px(5.0),
+                    ..default()
+                },
+                ..default()
+            },
+            button_colors,
+            children![(Text::new(">"), TextFont::from_font_size(CENTER_FONTSIZE),)],
+        ))
+        .observe(
+            |_: On<Pointer<Click>>,
+             mut resource: ResMut<C>,
+             mut text: Single<&mut Text, With<EntityWithTextRepresentingResource<C>>>| {
+                resource.next_option();
+                text.0 = resource.display_text();
+            },
+        );
+
+    overall_box
+}
