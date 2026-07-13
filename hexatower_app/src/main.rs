@@ -1,5 +1,6 @@
 use bevy::{post_process::bloom::Bloom, prelude::*};
 use bevy_obj::ObjPlugin;
+use bevy_renet::{RenetClientPlugin, RenetServerPlugin};
 use core_game_logic::players::PlayerId;
 
 use crate::{
@@ -11,6 +12,8 @@ use crate::{
     vis_pieces::VisPiecesPlugin,
     vis_tiles::VisTilesPlugin,
 };
+
+const VERSION_NUMBER: u64 = 0;
 
 mod functional_assets;
 mod inputs_interface;
@@ -33,6 +36,8 @@ fn main() {
             VisMarketsPlugin,
             ObjPlugin,
             MainMenuAndLobbyPluggin,
+            RenetClientPlugin,
+            RenetServerPlugin,
         ))
         .init_state::<AppState>()
         .add_systems(SetUpBoard, (cam_3d, lights))
