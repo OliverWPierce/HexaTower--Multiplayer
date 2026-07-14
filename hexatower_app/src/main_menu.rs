@@ -255,24 +255,55 @@ fn render_parameters_screen(
                         TextFont::from_font_size(BUTTON_TEXT_SIZE),
                     )],
                 ))
-                .observe(|_: On<Pointer<Click>>, mut commands: Commands, ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,| {
-                    let Ok(server_addr) = ip_address.value().to_string().parse() else {warn!("Invalid IP adress");return};
+                .observe(
+                    |_: On<Pointer<Click>>,
+                     mut commands: Commands,
+                     ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
+                     mut state: ResMut<NextState<AppState>>| {
+                        let Ok(server_addr) = ip_address.value().to_string().parse() else {
+                            warn!("Invalid IP adress");
+                            return;
+                        };
                         let socket = UdpSocket::bind(server_addr).unwrap();
                         let server_config = ServerConfig {
-                            current_time: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap(),
+                            current_time: SystemTime::now()
+                                .duration_since(SystemTime::UNIX_EPOCH)
+                                .unwrap(),
                             max_clients: 64,
                             protocol_id: VERSION_NUMBER,
                             public_addresses: vec![server_addr],
                             authentication: ServerAuthentication::Unsecure,
                         };
 
-                    let client = RenetClient::new(ConnectionConfig::default());
+                        let client = RenetClient::new(ConnectionConfig::default());
                         commands.insert_resource(client);
-                    let host_server = RenetServer::new(ConnectionConfig::default());
-                    commands.insert_resource(host_server);
-                    let transport = NetcodeServerTransport::new(server_config, socket).unwrap();
-                    commands.insert_resource(transport);
-                });
+                        let host_server = RenetServer::new(ConnectionConfig::default());
+                        commands.insert_resource(host_server);
+                        let server_transport =
+                            NetcodeServerTransport::new(server_config, socket).unwrap();
+                        commands.insert_resource(server_transport);
+
+                        let client_adrr = "127.0.0.1:0".to_string();
+                        let socket = UdpSocket::bind(client_adrr).unwrap();
+                        let current_time = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
+                        let authentication = ClientAuthentication::Unsecure {
+                            server_addr,
+                            client_id: 0,
+                            user_data: None,
+                            protocol_id: 0,
+                        };
+
+                        let client_transport =
+                            NetcodeClientTransport::new(current_time, authentication, socket)
+                                .unwrap();
+
+                        commands.insert_resource(client_transport);
+
+                        state.set(AppState::PreGame);
+                    },
+                );
         }
         MultiplayerNetworkingMode::Client => {
             commands.spawn((
@@ -358,46 +389,63 @@ fn render_parameters_screen(
             ));
 
             commands
-                    .spawn((
-                        ChildOf(background_node.entity()),
-                        Node {
-                            width: Val::Percent(60.0),
-                            height: BUTTON_HEIGHT,
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-                            border_radius: BorderRadius::all(Val::Px(6.0)),
-                            ..default()
-                        },
-                        ui_panels::hoverable_elements::create_hoverable_ui_bundle(
-                            BorderColor::all(SLATE_800),
-                            BackgroundColor(SLATE_700.into()),
-                            BorderColor::all(SLATE_500),
-                            BackgroundColor(SLATE_600.into()),
-                        ),
-                        children![(
-                            Text::new("Join"),
-                            TextFont::from_font_size(BUTTON_TEXT_SIZE),
-                        )],
-                    ))
-                    .observe(|_: On<Pointer<Click>>, mut commands: Commands, ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,| {
-                        let Ok(server_addr) = ip_address.value().to_string().parse() else {warn!("Invalid IP adress");return};
+                .spawn((
+                    ChildOf(background_node.entity()),
+                    Node {
+                        width: Val::Percent(60.0),
+                        height: BUTTON_HEIGHT,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
+                        ..default()
+                    },
+                    ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+                        BorderColor::all(SLATE_800),
+                        BackgroundColor(SLATE_700.into()),
+                        BorderColor::all(SLATE_500),
+                        BackgroundColor(SLATE_600.into()),
+                    ),
+                    children![(
+                        Text::new("Join"),
+                        TextFont::from_font_size(BUTTON_TEXT_SIZE),
+                    )],
+                ))
+                .observe(
+                    |_: On<Pointer<Click>>,
+                     mut commands: Commands,
+                     ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
+                     mut state: ResMut<NextState<AppState>>| {
+                        let Ok(server_addr) = ip_address.value().to_string().parse() else {
+                            warn!("Invalid IP adress");
+                            return;
+                        };
 
-                            let client = RenetClient::new(ConnectionConfig::default());
-                                commands.insert_resource(client);
+                        let client = RenetClient::new(ConnectionConfig::default());
+                        commands.insert_resource(client);
 
-                                let authentication = ClientAuthentication::Unsecure {
-                                    server_addr,
-                                    client_id: 0,
-                                    user_data: None,
-                                    protocol_id: 0,
-                                };
-                                let socket = UdpSocket::bind(server_addr).unwrap();
-                                let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-                                let transport = NetcodeClientTransport::new(current_time, authentication, socket).unwrap();
+                        let authentication = ClientAuthentication::Unsecure {
+                            server_addr,
+                            client_id: 1,
+                            user_data: None,
+                            protocol_id: 0,
+                        };
 
-                                commands.insert_resource(transport);
-                    });
+                        let client_adrr = "127.0.0.1:0".to_string();
+                        let socket = UdpSocket::bind(client_adrr).unwrap();
+                        let current_time = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
+
+                        let transport =
+                            NetcodeClientTransport::new(current_time, authentication, socket)
+                                .unwrap();
+
+                        commands.insert_resource(transport);
+
+                        state.set(AppState::PreGame);
+                    },
+                );
         }
     }
 }

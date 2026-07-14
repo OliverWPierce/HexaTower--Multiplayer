@@ -1,9 +1,13 @@
 use bevy::prelude::*;
+use bevy_renet::{
+    RenetClient, RenetServer, RenetServerEvent,
+    renet::{DefaultChannel, ServerEvent},
+};
 use core_game_logic::requests::{
     ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType, try_consume_request,
 };
-
 pub use loaded_action_invariance::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     AppState, OperatingPlayer,
@@ -19,6 +23,12 @@ impl Plugin for InputInterfacePlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(try_execute_loaded_action.run_if(in_state(AppState::InGame)));
         app.add_observer(end_turn.run_if(in_state(AppState::InGame)));
+        app.add_systems(
+            OnEnter(AppState::PreGame),
+            first_contact.run_if(resource_exists::<RenetClient>),
+        );
+        app.add_systems(Update, read_contacts.run_if(resource_exists::<RenetServer>));
+        app.add_observer(log_connections);
     }
 }
 
@@ -260,4 +270,52 @@ fn try_execute_loaded_action(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum NetworkTransmission {
+    JoinGame { name: String, is_player: bool },
+    GameAction(BackendRequest),
+}
+
+fn first_contact(mut client: ResMut<RenetClient>) {
+    let x = NetworkTransmission::JoinGame {
+        name: "John".into(),
+        is_player: true,
+    };
+
+    let items = postcard::to_stdvec(&x).unwrap();
+    client.send_message(DefaultChannel::ReliableOrdered, items);
+}
+
+fn read_contacts(mut server: ResMut<RenetServer>) {
+    for client_id in server.clients_id() {
+        while let Some(message) = server.receive_message(client_id, DefaultChannel::ReliableOrdered)
+        {
+            let z = postcard::from_bytes::<NetworkTransmission>(&message).unwrap();
+
+            match z {
+                NetworkTransmission::JoinGame { name, is_player } => println!(
+                    "{} joinet the game as a {}",
+                    name,
+                    match is_player {
+                        true => "player",
+                        false => "spectator",
+                    }
+                ),
+                NetworkTransmission::GameAction(backend_request) => todo!(),
+            }
+        }
+    }
+}
+
+fn log_connections(event: On<RenetServerEvent>) {
+    match event.0 {
+        ServerEvent::ClientConnected { client_id } => {
+            println!("A player {} joined the game.", client_id)
+        }
+        ServerEvent::ClientDisconnected { client_id, reason } => {
+            println!("A player {} disconected due to {:?}", client_id, reason)
+        }
+    }
 }

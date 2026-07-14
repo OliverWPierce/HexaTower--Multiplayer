@@ -1,6 +1,9 @@
 use bevy::{post_process::bloom::Bloom, prelude::*};
 use bevy_obj::ObjPlugin;
-use bevy_renet::{RenetClientPlugin, RenetServerPlugin};
+use bevy_renet::{
+    RenetClientPlugin, RenetServerPlugin,
+    netcode::{NetcodeClientPlugin, NetcodeServerPlugin},
+};
 use core_game_logic::players::PlayerId;
 
 use crate::{
@@ -38,6 +41,8 @@ fn main() {
             MainMenuAndLobbyPluggin,
             RenetClientPlugin,
             RenetServerPlugin,
+            NetcodeClientPlugin,
+            NetcodeServerPlugin,
         ))
         .init_state::<AppState>()
         .add_systems(SetUpBoard, (cam_3d, lights))
