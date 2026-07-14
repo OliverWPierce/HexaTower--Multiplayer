@@ -1,8 +1,11 @@
+use std::ops::Index;
+
 use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    IndexingId, InvalidIdErr,
     cards::CardId,
     pieces::{GivesExtraPlayerOrder, OccupiesTile, OrdersReceivable, OwnsPieces},
     requests::{ActionEffect, ChangeLog},
@@ -10,28 +13,40 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize, Component)]
-pub struct PlayerId(pub u8);
+pub struct PlayerId(u8);
+
+impl PlayerId {
+    pub fn id(self) -> u8 {
+        self.0
+    }
+}
+
+impl IndexingId for PlayerId {}
 
 #[derive(Debug, Resource)]
-pub struct PlayerDirectory(Box<[Entity]>);
+pub struct PlayerData<D: Sized>(Box<[D]>);
 
-#[derive(Debug, Error)]
-#[error("Tried to get a player with an invalid id: {:?}", self.0.0)]
-pub struct InvalidIdErr(PlayerId);
-
-impl PlayerDirectory {
-    pub fn get_player(&self, id: PlayerId) -> Result<Entity, InvalidIdErr> {
-        self.0.get(id.0 as usize).copied().ok_or(InvalidIdErr(id))
+impl<D: Sized> PlayerData<D> {
+    pub fn get(&self, id: PlayerId) -> &D {
+        self.0.index(id.0 as usize)
+    }
+    pub fn new(values: Box<[D]>) -> Self {
+        Self(values)
+    }
+    pub fn make_id(&self, desired_id: u8) -> Result<PlayerId, InvalidIdErr<PlayerId>> {
+        if desired_id < self.0.len() as u8 {
+            Ok(PlayerId(desired_id))
+        } else {
+            Err(InvalidIdErr(PlayerId(desired_id)))
+        }
     }
 
-    pub fn read(&self) -> &[Entity] {
-        &self.0
-    }
-
-    pub fn list(&self) -> &[Entity] {
+    pub fn list(&self) -> &[D] {
         &self.0
     }
 }
+
+pub type PlayerDirectory = PlayerData<Entity>;
 
 pub const STARTING_COINS: u32 = 25;
 pub const STARTING_INVENTORY_MAX_SIZE: u8 = 6;
@@ -53,7 +68,7 @@ pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &
         .collect::<Vec<Entity>>()
         .into_boxed_slice();
 
-    world.insert_resource(PlayerDirectory(players));
+    world.insert_resource(PlayerDirectory::new(players));
 }
 
 #[derive(Debug, Component)]
@@ -110,11 +125,8 @@ pub struct Coins(pub u32);
 #[derive(Debug, Resource)]
 pub struct ActivePlayer(pub PlayerId);
 
-pub fn apply_start_turn_effects(
-    world: &mut World,
-    player: PlayerId,
-) -> Result<ChangeLog, InvalidIdErr> {
-    let player_ent = world.resource::<PlayerDirectory>().get_player(player)?;
+pub fn apply_start_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog {
+    let player_ent = *world.resource::<PlayerDirectory>().get(player);
 
     let mut orders_to_give = 2;
     let mut log = ChangeLog::default();
@@ -150,14 +162,11 @@ pub fn apply_start_turn_effects(
         .remaining += orders_to_give;
     // we add instead of simply setting so that it is easy to allow other players to "gift" an order later on in development, if playtesting finds that beneficial. This also avoids visual bugs.
 
-    Ok(ChangeLog::default())
+    ChangeLog::default()
 }
 
-pub fn apply_end_turn_effects(
-    world: &mut World,
-    player: PlayerId,
-) -> Result<ChangeLog, InvalidIdErr> {
-    let player_ent = world.resource::<PlayerDirectory>().get_player(player)?;
+pub fn apply_end_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog {
+    let player_ent = *world.resource::<PlayerDirectory>().get(player);
 
     let mut log = ChangeLog::default();
 
@@ -210,7 +219,7 @@ pub fn apply_end_turn_effects(
         }
     }
 
-    Ok(log)
+    log
 }
 #[derive(Debug, Component, PartialEq, Eq)]
 pub enum PlayerState {

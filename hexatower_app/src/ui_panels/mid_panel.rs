@@ -511,10 +511,10 @@ fn render_order_execution_process(
         let player_orders = logical_world
             .0
             .get::<PlayerOrdersRemaining>(
-                logical_world
+                *logical_world
                     .0
                     .resource::<PlayerDirectory>()
-                    .get_player(operating_player.0)?,
+                    .get(operating_player.0),
             )
             .ok_or("All players should have information about their remaining orders")?
             .remaining;

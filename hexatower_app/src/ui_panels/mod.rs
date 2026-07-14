@@ -570,20 +570,20 @@ mod execution_button {
 
                 if owner.is_none()
                     || owner.unwrap().0
-                        != logical_world
+                        != *logical_world
                             .0
                             .resource::<PlayerDirectory>()
-                            .get_player(operating_player.0)?
+                            .get(operating_player.0)
                 {
                     return Ok(Some(Blocker("You do not own this piece.".into())));
                 }
                 if logical_world
                     .0
                     .get::<PlayerOrdersRemaining>(
-                        logical_world
+                        *logical_world
                             .0
                             .resource::<PlayerDirectory>()
-                            .get_player(operating_player.0)?,
+                            .get(operating_player.0),
                     )
                     .ok_or(
                         "A player lacked information about how many remaining orders they have.",
@@ -631,7 +631,10 @@ mod execution_button {
                     return Ok(Some(Blocker("You do not occupy this market.".into())));
                 }
 
-                let coins_of_operating_player = logical_world.0.get::<Coins>(logical_world.0.resource::<PlayerDirectory>().get_player(operating_player.0)?).ok_or("A player lacked a component detailing the amount of currency they possesed.")?.0;
+                let coins_of_operating_player = logical_world.0.get::<Coins>(*logical_world
+                    .0
+                    .resource::<PlayerDirectory>()
+                    .get(operating_player.0)).ok_or("A player lacked a component detailing the amount of currency they possesed.")?.0;
 
                 let price_of_card = logical_world
                     .0

@@ -209,9 +209,9 @@ pub fn try_consume_request(
             inventory_index,
             input,
         } => {
-            let player_ent = world
+            let player_ent = *world
                 .resource::<PlayerDirectory>()
-                .get_player(request_to_process.acting_player)?;
+                .get(request_to_process.acting_player);
 
             let card = world
                 .get::<PlayerCardInventory>(player_ent)
@@ -257,9 +257,9 @@ pub fn try_consume_request(
             slot_in_market,
         } => {
             let tile_entity = world.resource::<TileDirectory>().get_entity(market_tile)?;
-            let player_ent = world
+            let player_ent = *world
                 .resource::<PlayerDirectory>()
-                .get_player(request_to_process.acting_player)?;
+                .get(request_to_process.acting_player);
 
             if let Some(occupying_piece) = world.get::<OccupiedByPiece>(tile_entity)
                 && let Some(owner) = world.get::<PieceOwnedByPlayer>(occupying_piece.piece())
@@ -310,13 +310,13 @@ pub fn try_consume_request(
 
             change_log.write(ActionEffect::EndedTurn(exiting_player));
 
-            change_log.append(&mut players::apply_end_turn_effects(world, exiting_player).unwrap());
+            change_log.append(&mut players::apply_end_turn_effects(world, exiting_player));
 
             let next_player = {
                 let (preceding_players, next_players) = world
                     .resource::<PlayerDirectory>()
-                    .read()
-                    .split_at(exiting_player.0 as usize);
+                    .list()
+                    .split_at(exiting_player.id() as usize);
 
                 *world.get::<PlayerId>(*next_players.iter().skip(1).chain(preceding_players).find(|player| *world.get::<PlayerState>(**player).unwrap() != PlayerState::Dead)
                         .expect("Tried to end turn, but all players were dead (except perhaps the active player.) This indicates the game is over, which should have been handled by another system. (Players cannot end their turn when the game is over)."))
@@ -327,7 +327,7 @@ pub fn try_consume_request(
 
             change_log.write(ActionEffect::BeganTurn(next_player));
 
-            change_log.append(&mut players::apply_start_turn_effects(world, next_player)?);
+            change_log.append(&mut players::apply_start_turn_effects(world, next_player));
 
             change_log
         }
@@ -345,9 +345,9 @@ pub fn try_consume_request(
                 return Err(ExecuteOrderError::PieceHasNoRemainingOrders.into());
             }
 
-            let acting_player = world
+            let acting_player = *world
                 .resource::<PlayerDirectory>()
-                .get_player(request_to_process.acting_player)?;
+                .get(request_to_process.acting_player);
 
             if world
                 .get::<PlayerOrdersRemaining>(acting_player)

@@ -83,10 +83,10 @@ fn render_inventory(
         ChildOf(panel),
     ));
 
-    let log_player = log_world
+    let log_player = *log_world
         .0
         .resource::<PlayerDirectory>()
-        .get_player(display_player.0)?;
+        .get(display_player.0);
 
     let card_inventory = log_world
         .0
@@ -482,10 +482,10 @@ fn manage_inventory_panel(
         let card = log_world
             .0
             .get::<PlayerCardInventory>(
-                log_world
+                *log_world
                     .0
                     .resource::<PlayerDirectory>()
-                    .get_player(display_player.0)?,
+                    .get(display_player.0),
             )
             .expect("all players should have an inventory")
             .get_card(*index)?;

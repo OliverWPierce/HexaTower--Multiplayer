@@ -33,10 +33,7 @@ impl TileActionFunctionality for SpawnPieces {
             .unwrap()
             .clone();
 
-        let player_entity = world
-            .resource::<PlayerDirectory>()
-            .get_player(self.owner)
-            .unwrap();
+        let player_entity = *world.resource::<PlayerDirectory>().get(self.owner);
 
         let tile_entities = world.resource::<TileDirectory>();
 
