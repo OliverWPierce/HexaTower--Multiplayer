@@ -1,13 +1,8 @@
 use bevy::prelude::*;
-use bevy_renet::{
-    RenetClient, RenetServer, RenetServerEvent,
-    renet::{DefaultChannel, ServerEvent},
-};
 use core_game_logic::requests::{
     ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType, try_consume_request,
 };
 pub use loaded_action_invariance::*;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     AppState, OperatingPlayer,
@@ -264,10 +259,4 @@ fn try_execute_loaded_action(
     }
 
     Ok(())
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-enum NetworkTransmission {
-    JoinGame { name: String, is_player: bool },
-    GameAction(BackendRequest),
 }

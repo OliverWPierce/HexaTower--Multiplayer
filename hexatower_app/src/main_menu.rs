@@ -10,8 +10,9 @@ use bevy_renet::netcode::{
     ClientAuthentication, NetcodeClientTransport, NetcodeServerTransport, ServerAuthentication,
     ServerConfig,
 };
-use bevy_renet::renet::ConnectionConfig;
+use bevy_renet::renet::{ConnectionConfig, DefaultChannel};
 use bevy_renet::{RenetClient, RenetServer};
+use serde::{Deserialize, Serialize};
 
 use crate::VERSION_NUMBER;
 use crate::{
@@ -28,6 +29,30 @@ impl Plugin for MainMenuAndLobbyPluggin {
         app.add_systems(
             OnEnter(AppState::ParametersScreen),
             render_parameters_screen,
+        );
+        app.add_systems(
+            OnEnter(AppState::PreGame),
+            render_pregame_if_server.run_if(
+                resource_exists::<RenetServer>
+                    .and_then(resource_exists_and_changed::<InfoForConnectedClients>),
+            ),
+        );
+
+        app.add_systems(
+            Update,
+            render_pregame_if_server.run_if(
+                in_state(AppState::PreGame).and_then(
+                    resource_exists::<RenetServer>
+                        .and_then(resource_exists_and_changed::<InfoForConnectedClients>),
+                ),
+            ),
+        );
+
+        app.add_systems(
+            Update,
+            get_client_info.run_if(
+                in_state(AppState::PreGame).and_then(resource_exists_and_changed::<RenetServer>),
+            ),
         );
     }
 }
@@ -259,11 +284,28 @@ fn render_parameters_screen(
                     |_: On<Pointer<Click>>,
                      mut commands: Commands,
                      ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
+                     name: Single<&EditableText, With<GamertagCollectionNode>>,
                      mut state: ResMut<NextState<AppState>>| {
                         let Ok(server_addr) = ip_address.value().to_string().parse() else {
                             warn!("Invalid IP adress");
                             return;
                         };
+
+                        if name.value().into_iter().len() > 15 {
+                            warn!("Client's name is too long.");
+                            return;
+                        }
+
+                        let Ok(initial_message) = postcard::to_stdvec::<InitialConnectionMessage>(
+                            &InitialConnectionMessage {
+                                name: name.value().to_string(),
+                                is_spectator: false,
+                            },
+                        ) else {
+                            warn!("Could not serialize the clients name.");
+                            return;
+                        };
+
                         let socket = UdpSocket::bind(server_addr).unwrap();
                         let server_config = ServerConfig {
                             current_time: SystemTime::now()
@@ -275,8 +317,6 @@ fn render_parameters_screen(
                             authentication: ServerAuthentication::Unsecure,
                         };
 
-                        let client = RenetClient::new(ConnectionConfig::default());
-                        commands.insert_resource(client);
                         let host_server = RenetServer::new(ConnectionConfig::default());
                         commands.insert_resource(host_server);
                         let server_transport =
@@ -292,7 +332,7 @@ fn render_parameters_screen(
                             server_addr,
                             client_id: 0,
                             user_data: None,
-                            protocol_id: 0,
+                            protocol_id: VERSION_NUMBER,
                         };
 
                         let client_transport =
@@ -300,6 +340,15 @@ fn render_parameters_screen(
                                 .unwrap();
 
                         commands.insert_resource(client_transport);
+
+                        let mut client = RenetClient::new(ConnectionConfig::default());
+                        client.0.send_message(
+                            DefaultChannel::ReliableOrdered,
+                            initial_message.into_boxed_slice(),
+                        );
+                        commands.insert_resource(client);
+
+                        commands.insert_resource(InfoForConnectedClients(Vec::new()));
 
                         state.set(AppState::PreGame);
                     },
@@ -415,20 +464,35 @@ fn render_parameters_screen(
                     |_: On<Pointer<Click>>,
                      mut commands: Commands,
                      ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
+                     name: Single<&EditableText, With<GamertagCollectionNode>>,
                      mut state: ResMut<NextState<AppState>>| {
+                        if name.value().into_iter().len() > 15 {
+                            warn!("Client's name is too long.");
+                            return;
+                        }
+
+                        let Ok(initial_message) = postcard::to_stdvec::<InitialConnectionMessage>(
+                            &InitialConnectionMessage {
+                                name: name.value().to_string(),
+                                is_spectator: false,
+                            },
+                        ) else {
+                            warn!("Could not serialize the clients name.");
+                            return;
+                        };
+
                         let Ok(server_addr) = ip_address.value().to_string().parse() else {
                             warn!("Invalid IP adress");
                             return;
                         };
 
-                        let client = RenetClient::new(ConnectionConfig::default());
-                        commands.insert_resource(client);
+                        let mut client = RenetClient::new(ConnectionConfig::default());
 
                         let authentication = ClientAuthentication::Unsecure {
                             server_addr,
                             client_id: 1,
                             user_data: None,
-                            protocol_id: 0,
+                            protocol_id: VERSION_NUMBER,
                         };
 
                         let client_adrr = "127.0.0.1:0".to_string();
@@ -444,6 +508,13 @@ fn render_parameters_screen(
                         commands.insert_resource(transport);
 
                         state.set(AppState::PreGame);
+
+                        client.0.send_message(
+                            DefaultChannel::ReliableOrdered,
+                            initial_message.into_boxed_slice(),
+                        );
+
+                        commands.insert_resource(client);
                     },
                 );
         }
@@ -583,4 +654,112 @@ fn display_clickthrough_selectors<C: ClickThroughSelector>(commands: &mut Comman
         );
 
     overall_box
+}
+
+#[derive(Debug)]
+struct FullyConnectedClient {
+    name: String,
+    client_id: u64,
+    is_spectator: bool,
+}
+#[derive(Debug, Resource)]
+struct InfoForConnectedClients(Vec<FullyConnectedClient>);
+
+fn render_pregame_if_server(
+    mut commands: Commands,
+    client_info: Res<InfoForConnectedClients>,
+    background_node: Single<Entity, With<MenusBackgroundNode>>,
+) {
+    commands.entity(background_node.entity()).despawn_children();
+
+    commands.spawn((
+        ChildOf(background_node.entity()),
+        Text::new("Fully Connected Players"),
+        TextFont::from_font_size(HEADER_SIZE),
+    ));
+
+    let player_name_displaybox = commands
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            ChildOf(background_node.entity()),
+        ))
+        .id();
+
+    commands.spawn((
+        ChildOf(background_node.entity()),
+        Text::new("Fully Connected Spectators"),
+        TextFont::from_font_size(HEADER_SIZE),
+    ));
+
+    let spectator_name_displaybox = commands
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            ChildOf(background_node.entity()),
+        ))
+        .id();
+
+    for FullyConnectedClient {
+        name, is_spectator, ..
+    } in client_info.0.iter()
+    {
+        commands.spawn((
+            ChildOf(if *is_spectator {
+                spectator_name_displaybox
+            } else {
+                player_name_displaybox
+            }),
+            Text::new(name.clone()),
+        ));
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InitialConnectionMessage {
+    name: String,
+    is_spectator: bool,
+}
+
+fn get_client_info(
+    mut server: ResMut<RenetServer>,
+    mut fully_connected_clients: ResMut<InfoForConnectedClients>,
+) {
+    for client_id in server.clients_id() {
+        if fully_connected_clients
+            .0
+            .iter()
+            .find(
+                |FullyConnectedClient {
+                     client_id: connected_client_id,
+                     ..
+                 }| *connected_client_id == client_id,
+            )
+            .is_none()
+        {
+            while let Some(message) =
+                server.receive_message(client_id, DefaultChannel::ReliableOrdered)
+            {
+                let Ok(InitialConnectionMessage { name, is_spectator }) =
+                    postcard::from_bytes::<InitialConnectionMessage>(&message)
+                else {
+                    warn!(
+                        "Received unexpected message from client with id {}. This client was not yet fully connected (ie. they had not provided a name and spectator/player status.)",
+                        client_id
+                    );
+                    continue;
+                };
+
+                fully_connected_clients.0.push(FullyConnectedClient {
+                    name,
+                    client_id,
+                    is_spectator,
+                })
+            }
+        }
+    }
 }
