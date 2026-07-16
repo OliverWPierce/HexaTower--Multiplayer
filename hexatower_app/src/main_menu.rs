@@ -316,8 +316,8 @@ fn render_parameters_screen(
                             return;
                         }
 
-                        let Ok(initial_message) = postcard::to_stdvec::<InitialConnectionMessage>(
-                            &InitialConnectionMessage {
+                        let Ok(initial_message) = postcard::to_stdvec::<NetworkTransmission>(
+                            &NetworkTransmission::InitialConnectionMessage {
                                 name: name.value().to_string(),
                                 is_spectator: false,
                             },
