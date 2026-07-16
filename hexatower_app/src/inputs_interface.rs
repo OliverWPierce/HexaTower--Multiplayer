@@ -21,7 +21,7 @@ impl Plugin for InputInterfacePlugin {
     }
 }
 
-#[derive(Debug, Resource)]
+#[derive(Debug, Resource, PartialEq)]
 pub enum MultiplayerNetworkingMode {
     SingleDevice,
     Host,

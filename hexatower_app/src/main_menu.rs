@@ -39,6 +39,24 @@ impl Plugin for MainMenuAndLobbyPluggin {
         );
 
         app.add_systems(
+            OnEnter(AppState::PreGame),
+            render_pre_game_if_client.run_if(resource_exists_and_equals(
+                MultiplayerNetworkingMode::Client,
+            )),
+        );
+
+        app.add_systems(
+            Update,
+            render_client_connection_status_during_pregame.run_if(
+                in_state(AppState::PreGame)
+                    .and_then(resource_exists_and_equals(
+                        MultiplayerNetworkingMode::Client,
+                    ))
+                    .and_then(resource_exists_and_changed::<RenetClient>),
+            ),
+        );
+
+        app.add_systems(
             Update,
             render_pregame_if_server.run_if(
                 in_state(AppState::PreGame).and_then(
@@ -285,7 +303,8 @@ fn render_parameters_screen(
                      mut commands: Commands,
                      ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
                      name: Single<&EditableText, With<GamertagCollectionNode>>,
-                     mut state: ResMut<NextState<AppState>>| {
+                     mut state: ResMut<NextState<AppState>>,
+                     time: Res<Time>| {
                         let Ok(server_addr) = ip_address.value().to_string().parse() else {
                             warn!("Invalid IP adress");
                             return;
@@ -330,7 +349,7 @@ fn render_parameters_screen(
                             .unwrap();
                         let authentication = ClientAuthentication::Unsecure {
                             server_addr,
-                            client_id: 0,
+                            client_id: (time.elapsed_secs_f64() * 1000.0) as u64,
                             user_data: None,
                             protocol_id: VERSION_NUMBER,
                         };
@@ -465,6 +484,7 @@ fn render_parameters_screen(
                      mut commands: Commands,
                      ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
                      name: Single<&EditableText, With<GamertagCollectionNode>>,
+                     time: Res<Time>,
                      mut state: ResMut<NextState<AppState>>| {
                         if name.value().into_iter().len() > 15 {
                             warn!("Client's name is too long.");
@@ -490,7 +510,7 @@ fn render_parameters_screen(
 
                         let authentication = ClientAuthentication::Unsecure {
                             server_addr,
-                            client_id: 1,
+                            client_id: (time.elapsed_secs_f64() * 1000.0) as u64,
                             user_data: None,
                             protocol_id: VERSION_NUMBER,
                         };
@@ -725,6 +745,11 @@ struct InitialConnectionMessage {
     is_spectator: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ConnectionConfirmationMessage {
+    is_spectator: bool,
+}
+
 fn get_client_info(
     mut server: ResMut<RenetServer>,
     mut fully_connected_clients: ResMut<InfoForConnectedClients>,
@@ -758,8 +783,63 @@ fn get_client_info(
                     name,
                     client_id,
                     is_spectator,
-                })
+                });
+
+                let confirmation_message =
+                    postcard::to_stdvec(&ConnectionConfirmationMessage { is_spectator }).unwrap();
+
+                server.send_message(
+                    client_id,
+                    DefaultChannel::ReliableOrdered,
+                    confirmation_message,
+                );
             }
+        }
+    }
+}
+
+fn render_pre_game_if_client(
+    mut commands: Commands,
+    background_node: Single<Entity, With<MenusBackgroundNode>>,
+) {
+    commands.entity(background_node.entity()).despawn_children();
+
+    commands.spawn((
+        ChildOf(background_node.entity()),
+        Text::new("Connecting to server..."),
+        TextFont::from_font_size(HEADER_SIZE),
+    ));
+}
+
+fn render_client_connection_status_during_pregame(
+    mut commands: Commands,
+    background_node: Single<Entity, With<MenusBackgroundNode>>,
+    mut client: ResMut<RenetClient>,
+) {
+    while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
+        if let Ok(ConnectionConfirmationMessage { is_spectator }) =
+            postcard::from_bytes::<ConnectionConfirmationMessage>(&message)
+        {
+            commands.entity(background_node.entity()).despawn_children();
+
+            commands.spawn((
+                ChildOf(background_node.entity()),
+                Text::new(format!(
+                    "Connection confirmed. You are registered as a {}",
+                    if is_spectator { "Spectator" } else { "Player" }
+                )),
+                TextFont::from_font_size(HEADER_SIZE),
+                TextLayout::justify(Justify::Center),
+            ));
+
+            commands.spawn((
+                ChildOf(background_node.entity()),
+                Text::new("Waiting on host to start the game."),
+                TextFont::from_font_size(HEADER_SIZE),
+            ));
+        } else {
+            // check for start game.
+            return;
         }
     }
 }
