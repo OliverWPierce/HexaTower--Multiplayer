@@ -15,6 +15,7 @@ use bevy_renet::{RenetClient, RenetServer};
 use serde::{Deserialize, Serialize};
 
 use crate::VERSION_NUMBER;
+
 use crate::{
     AppState,
     inputs_interface::MultiplayerNetworkingMode,
@@ -552,7 +553,7 @@ trait ClickThroughSelector: Resource<Mutability = Mutable> + Default {
 
     fn display_text(&self) -> String;
 }
-#[derive(Debug, Resource, Default)]
+#[derive(Debug, Resource, Default, Serialize, Deserialize, Clone, Copy)]
 enum PresetBoardSizes {
     Small,
     #[default]
@@ -728,17 +729,79 @@ fn render_pregame_if_server(
         ))
         .id();
 
+    let fully_connected_clients = client_info.0.iter();
+
+    let mut player_count = 0;
+
     for FullyConnectedClient {
         name, is_spectator, ..
-    } in client_info.0.iter()
+    } in fully_connected_clients
     {
         commands.spawn((
             ChildOf(if *is_spectator {
                 spectator_name_displaybox
             } else {
+                player_count += 1;
                 player_name_displaybox
             }),
             Text::new(name.clone()),
+        ));
+    }
+
+    if player_count > 1 {
+        commands
+            .spawn((
+                ChildOf(background_node.entity()),
+                Node {
+                    width: Val::Percent(60.0),
+                    height: BUTTON_HEIGHT,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                    border_radius: BorderRadius::all(Val::Px(6.0)),
+                    ..default()
+                },
+                ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+                    BorderColor::all(SLATE_800),
+                    BackgroundColor(SLATE_700.into()),
+                    BorderColor::all(SLATE_500),
+                    BackgroundColor(SLATE_600.into()),
+                ),
+                children![(
+                    Text::new("Start Match"),
+                    TextFont::from_font_size(BUTTON_TEXT_SIZE),
+                )],
+            ))
+            .observe(
+                |_: On<Pointer<Click>>,
+                 mut server: ResMut<RenetServer>,
+                 client_info: Res<InfoForConnectedClients>,
+                 board_size: Res<PresetBoardSizes>| {
+                    server.broadcast_message(
+                        DefaultChannel::ReliableOrdered,
+                        postcard::to_stdvec(&StartGameNetworkMessage {
+                            board_size: *board_size.into_inner(),
+                            player_names: client_info
+                                .0
+                                .iter()
+                                .filter_map(|client| {
+                                    if !client.is_spectator {
+                                        Some(client.name.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<_>(),
+                        })
+                        .unwrap(),
+                    );
+                },
+            );
+    } else {
+        commands.spawn((
+            ChildOf(background_node.entity()),
+            Text::new("Register at least two players to start the game."),
+            TextFont::from_font_size(HEADER_SIZE),
         ));
     }
 }
@@ -846,4 +909,10 @@ fn render_client_connection_status_during_pregame(
             return;
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct StartGameNetworkMessage {
+    board_size: PresetBoardSizes,
+    player_names: Box<[String]>,
 }

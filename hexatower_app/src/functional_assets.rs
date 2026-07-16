@@ -8,7 +8,6 @@ use crate::{
     AppState, OperatingPlayer,
     inputs_interface::{ActionInputManager, MultiplayerNetworkingMode},
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetype,
-    vis_tiles::BoardSize,
 };
 
 pub struct StartupPlugin;
@@ -138,10 +137,6 @@ pub struct SetUpBoard;
 #[derive(Resource, Debug)]
 pub struct LogicalWorld(pub World);
 
-#[derive(Debug, Resource)]
-pub struct GameCreationSettings {
-    pub board_size: BoardSize,
-}
 #[derive(Debug, Clone)]
 pub struct VisualCard {
     pub image: Handle<Image>,

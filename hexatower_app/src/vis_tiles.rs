@@ -16,29 +16,10 @@ use core_game_logic::{
 
 use crate::{
     AppState,
-    functional_assets::{GameCreationSettings, LogicalWorld, SetUpBoard},
+    functional_assets::{LogicalWorld, SetUpBoard},
     inputs_interface::ActionInputManager,
     vis_pieces::VisOccupies,
 };
-
-#[derive(Debug)]
-pub enum BoardSize {
-    Small,
-    Standard,
-    Large,
-    ExtraLarge,
-}
-
-impl BoardSize {
-    fn ring_count(&self) -> u32 {
-        match self {
-            BoardSize::Small => 3,
-            BoardSize::Standard => 4,
-            BoardSize::Large => 6,
-            BoardSize::ExtraLarge => 8,
-        }
-    }
-}
 
 pub struct VisTilesPlugin;
 
@@ -78,7 +59,6 @@ struct TileModels {
 
 fn spawn_tiles_and_initialize_inficators(
     mut commands: Commands,
-    settings: Res<GameCreationSettings>,
     asset_server: ResMut<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -107,7 +87,7 @@ fn spawn_tiles_and_initialize_inficators(
         Pickable::IGNORE,
     ));
 
-    let rings_to_spawn = settings.board_size.ring_count();
+    let rings_to_spawn = 4;
 
     let mut vis_tiles = Vec::new();
 
