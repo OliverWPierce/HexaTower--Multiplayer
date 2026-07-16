@@ -18,7 +18,7 @@ use crate::{
         execution_button::{self, ExecutionButtonPanel},
         hoverable_elements, spawn_basic_ui_layout,
     },
-    vis_pieces::{self, visual_piece_archetypes_storage::VisualPieceArchetypeDirectory},
+    vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
 
 pub struct VisualMarketUIPlugin;

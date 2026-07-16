@@ -1,5 +1,5 @@
-use bevy::{color::palettes::tailwind::*, ecs::component::Immutable, prelude::*};
-use core_game_logic::forensic_action_descriptions::{LinkedGamplayElement, TextSnippet};
+use bevy::{color::palettes::tailwind::*, prelude::*};
+use core_game_logic::forensic_action_descriptions::LinkedGamplayElement;
 
 use crate::{
     AppState,

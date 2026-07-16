@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::VERSION_NUMBER;
 
+use crate::inputs_interface::NetworkTransmission;
 use crate::{
     AppState,
     inputs_interface::MultiplayerNetworkingMode,
@@ -494,12 +495,12 @@ fn render_parameters_screen(
                             return;
                         }
 
-                        let Ok(initial_message) = postcard::to_stdvec::<InitialConnectionMessage>(
-                            &InitialConnectionMessage {
+                        let Ok(initial_message) =
+                            postcard::to_stdvec(&NetworkTransmission::InitialConnectionMessage {
                                 name: name.value().to_string(),
                                 is_spectator: false,
-                            },
-                        ) else {
+                            })
+                        else {
                             warn!("Could not serialize the clients name.");
                             return;
                         };
@@ -582,7 +583,7 @@ impl ClickThroughSelector for PresetBoardSizes {
         String::from(match self {
             PresetBoardSizes::Small => "Small (2p)",
             PresetBoardSizes::Regular => "Regular (3-4p)",
-            PresetBoardSizes::Large => "Large (5+ p",
+            PresetBoardSizes::Large => "Large (5+ p)",
         })
     }
 }
@@ -776,26 +777,7 @@ fn render_pregame_if_server(
                 |_: On<Pointer<Click>>,
                  mut server: ResMut<RenetServer>,
                  client_info: Res<InfoForConnectedClients>,
-                 board_size: Res<PresetBoardSizes>| {
-                    server.broadcast_message(
-                        DefaultChannel::ReliableOrdered,
-                        postcard::to_stdvec(&StartGameNetworkMessage {
-                            board_size: *board_size.into_inner(),
-                            player_names: client_info
-                                .0
-                                .iter()
-                                .filter_map(|client| {
-                                    if !client.is_spectator {
-                                        Some(client.name.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect::<_>(),
-                        })
-                        .unwrap(),
-                    );
-                },
+                 board_size: Res<PresetBoardSizes>| { todo!() },
             );
     } else {
         commands.spawn((
@@ -809,11 +791,6 @@ fn render_pregame_if_server(
 #[derive(Debug, Serialize, Deserialize)]
 struct InitialConnectionMessage {
     name: String,
-    is_spectator: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ConnectionConfirmationMessage {
     is_spectator: bool,
 }
 
@@ -836,11 +813,11 @@ fn get_client_info(
             while let Some(message) =
                 server.receive_message(client_id, DefaultChannel::ReliableOrdered)
             {
-                let Ok(InitialConnectionMessage { name, is_spectator }) =
-                    postcard::from_bytes::<InitialConnectionMessage>(&message)
+                let Ok(NetworkTransmission::InitialConnectionMessage { name, is_spectator }) =
+                    postcard::from_bytes::<NetworkTransmission>(&message)
                 else {
                     warn!(
-                        "Received unexpected message from client with id {}. This client was not yet fully connected (ie. they had not provided a name and spectator/player status.)",
+                        "Received unexpected message from client with id {}. Either it could not be deserialized, or it was of an unexpected discriminant for this stage of the app's life.)",
                         client_id
                     );
                     continue;
@@ -853,7 +830,8 @@ fn get_client_info(
                 });
 
                 let confirmation_message =
-                    postcard::to_stdvec(&ConnectionConfirmationMessage { is_spectator }).unwrap();
+                    postcard::to_stdvec(&NetworkTransmission::ConnectionConfirmationMessage)
+                        .unwrap();
 
                 server.send_message(
                     client_id,
@@ -884,35 +862,30 @@ fn render_client_connection_status_during_pregame(
     mut client: ResMut<RenetClient>,
 ) {
     while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
-        if let Ok(ConnectionConfirmationMessage { is_spectator }) =
-            postcard::from_bytes::<ConnectionConfirmationMessage>(&message)
-        {
-            commands.entity(background_node.entity()).despawn_children();
+        if let Ok(transmission) = postcard::from_bytes::<NetworkTransmission>(&message) {
+            match transmission {
+                NetworkTransmission::ConnectionConfirmationMessage => {
+                    commands.entity(background_node.entity()).despawn_children();
 
-            commands.spawn((
-                ChildOf(background_node.entity()),
-                Text::new(format!(
-                    "Connection confirmed. You are registered as a {}",
-                    if is_spectator { "Spectator" } else { "Player" }
-                )),
-                TextFont::from_font_size(HEADER_SIZE),
-                TextLayout::justify(Justify::Center),
-            ));
-
-            commands.spawn((
-                ChildOf(background_node.entity()),
-                Text::new("Waiting on host to start the game."),
-                TextFont::from_font_size(HEADER_SIZE),
-            ));
-        } else {
-            // check for start game.
-            return;
+                    commands.spawn((
+                        ChildOf(background_node.entity()),
+                        Text::new("Waiting on host to start the game."),
+                        TextFont::from_font_size(HEADER_SIZE),
+                    ));
+                }
+                NetworkTransmission::StartGame(_) => todo!(),
+                NetworkTransmission::GameplayRequest(..) => unreachable!(),
+                NetworkTransmission::InitialConnectionMessage { .. } => {
+                    unreachable!()
+                }
+            }
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct StartGameNetworkMessage {
+pub struct StartGameNetworkMessage {
     board_size: PresetBoardSizes,
     player_names: Box<[String]>,
+    you_are_player: Option<u8>,
 }

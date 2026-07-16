@@ -1,12 +1,18 @@
 use bevy::prelude::*;
-use core_game_logic::requests::{
-    ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType, try_consume_request,
+use core_game_logic::{
+    players::PlayerId,
+    requests::{
+        ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType,
+        try_consume_request,
+    },
 };
 pub use loaded_action_invariance::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     AppState, OperatingPlayer,
     functional_assets::LogicalWorld,
+    main_menu::StartGameNetworkMessage,
     vis_markets::MarketSpawned,
     vis_pieces::{PieceSpawned, RotatePieceMessage},
     vis_tiles::TileTypeConverted,
@@ -259,4 +265,12 @@ fn try_execute_loaded_action(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum NetworkTransmission {
+    InitialConnectionMessage { name: String, is_spectator: bool },
+    ConnectionConfirmationMessage,
+    StartGame(StartGameNetworkMessage),
+    GameplayRequest(BackendRequest),
 }
