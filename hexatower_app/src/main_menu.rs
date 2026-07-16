@@ -303,8 +303,7 @@ fn render_parameters_screen(
                      mut commands: Commands,
                      ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
                      name: Single<&EditableText, With<GamertagCollectionNode>>,
-                     mut state: ResMut<NextState<AppState>>,
-                     time: Res<Time>| {
+                     mut state: ResMut<NextState<AppState>>| {
                         let Ok(server_addr) = ip_address.value().to_string().parse() else {
                             warn!("Invalid IP adress");
                             return;
@@ -342,6 +341,10 @@ fn render_parameters_screen(
                             NetcodeServerTransport::new(server_config, socket).unwrap();
                         commands.insert_resource(server_transport);
 
+                        let time = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
+
                         let client_adrr = "127.0.0.1:0".to_string();
                         let socket = UdpSocket::bind(client_adrr).unwrap();
                         let current_time = SystemTime::now()
@@ -349,7 +352,7 @@ fn render_parameters_screen(
                             .unwrap();
                         let authentication = ClientAuthentication::Unsecure {
                             server_addr,
-                            client_id: (time.elapsed_secs_f64() * 1000.0) as u64,
+                            client_id: (time.as_secs_f64() * 1000.0) as u64,
                             user_data: None,
                             protocol_id: VERSION_NUMBER,
                         };
@@ -484,7 +487,6 @@ fn render_parameters_screen(
                      mut commands: Commands,
                      ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
                      name: Single<&EditableText, With<GamertagCollectionNode>>,
-                     time: Res<Time>,
                      mut state: ResMut<NextState<AppState>>| {
                         if name.value().into_iter().len() > 15 {
                             warn!("Client's name is too long.");
@@ -508,18 +510,20 @@ fn render_parameters_screen(
 
                         let mut client = RenetClient::new(ConnectionConfig::default());
 
+                        let time = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
+
                         let authentication = ClientAuthentication::Unsecure {
                             server_addr,
-                            client_id: (time.elapsed_secs_f64() * 1000.0) as u64,
+                            client_id: (time.as_secs_f64() * 1000.0) as u64,
                             user_data: None,
                             protocol_id: VERSION_NUMBER,
                         };
 
                         let client_adrr = "127.0.0.1:0".to_string();
                         let socket = UdpSocket::bind(client_adrr).unwrap();
-                        let current_time = SystemTime::now()
-                            .duration_since(SystemTime::UNIX_EPOCH)
-                            .unwrap();
+                        let current_time = time;
 
                         let transport =
                             NetcodeClientTransport::new(current_time, authentication, socket)
