@@ -44,6 +44,11 @@ impl<D: Sized> PlayerData<D> {
     pub fn list(&self) -> &[D] {
         &self.0
     }
+
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 pub type PlayerDirectory = PlayerData<Entity>;

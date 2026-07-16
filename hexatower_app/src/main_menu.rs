@@ -12,10 +12,12 @@ use bevy_renet::netcode::{
 };
 use bevy_renet::renet::{ConnectionConfig, DefaultChannel};
 use bevy_renet::{RenetClient, RenetServer};
+use core_game_logic::players::{PlayerData, PlayerId};
 use serde::{Deserialize, Serialize};
 
 use crate::VERSION_NUMBER;
 
+use crate::functional_assets::create_board;
 use crate::inputs_interface::NetworkTransmission;
 use crate::{
     AppState,
@@ -50,11 +52,7 @@ impl Plugin for MainMenuAndLobbyPluggin {
         app.add_systems(
             Update,
             render_client_connection_status_during_pregame.run_if(
-                in_state(AppState::PreGame)
-                    .and_then(resource_exists_and_equals(
-                        MultiplayerNetworkingMode::Client,
-                    ))
-                    .and_then(resource_exists_and_changed::<RenetClient>),
+                in_state(AppState::PreGame).and_then(resource_exists_and_changed::<RenetClient>),
             ),
         );
 
@@ -555,7 +553,7 @@ trait ClickThroughSelector: Resource<Mutability = Mutable> + Default {
     fn display_text(&self) -> String;
 }
 #[derive(Debug, Resource, Default, Serialize, Deserialize, Clone, Copy)]
-enum PresetBoardSizes {
+pub enum PresetBoardSizes {
     Small,
     #[default]
     Regular,
@@ -777,7 +775,45 @@ fn render_pregame_if_server(
                 |_: On<Pointer<Click>>,
                  mut server: ResMut<RenetServer>,
                  client_info: Res<InfoForConnectedClients>,
-                 board_size: Res<PresetBoardSizes>| { todo!() },
+                 board_size: Res<PresetBoardSizes>,
+                 mut commands: Commands| {
+                    let mut player_names = Vec::new();
+                    let mut player_client_ids = Vec::new();
+
+                    for FullyConnectedClient {
+                        name,
+                        client_id,
+                        is_spectator,
+                    } in client_info.0.iter()
+                    {
+                        if !is_spectator {
+                            player_names.push(name.clone());
+                            player_client_ids.push(*client_id);
+                        }
+                    }
+
+                    let player_names = player_names.into_boxed_slice();
+                    let player_client_ids = player_client_ids.into_boxed_slice();
+
+                    for client in server.clients_id() {
+                        let start_game_transmission =
+                            NetworkTransmission::StartGame(BoardSetupInstructions {
+                                board_size: *board_size,
+                                player_names: player_names.clone(),
+                                you_are_player: player_client_ids
+                                    .iter()
+                                    .enumerate()
+                                    .find(|(_, client_id)| client == **client_id)
+                                    .map(|(index, _)| index as u8),
+                            });
+
+                        server.send_message(
+                            client,
+                            DefaultChannel::ReliableOrdered,
+                            postcard::to_stdvec(&start_game_transmission).unwrap(),
+                        );
+                    }
+                },
             );
     } else {
         commands.spawn((
@@ -786,12 +822,6 @@ fn render_pregame_if_server(
             TextFont::from_font_size(HEADER_SIZE),
         ));
     }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct InitialConnectionMessage {
-    name: String,
-    is_spectator: bool,
 }
 
 fn get_client_info(
@@ -859,12 +889,20 @@ fn render_pre_game_if_client(
 fn render_client_connection_status_during_pregame(
     mut commands: Commands,
     background_node: Single<Entity, With<MenusBackgroundNode>>,
+    networking_mode: Res<MultiplayerNetworkingMode>,
     mut client: ResMut<RenetClient>,
+    mut asset_server: ResMut<AssetServer>,
+    mut state: ResMut<NextState<AppState>>,
 ) {
     while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
         if let Ok(transmission) = postcard::from_bytes::<NetworkTransmission>(&message) {
             match transmission {
                 NetworkTransmission::ConnectionConfirmationMessage => {
+                    if *networking_mode == MultiplayerNetworkingMode::Host {
+                        println!("Host player/spectator is connected.");
+                        continue;
+                    }
+
                     commands.entity(background_node.entity()).despawn_children();
 
                     commands.spawn((
@@ -873,7 +911,11 @@ fn render_client_connection_status_during_pregame(
                         TextFont::from_font_size(HEADER_SIZE),
                     ));
                 }
-                NetworkTransmission::StartGame(_) => todo!(),
+                NetworkTransmission::StartGame(instructions) => {
+                    state.set(AppState::InGame);
+                    commands.entity(background_node.entity()).despawn_children();
+                    create_board(&mut commands, &mut asset_server, instructions).unwrap()
+                }
                 NetworkTransmission::GameplayRequest(..) => unreachable!(),
                 NetworkTransmission::InitialConnectionMessage { .. } => {
                     unreachable!()
@@ -884,8 +926,8 @@ fn render_client_connection_status_during_pregame(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StartGameNetworkMessage {
-    board_size: PresetBoardSizes,
-    player_names: Box<[String]>,
-    you_are_player: Option<u8>,
+pub struct BoardSetupInstructions {
+    pub board_size: PresetBoardSizes,
+    pub player_names: Box<[String]>,
+    pub you_are_player: Option<u8>,
 }

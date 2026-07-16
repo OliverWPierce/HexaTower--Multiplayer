@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AppState, OperatingPlayer,
     functional_assets::LogicalWorld,
-    main_menu::StartGameNetworkMessage,
+    main_menu::BoardSetupInstructions,
     vis_markets::MarketSpawned,
     vis_pieces::{PieceSpawned, RotatePieceMessage},
     vis_tiles::TileTypeConverted,
@@ -99,7 +99,7 @@ fn write_message(
             MultiplayerNetworkingMode::SingleDevice => {
                 commands.insert_resource(OperatingPlayer(new_acting_player))
             }
-            _ => todo!(),
+            _ => (),
         },
         _ => warn!("Display method not yet implemented..."),
     }
@@ -271,6 +271,6 @@ fn try_execute_loaded_action(
 pub enum NetworkTransmission {
     InitialConnectionMessage { name: String, is_spectator: bool },
     ConnectionConfirmationMessage,
-    StartGame(StartGameNetworkMessage),
+    StartGame(BoardSetupInstructions),
     GameplayRequest(BackendRequest),
 }
