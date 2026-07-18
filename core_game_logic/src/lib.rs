@@ -1,6 +1,6 @@
 pub mod cards;
 pub mod forensic_action_descriptions;
-mod logical_testing_assets;
+pub mod logical_testing_assets;
 pub mod markets;
 pub mod orders;
 pub mod pieces;

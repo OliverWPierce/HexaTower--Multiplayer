@@ -27,7 +27,7 @@ impl Plugin for InputInterfacePlugin {
     }
 }
 
-#[derive(Debug, Resource, PartialEq)]
+#[derive(Debug, Resource, PartialEq, Clone, Copy)]
 pub enum MultiplayerNetworkingMode {
     SingleDevice,
     Host,
@@ -61,7 +61,7 @@ fn end_turn(
     Ok(())
 }
 
-fn write_message(
+pub fn write_message(
     effect: ActionEffect,
     commands: &mut Commands,
     networking_mode: &MultiplayerNetworkingMode,

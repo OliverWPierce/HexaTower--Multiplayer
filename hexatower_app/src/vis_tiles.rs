@@ -18,6 +18,7 @@ use crate::{
     AppState,
     functional_assets::{LogicalWorld, SetUpBoard},
     inputs_interface::ActionInputManager,
+    main_menu::PresetBoardSizes,
     vis_pieces::VisOccupies,
 };
 
@@ -61,6 +62,7 @@ fn spawn_tiles_and_initialize_inficators(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    board_size: Res<PresetBoardSizes>,
 ) {
     let tile_models = TileModels {
         basic: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/basic_tile.glb")),
@@ -87,11 +89,9 @@ fn spawn_tiles_and_initialize_inficators(
         Pickable::IGNORE,
     ));
 
-    let rings_to_spawn = 4;
-
     let mut vis_tiles = Vec::new();
 
-    for tile_id in 0..core_game_logic::tile_mapping::tiles_on_board(rings_to_spawn) {
+    for tile_id in 0..core_game_logic::tile_mapping::tiles_on_board(board_size.ring_count()) {
         let tile_id = TileId::new(tile_id);
         let horizontal_location: Vec2 = HexVector2d::from(tile_id).into();
 

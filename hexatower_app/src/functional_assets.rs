@@ -10,7 +10,7 @@ use thiserror::Error;
 
 use crate::{
     AppState, OperatingPlayer,
-    inputs_interface::{ActionInputManager, MultiplayerNetworkingMode},
+    inputs_interface::{ActionInputManager, MultiplayerNetworkingMode, write_message},
     main_menu::BoardSetupInstructions,
     vis_pieces::visual_piece_archetypes_storage::{BasePlatesDirectory, VisualPieceArchetype},
 };
@@ -31,20 +31,31 @@ pub fn create_board(
     commands: &mut Commands,
     asset_server: &mut AssetServer,
     instructions: BoardSetupInstructions,
+    networking_mode: MultiplayerNetworkingMode,
 ) -> Result<(), BevyError> {
     let player_names = PlayerNames::new(instructions.player_names);
 
-    let logical_world = LogicalWorld(CreationParameters::testing_default());
+    let (logical_world, change_log) = CreationParameters {
+        board_size: instructions.board_size.ring_count(),
+        player_count: player_names.len() as u8,
+        all_cards: core_game_logic::logical_testing_assets::LOGICAL_CARDS_FOR_TESTING.into(),
+        all_markets: core_game_logic::logical_testing_assets::LOGICAL_MARKETS_FOR_TESTING.into(),
+        starting_cards: core_game_logic::logical_testing_assets::STARTING_CARDS_FOR_TESTING.into(),
+        piece_archetypes: core_game_logic::logical_testing_assets::LOGICAL_PIECES_FOR_TESTING
+            .into(),
+        orders: core_game_logic::logical_testing_assets::LOGICAL_ORDERS_FOR_TESTING.into(),
+    }
+    .create_logical_world();
 
     commands.insert_resource(OperatingPlayer(
         if let Some(id) = instructions.you_are_player {
             player_names.make_id(id)?
         } else {
-            logical_world.0.resource::<ActivePlayer>().0
+            logical_world.resource::<ActivePlayer>().0
         },
     ));
 
-    commands.insert_resource(logical_world);
+    commands.insert_resource(LogicalWorld(logical_world));
     {
         let mut baseplate_assets = Vec::new();
 
@@ -176,6 +187,10 @@ pub fn create_board(
     ));
 
     commands.run_schedule(SetUpBoard);
+
+    for item in change_log.read() {
+        write_message(item.clone(), commands, &networking_mode);
+    }
 
     Ok(())
 }
