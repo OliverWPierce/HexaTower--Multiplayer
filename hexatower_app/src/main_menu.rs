@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use crate::VERSION_NUMBER;
 
 use crate::functional_assets::create_board;
-use crate::inputs_interface::NetworkTransmission;
+use crate::inputs_interface::{HOST_CLIENT_ID, NetworkTransmission};
 use crate::{
     AppState,
     inputs_interface::MultiplayerNetworkingMode,
@@ -341,10 +341,6 @@ fn render_parameters_screen(
                             NetcodeServerTransport::new(server_config, socket).unwrap();
                         commands.insert_resource(server_transport);
 
-                        let time = SystemTime::now()
-                            .duration_since(SystemTime::UNIX_EPOCH)
-                            .unwrap();
-
                         let client_adrr = "127.0.0.1:0".to_string();
                         let socket = UdpSocket::bind(client_adrr).unwrap();
                         let current_time = SystemTime::now()
@@ -352,7 +348,7 @@ fn render_parameters_screen(
                             .unwrap();
                         let authentication = ClientAuthentication::Unsecure {
                             server_addr,
-                            client_id: (time.as_secs_f64() * 1000.0) as u64,
+                            client_id: HOST_CLIENT_ID,
                             user_data: None,
                             protocol_id: VERSION_NUMBER,
                         };
@@ -823,6 +819,8 @@ fn render_pregame_if_server(
                             postcard::to_stdvec(&start_game_transmission).unwrap(),
                         );
                     }
+
+                    commands.insert_resource(PlayerClientIds::new(player_client_ids));
                 },
             );
     } else {
@@ -833,6 +831,8 @@ fn render_pregame_if_server(
         ));
     }
 }
+
+pub type PlayerClientIds = PlayerData<u64>;
 
 fn get_client_info(
     mut server: ResMut<RenetServer>,
@@ -934,7 +934,7 @@ fn render_client_connection_status_during_pregame(
                     )
                     .unwrap()
                 }
-                NetworkTransmission::GameplayRequest(..) => unreachable!(),
+                NetworkTransmission::ActionDone(..) => unreachable!(),
                 NetworkTransmission::InitialConnectionMessage { .. } => {
                     unreachable!()
                 }
