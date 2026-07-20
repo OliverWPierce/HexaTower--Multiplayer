@@ -5,8 +5,11 @@ use core_game_logic::{
     tile_mapping::{HexVector2d, TileId},
 };
 
-use crate::vis_pieces::visual_piece_archetypes_storage::{
-    BasePlatesDirectory, VisualPieceArchetypeDirectory,
+use crate::{
+    AppState,
+    vis_pieces::visual_piece_archetypes_storage::{
+        BasePlatesDirectory, VisualPieceArchetypeDirectory,
+    },
 };
 
 pub struct VisPiecesPlugin;
@@ -19,7 +22,9 @@ impl Plugin for VisPiecesPlugin {
 
         app.add_systems(
             Update,
-            (spawn_visuals, update_backend_rotation_changes).chain(),
+            (spawn_visuals, update_backend_rotation_changes)
+                .chain()
+                .run_if(in_state(AppState::InGame)),
         );
     }
 }
@@ -27,7 +32,10 @@ impl Plugin for VisPiecesPlugin {
 pub mod visual_piece_archetypes_storage {
 
     use bevy::prelude::*;
-    use core_game_logic::{pieces::ArchetypeId, players::PlayerId};
+    use core_game_logic::{
+        pieces::ArchetypeId,
+        players::{PlayerData, PlayerId},
+    };
     use thiserror::Error;
 
     #[derive(Debug, Resource)]
@@ -57,25 +65,7 @@ pub mod visual_piece_archetypes_storage {
         pub name: String,
     }
 
-    #[derive(Debug, Resource)]
-    pub struct BasePlatesDirectory(Box<[Handle<WorldAsset>]>);
-
-    #[derive(Debug, Error)]
-    #[error("Could not find a baseplate model for player {0:?}.")]
-    pub struct MissingBaseplate(PlayerId);
-
-    impl BasePlatesDirectory {
-        pub fn get_base_plate(
-            &self,
-            id: PlayerId,
-        ) -> Result<&Handle<WorldAsset>, MissingBaseplate> {
-            self.0.get(id.0 as usize).ok_or(MissingBaseplate(id))
-        }
-
-        pub fn new(models: &[Handle<WorldAsset>]) -> Self {
-            Self(models.into())
-        }
-    }
+    pub type BasePlatesDirectory = PlayerData<Handle<WorldAsset>>;
 }
 
 #[derive(Debug, Message)]
@@ -107,7 +97,7 @@ fn spawn_visuals(
                 z: horizontal_location.y,
             })
             .looking_to(Vec3::from(HexVector2d::from(spawn.direction)), Vec3::Y),
-            WorldAssetRoot(base_plates.get_base_plate(spawn.owner)?.clone()),
+            WorldAssetRoot(base_plates.get(spawn.owner).clone()),
             children![
                 WorldAssetRoot(
                     piece_details

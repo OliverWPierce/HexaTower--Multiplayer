@@ -1,7 +1,8 @@
-use bevy::{color::palettes::tailwind::*, ecs::component::Immutable, prelude::*};
-use core_game_logic::forensic_action_descriptions::{LinkedGamplayElement, TextSnippet};
+use bevy::{color::palettes::tailwind::*, prelude::*};
+use core_game_logic::forensic_action_descriptions::LinkedGamplayElement;
 
 use crate::{
+    AppState,
     functional_assets::SetUpBoard,
     inputs_interface::{ActionInputManager, TryEndTurn},
     ui_panels::{
@@ -23,11 +24,12 @@ impl Plugin for UiPanelsPlugin {
         app.add_systems(SetUpBoard, spawn_basic_ui_layout);
         app.add_observer(hoverable_elements::hover_colors);
         app.add_observer(hoverable_elements::un_hover_colors);
-        app.add_observer(unload_action_button);
+        app.add_observer(unload_action_button.run_if(in_state(AppState::InGame)));
 
         app.add_systems(
             Update,
             execution_button::update_panel
+                .run_if(in_state(AppState::InGame))
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 
@@ -252,19 +254,19 @@ mod display_themes {
     }
 }
 
-mod hoverable_elements {
+pub mod hoverable_elements {
     use bevy::prelude::*;
 
     /// This module provides an easy way to make UI elements hoverable. Simply use the "create_hoverable_ui_bundle" function when spawning an entity, and the rest is handled.
 
-    #[derive(Debug, Component, Default)]
+    #[derive(Debug, Component, Default, Clone)]
     #[require(BackgroundColor, BorderColor, ColorsForDormantUI)]
     pub struct ColorsForHoveredUI {
         border: BorderColor,
         background: BackgroundColor,
     }
 
-    #[derive(Debug, Component, Default)]
+    #[derive(Debug, Component, Default, Clone)]
     #[require(BackgroundColor, BorderColor)]
     pub struct ColorsForDormantUI {
         border: BorderColor,
@@ -568,20 +570,20 @@ mod execution_button {
 
                 if owner.is_none()
                     || owner.unwrap().0
-                        != logical_world
+                        != *logical_world
                             .0
                             .resource::<PlayerDirectory>()
-                            .get_player(operating_player.0)?
+                            .get(operating_player.0)
                 {
                     return Ok(Some(Blocker("You do not own this piece.".into())));
                 }
                 if logical_world
                     .0
                     .get::<PlayerOrdersRemaining>(
-                        logical_world
+                        *logical_world
                             .0
                             .resource::<PlayerDirectory>()
-                            .get_player(operating_player.0)?,
+                            .get(operating_player.0),
                     )
                     .ok_or(
                         "A player lacked information about how many remaining orders they have.",
@@ -629,7 +631,10 @@ mod execution_button {
                     return Ok(Some(Blocker("You do not occupy this market.".into())));
                 }
 
-                let coins_of_operating_player = logical_world.0.get::<Coins>(logical_world.0.resource::<PlayerDirectory>().get_player(operating_player.0)?).ok_or("A player lacked a component detailing the amount of currency they possesed.")?.0;
+                let coins_of_operating_player = logical_world.0.get::<Coins>(*logical_world
+                    .0
+                    .resource::<PlayerDirectory>()
+                    .get(operating_player.0)).ok_or("A player lacked a component detailing the amount of currency they possesed.")?.0;
 
                 let price_of_card = logical_world
                     .0

@@ -1,13 +1,19 @@
 use bevy::prelude::*;
-use core_game_logic::requests::{
-    ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType, try_consume_request,
+use bevy_renet::{RenetClient, RenetServer, renet::DefaultChannel};
+use core_game_logic::{
+    players::PlayerId,
+    requests::{
+        ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType,
+        try_consume_request,
+    },
 };
-
 pub use loaded_action_invariance::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    OperatingPlayer,
+    AppState, OperatingPlayer,
     functional_assets::LogicalWorld,
+    main_menu::BoardSetupInstructions,
     vis_markets::MarketSpawned,
     vis_pieces::{PieceSpawned, RotatePieceMessage},
     vis_tiles::TileTypeConverted,
@@ -17,15 +23,25 @@ pub struct InputInterfacePlugin;
 
 impl Plugin for InputInterfacePlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(try_execute_loaded_action);
-        app.add_observer(end_turn);
+        app.add_observer(try_execute_loaded_action.run_if(in_state(AppState::InGame)));
+        app.add_observer(end_turn.run_if(in_state(AppState::InGame)));
+
+        app.add_systems(
+            Update,
+            (
+                client_receive_in_game_message,
+                server_receive_in_game_messages,
+            )
+                .run_if(in_state(AppState::InGame)),
+        );
     }
 }
 
-#[derive(Debug, Resource)]
+#[derive(Debug, Resource, PartialEq, Clone, Copy)]
 pub enum MultiplayerNetworkingMode {
     SingleDevice,
-    Online,
+    Host,
+    Client,
 }
 #[derive(Debug, Event)]
 pub struct TryEndTurn;
@@ -37,7 +53,13 @@ fn end_turn(
     mut action_input_manager: ResMut<ActionInputManager>,
     networking_mode: Res<MultiplayerNetworkingMode>,
     acting_player: Res<OperatingPlayer>,
+    client: Option<ResMut<RenetClient>>,
 ) -> Result<(), BevyError> {
+    let request = BackendRequest {
+        acting_player: acting_player.0,
+        request: RequestType::EndTurn,
+    };
+
     let change_log = try_consume_request(
         BackendRequest {
             acting_player: acting_player.0,
@@ -45,6 +67,13 @@ fn end_turn(
         },
         &mut logical_world.0,
     )?;
+
+    if let Some(mut client) = client {
+        client.send_message(
+            DefaultChannel::ReliableOrdered,
+            postcard::to_stdvec(&NetworkTransmission::ActionDone(request)).unwrap(),
+        );
+    }
 
     for item in change_log.read() {
         write_message(item.clone(), &mut commands, &networking_mode);
@@ -55,7 +84,7 @@ fn end_turn(
     Ok(())
 }
 
-fn write_message(
+pub fn write_message(
     effect: ActionEffect,
     commands: &mut Commands,
     networking_mode: &MultiplayerNetworkingMode,
@@ -93,7 +122,7 @@ fn write_message(
             MultiplayerNetworkingMode::SingleDevice => {
                 commands.insert_resource(OperatingPlayer(new_acting_player))
             }
-            MultiplayerNetworkingMode::Online => todo!(),
+            _ => (),
         },
         _ => warn!("Display method not yet implemented..."),
     }
@@ -215,6 +244,7 @@ fn try_execute_loaded_action(
     acting_player: Res<OperatingPlayer>,
     mut logical_world: ResMut<LogicalWorld>,
     mut commands: Commands,
+    mut client: Option<ResMut<RenetClient>>,
     networking_mode: Res<MultiplayerNetworkingMode>,
 ) -> Result<(), BevyError> {
     let Some(action) = action_manager.loaded_action() else {
@@ -242,21 +272,96 @@ fn try_execute_loaded_action(
         }
     };
 
-    let change_log = try_consume_request(
+    if let Ok(change_log) = try_consume_request(
         BackendRequest {
             acting_player: acting_player.0,
-            request,
+            request: request.clone(),
         },
         &mut logical_world.0,
-    )?;
+    ) {
+        action_manager.try_load_action(None)?;
 
-    action_manager.try_load_action(None)?;
+        if let Some(mut client) = client {
+            client.send_message(
+                DefaultChannel::ReliableOrdered,
+                postcard::to_stdvec(&NetworkTransmission::ActionDone(BackendRequest {
+                    acting_player: acting_player.0,
+                    request: request.clone(),
+                }))
+                .unwrap(),
+            );
+        }
 
-    println!("Changelog is as follows: {change_log:?}");
-
-    for item in change_log.read() {
-        write_message(item.clone(), &mut commands, &networking_mode);
+        for item in change_log.read() {
+            write_message(item.clone(), &mut commands, &networking_mode);
+        }
     }
 
     Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum NetworkTransmission {
+    InitialConnectionMessage { name: String, is_spectator: bool },
+    ConnectionConfirmationMessage,
+    StartGame(BoardSetupInstructions),
+    ActionDone(BackendRequest),
+}
+
+pub const HOST_CLIENT_ID: u64 = 2144552;
+
+fn server_receive_in_game_messages(
+    mut server: If<ResMut<RenetServer>>,
+    mut logical_world: ResMut<LogicalWorld>,
+    mut commands: Commands,
+    networking_mode: Res<MultiplayerNetworkingMode>,
+) {
+    for id in server.clients_id() {
+        while let Some(message) = server.receive_message(id, DefaultChannel::ReliableOrdered) {
+            if let NetworkTransmission::ActionDone(action) =
+                postcard::from_bytes::<NetworkTransmission>(&message).unwrap()
+            {
+                if id == HOST_CLIENT_ID {
+                    server.broadcast_message(DefaultChannel::ReliableOrdered, message);
+                } else {
+                    if let Ok(change_log) = try_consume_request(action, &mut logical_world.0) {
+                        for item in change_log.read() {
+                            write_message(item.clone(), &mut commands, &networking_mode);
+                        }
+
+                        server.broadcast_message_except(
+                            id,
+                            DefaultChannel::ReliableOrdered,
+                            message,
+                        );
+                    } else {
+                        panic!("Desync occured between client {} and the server.", id)
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn client_receive_in_game_message(
+    mut client: If<ResMut<RenetClient>>,
+    networking_mode: Res<MultiplayerNetworkingMode>,
+    mut logical_world: ResMut<LogicalWorld>,
+    mut commands: Commands,
+) {
+    while let Some(message) = client.0.receive_message(DefaultChannel::ReliableOrdered) {
+        if let NetworkTransmission::ActionDone(action) =
+            postcard::from_bytes::<NetworkTransmission>(&message).unwrap()
+        {
+            if *networking_mode == MultiplayerNetworkingMode::Host {
+                continue;
+            }
+
+            if let Ok(change_log) = try_consume_request(action, &mut logical_world.0) {
+                for item in change_log.read() {
+                    write_message(item.clone(), &mut commands, &networking_mode);
+                }
+            }
+        }
+    }
 }

@@ -15,29 +15,12 @@ use core_game_logic::{
 };
 
 use crate::{
-    functional_assets::{GameCreationSettings, LogicalWorld, SetUpBoard},
+    AppState,
+    functional_assets::{LogicalWorld, SetUpBoard},
     inputs_interface::ActionInputManager,
+    main_menu::PresetBoardSizes,
     vis_pieces::VisOccupies,
 };
-
-#[derive(Debug)]
-pub enum BoardSize {
-    Small,
-    Standard,
-    Large,
-    ExtraLarge,
-}
-
-impl BoardSize {
-    fn ring_count(&self) -> u32 {
-        match self {
-            BoardSize::Small => 3,
-            BoardSize::Standard => 4,
-            BoardSize::Large => 6,
-            BoardSize::ExtraLarge => 8,
-        }
-    }
-}
 
 pub struct VisTilesPlugin;
 
@@ -45,7 +28,10 @@ impl Plugin for VisTilesPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(SetUpBoard, spawn_tiles_and_initialize_inficators);
         // switch this to a custom schedule later.
-        app.add_systems(Update, (swap_tile_mesh, roate_active_tile_visual));
+        app.add_systems(
+            Update,
+            (swap_tile_mesh, roate_active_tile_visual).run_if(in_state(AppState::InGame)),
+        );
         app.add_message::<TileTypeConverted>();
 
         app.add_systems(
@@ -54,12 +40,13 @@ impl Plugin for VisTilesPlugin {
                 update_tile_selection_and_eligibility_indicators,
                 manage_active_tile_visual,
             )
-                .run_if(resource_changed::<ActionInputManager>),
+                .run_if(in_state(AppState::InGame))
+                .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 
-        app.add_observer(set_active_tile);
-        app.add_observer(indicate_direction);
-        app.add_observer(select_tile);
+        app.add_observer(set_active_tile.run_if(in_state(AppState::InGame)));
+        app.add_observer(indicate_direction.run_if(in_state(AppState::InGame)));
+        app.add_observer(select_tile.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -73,9 +60,9 @@ struct TileModels {
 
 fn spawn_tiles_and_initialize_inficators(
     mut commands: Commands,
-    settings: Res<GameCreationSettings>,
     asset_server: ResMut<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    board_size: Res<PresetBoardSizes>,
 ) {
     let tile_models = TileModels {
         basic: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/basic_tile.glb")),
@@ -102,11 +89,9 @@ fn spawn_tiles_and_initialize_inficators(
         Pickable::IGNORE,
     ));
 
-    let rings_to_spawn = settings.board_size.ring_count();
-
     let mut vis_tiles = Vec::new();
 
-    for tile_id in 0..core_game_logic::tile_mapping::tiles_on_board(rings_to_spawn) {
+    for tile_id in 0..core_game_logic::tile_mapping::tiles_on_board(board_size.ring_count()) {
         let tile_id = TileId::new(tile_id);
         let horizontal_location: Vec2 = HexVector2d::from(tile_id).into();
 

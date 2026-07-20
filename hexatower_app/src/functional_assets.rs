@@ -1,32 +1,98 @@
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 use core_game_logic::{
-    CreationParameters, cards::CardId, markets::MarketId, orders::OrderId, players::PlayerId,
+    CreationParameters,
+    cards::CardId,
+    markets::MarketId,
+    orders::OrderId,
+    players::{ActivePlayer, PlayerData, PlayerId},
 };
 use thiserror::Error;
 
 use crate::{
-    OperatingPlayer,
-    inputs_interface::{ActionInputManager, MultiplayerNetworkingMode},
-    vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetype,
-    vis_tiles::BoardSize,
+    AppState, OperatingPlayer,
+    inputs_interface::{ActionInputManager, MultiplayerNetworkingMode, write_message},
+    main_menu::BoardSetupInstructions,
+    vis_pieces::visual_piece_archetypes_storage::{BasePlatesDirectory, VisualPieceArchetype},
 };
 
 pub struct StartupPlugin;
 
 impl Plugin for StartupPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, tmp_startup);
+        // app.add_systems(OnEnter(AppState::InGame), tmp_create_board);
     }
 }
 #[derive(Debug, ScheduleLabel, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SetUpBoard;
 
-fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
-    commands.insert_resource(GameCreationSettings {
-        board_size: BoardSize::Standard,
-    });
-    commands.insert_resource(OperatingPlayer(PlayerId(0)));
-    commands.insert_resource(MultiplayerNetworkingMode::SingleDevice);
+pub type PlayerNames = PlayerData<String>;
+
+pub fn create_board(
+    commands: &mut Commands,
+    asset_server: &mut AssetServer,
+    instructions: BoardSetupInstructions,
+    networking_mode: MultiplayerNetworkingMode,
+) -> Result<(), BevyError> {
+    let player_names = PlayerNames::new(instructions.player_names);
+
+    let (logical_world, change_log) = CreationParameters {
+        board_size: instructions.board_size.ring_count(),
+        player_count: player_names.len() as u8,
+        all_cards: core_game_logic::logical_testing_assets::LOGICAL_CARDS_FOR_TESTING.into(),
+        all_markets: core_game_logic::logical_testing_assets::LOGICAL_MARKETS_FOR_TESTING.into(),
+        starting_cards: core_game_logic::logical_testing_assets::STARTING_CARDS_FOR_TESTING.into(),
+        piece_archetypes: core_game_logic::logical_testing_assets::LOGICAL_PIECES_FOR_TESTING
+            .into(),
+        orders: core_game_logic::logical_testing_assets::LOGICAL_ORDERS_FOR_TESTING.into(),
+    }
+    .create_logical_world();
+
+    commands.insert_resource(OperatingPlayer(
+        if let Some(id) = instructions.you_are_player {
+            player_names.make_id(id)?
+        } else {
+            logical_world.resource::<ActivePlayer>().0
+        },
+    ));
+
+    commands.insert_resource(LogicalWorld(logical_world));
+    {
+        let mut baseplate_assets = Vec::new();
+
+        for i in 0..player_names.len() {
+            baseplate_assets.push(match i {
+                0 => asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("base_plates/green_baseplate.glb"),
+                ),
+                1 => asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("base_plates/red_baseplate.glb"),
+                ),
+                2 => asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("base_plates/blue_baseplate.glb"),
+                ),
+                3 => asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("base_plates/yellow_baseplate.glb"),
+                ),
+                4 => asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("base_plates/purple_baseplate.glb"),
+                ),
+                5 => asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("base_plates/white_baseplate.glb"),
+                ),
+
+                _ => asset_server
+                    .load::<WorldAsset>(GltfAssetLabel::Scene(0).from_asset("VisualError3d.glb")),
+            })
+        }
+
+        commands.insert_resource(BasePlatesDirectory::new(
+            baseplate_assets.into_boxed_slice(),
+        ));
+    }
+
+    commands.insert_resource(player_names);
+
+    commands.insert_resource(instructions.board_size);
 
     commands.insert_resource(ActionInputManager::default());
 
@@ -99,16 +165,6 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
         ]),
     );
 
-    commands.insert_resource(
-        crate::vis_pieces::visual_piece_archetypes_storage::BasePlatesDirectory::new(&[
-            asset_server
-                .load(GltfAssetLabel::Scene(0).from_asset("base_plates/green_baseplate.glb")),
-            asset_server.load(GltfAssetLabel::Scene(0).from_asset("base_plates/red_baseplate.glb")),
-            asset_server
-                .load(GltfAssetLabel::Scene(0).from_asset("base_plates/yellow_baseplate.glb")),
-        ]),
-    );
-
     commands.insert_resource(VisOrderDirectory(
         [
             VisOrder {
@@ -130,18 +186,18 @@ fn tmp_startup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
         .into(),
     ));
 
-    commands.insert_resource(LogicalWorld(CreationParameters::testing_default()));
-
     commands.run_schedule(SetUpBoard);
+
+    for item in change_log.read() {
+        write_message(item.clone(), commands, &networking_mode);
+    }
+
+    Ok(())
 }
 
 #[derive(Resource, Debug)]
 pub struct LogicalWorld(pub World);
 
-#[derive(Debug, Resource)]
-pub struct GameCreationSettings {
-    pub board_size: BoardSize,
-}
 #[derive(Debug, Clone)]
 pub struct VisualCard {
     pub image: Handle<Image>,

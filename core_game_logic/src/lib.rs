@@ -1,6 +1,6 @@
 pub mod cards;
 pub mod forensic_action_descriptions;
-mod logical_testing_assets;
+pub mod logical_testing_assets;
 pub mod markets;
 pub mod orders;
 pub mod pieces;
@@ -10,12 +10,14 @@ pub mod tile_based_actions;
 pub mod tile_mapping;
 pub mod tiles;
 
+use std::{fmt::Debug, ops::Index};
+
 use crate::{
     cards::{CardId, LogicalCard, initialize_cards},
     markets::{LogicalMarket, MarketDirectory},
     orders::{LogicalOrder, initialize_orders},
     pieces::{LogicalPieceArchetype, OccupiedByPiece, initialize_pieces},
-    players::{ActivePlayer, PlayerId, initialize_players},
+    players::{ActivePlayer, PlayerDirectory, PlayerId, initialize_players},
     requests::ChangeLog,
     tile_mapping::TileId,
     tiles::initialize_tiles,
@@ -46,8 +48,13 @@ impl CreationParameters {
 
         logical_world.insert_resource(MarketDirectory::new(self.all_markets));
 
-        logical_world.insert_resource(ActivePlayer(PlayerId(0)));
-        let log = players::apply_start_turn_effects(&mut logical_world, PlayerId(0)).unwrap();
+        let starting_player = logical_world
+            .resource::<PlayerDirectory>()
+            .make_id(0)
+            .unwrap();
+
+        logical_world.insert_resource(ActivePlayer(starting_player));
+        let log = players::apply_start_turn_effects(&mut logical_world, starting_player);
 
         (logical_world, log)
     }
@@ -67,3 +74,9 @@ impl CreationParameters {
         parameters.create_logical_world().0
     }
 }
+
+pub trait IndexingId: Debug {}
+
+#[derive(Debug, thiserror::Error)]
+#[error("Tried to create an indexing id, but it was invalid. Attempted to create id: {0:?}")]
+pub struct InvalidIdErr<I: IndexingId>(pub I);
