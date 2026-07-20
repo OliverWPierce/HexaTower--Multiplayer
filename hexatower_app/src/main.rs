@@ -7,13 +7,9 @@ use bevy_renet::{
 use core_game_logic::players::PlayerId;
 
 use crate::{
-    functional_assets::{SetUpBoard, StartupPlugin},
-    inputs_interface::InputInterfacePlugin,
-    main_menu::MainMenuAndLobbyPluggin,
-    ui_panels::UiPanelsPlugin,
-    vis_markets::VisMarketsPlugin,
-    vis_pieces::VisPiecesPlugin,
-    vis_tiles::VisTilesPlugin,
+    functional_assets::SetUpBoard, inputs_interface::InputInterfacePlugin,
+    main_menu::MainMenuAndLobbyPluggin, ui_panels::UiPanelsPlugin, vis_markets::VisMarketsPlugin,
+    vis_pieces::VisPiecesPlugin, vis_tiles::VisTilesPlugin,
 };
 
 const VERSION_NUMBER: u64 = 0;
@@ -31,7 +27,6 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             MeshPickingPlugin,
-            StartupPlugin,
             VisTilesPlugin,
             InputInterfacePlugin,
             UiPanelsPlugin,

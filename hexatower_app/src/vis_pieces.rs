@@ -32,10 +32,7 @@ impl Plugin for VisPiecesPlugin {
 pub mod visual_piece_archetypes_storage {
 
     use bevy::prelude::*;
-    use core_game_logic::{
-        pieces::ArchetypeId,
-        players::{PlayerData, PlayerId},
-    };
+    use core_game_logic::{pieces::ArchetypeId, players::PlayerData};
     use thiserror::Error;
 
     #[derive(Debug, Resource)]

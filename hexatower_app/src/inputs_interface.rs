@@ -1,11 +1,7 @@
 use bevy::prelude::*;
 use bevy_renet::{RenetClient, RenetServer, renet::DefaultChannel};
-use core_game_logic::{
-    players::PlayerId,
-    requests::{
-        ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType,
-        try_consume_request,
-    },
+use core_game_logic::requests::{
+    ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType, try_consume_request,
 };
 pub use loaded_action_invariance::*;
 use serde::{Deserialize, Serialize};
@@ -244,7 +240,7 @@ fn try_execute_loaded_action(
     acting_player: Res<OperatingPlayer>,
     mut logical_world: ResMut<LogicalWorld>,
     mut commands: Commands,
-    mut client: Option<ResMut<RenetClient>>,
+    client: Option<ResMut<RenetClient>>,
     networking_mode: Res<MultiplayerNetworkingMode>,
 ) -> Result<(), BevyError> {
     let Some(action) = action_manager.loaded_action() else {

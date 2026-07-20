@@ -449,7 +449,6 @@ fn manage_market_ui_panel(
     logical_world: Res<LogicalWorld>,
     visual_markets: Res<VisMarketDirectory>,
     visual_cards: Res<VisCardDirectory>,
-    vis_cards: Res<VisCardDirectory>,
     vis_markets: Res<VisMarketDirectory>,
     vis_pieces: Res<VisualPieceArchetypeDirectory>,
     operating_player: Res<OperatingPlayer>,

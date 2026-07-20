@@ -10,7 +10,7 @@ pub mod tile_based_actions;
 pub mod tile_mapping;
 pub mod tiles;
 
-use std::{fmt::Debug, ops::Index};
+use std::fmt::Debug;
 
 use crate::{
     cards::{CardId, LogicalCard, initialize_cards},

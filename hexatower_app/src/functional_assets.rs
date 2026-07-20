@@ -4,24 +4,17 @@ use core_game_logic::{
     cards::CardId,
     markets::MarketId,
     orders::OrderId,
-    players::{ActivePlayer, PlayerData, PlayerId},
+    players::{ActivePlayer, PlayerData},
 };
 use thiserror::Error;
 
 use crate::{
-    AppState, OperatingPlayer,
+    OperatingPlayer,
     inputs_interface::{ActionInputManager, MultiplayerNetworkingMode, write_message},
     main_menu::BoardSetupInstructions,
     vis_pieces::visual_piece_archetypes_storage::{BasePlatesDirectory, VisualPieceArchetype},
 };
 
-pub struct StartupPlugin;
-
-impl Plugin for StartupPlugin {
-    fn build(&self, app: &mut App) {
-        // app.add_systems(OnEnter(AppState::InGame), tmp_create_board);
-    }
-}
 #[derive(Debug, ScheduleLabel, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SetUpBoard;
 

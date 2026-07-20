@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::net::UdpSocket;
+use std::net::{SocketAddr, UdpSocket};
 use std::time::SystemTime;
 
 use bevy::ecs::component::Mutable;
@@ -12,7 +12,7 @@ use bevy_renet::netcode::{
 };
 use bevy_renet::renet::{ConnectionConfig, DefaultChannel};
 use bevy_renet::{RenetClient, RenetServer};
-use core_game_logic::players::{PlayerData, PlayerId};
+use core_game_logic::players::PlayerData;
 use serde::{Deserialize, Serialize};
 
 use crate::VERSION_NUMBER;
@@ -180,9 +180,11 @@ fn render_parameters_screen(
     commands.entity(background_node.entity()).despawn_children();
 
     #[derive(Debug, Component)]
-    struct IpAdressCollectionNode;
+    struct ServerIpAdressCollectionNode;
     #[derive(Debug, Component)]
     struct GamertagCollectionNode;
+    #[derive(Debug, Component)]
+    struct ClientIpAdressCollectionNode;
 
     match *networking_mode {
         MultiplayerNetworkingMode::SingleDevice => todo!(),
@@ -203,7 +205,7 @@ fn render_parameters_screen(
                 ChildOf(background_node.entity()),
                 children![
                     (
-                        Text::new("IP address and port of game:"),
+                        Text::new("IP address and port of server:"),
                         TextFont::from_font_size(FontSize::Vh(2.0)),
                     ),
                     (
@@ -212,7 +214,45 @@ fn render_parameters_screen(
                             border: px(2).all(),
                             ..Default::default()
                         },
-                        IpAdressCollectionNode,
+                        ServerIpAdressCollectionNode,
+                        BorderColor::from(Color::from(SLATE_700)),
+                        EditableText {
+                            visible_width: Some(10.),
+                            allow_newlines: false,
+                            max_characters: Some(25),
+                            ..Default::default()
+                        },
+                        TextLayout::no_wrap(),
+                        TextFont {
+                            font_size: FontSize::Vh(4.0),
+                            ..default()
+                        },
+                        TextCursorStyle::default(),
+                        BackgroundColor(SLATE_800.into()),
+                    )
+                ],
+            ));
+
+            commands.spawn((
+                Node {
+                    width: Val::Percent(25.0),
+                    height: Val::Vh(7.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ChildOf(background_node.entity()),
+                children![
+                    (
+                        Text::new("IP address and port to receive client messages on:"),
+                        TextFont::from_font_size(FontSize::Vh(2.0)),
+                    ),
+                    (
+                        Node {
+                            width: Val::Percent(100.0),
+                            border: px(2).all(),
+                            ..Default::default()
+                        },
+                        ClientIpAdressCollectionNode,
                         BorderColor::from(Color::from(SLATE_700)),
                         EditableText {
                             visible_width: Some(10.),
@@ -301,11 +341,19 @@ fn render_parameters_screen(
                 .observe(
                     |_: On<Pointer<Click>>,
                      mut commands: Commands,
-                     ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
+                     server_adress: Single<&EditableText, With<ServerIpAdressCollectionNode>>,
                      name: Single<&EditableText, With<GamertagCollectionNode>>,
+                     client_address: Single<&EditableText, With<ClientIpAdressCollectionNode>>,
                      mut state: ResMut<NextState<AppState>>| {
-                        let Ok(server_addr) = ip_address.value().to_string().parse() else {
-                            warn!("Invalid IP adress");
+                        let Ok(server_addr) = server_adress.value().to_string().parse() else {
+                            warn!("Invalid server IP adress");
+                            return;
+                        };
+
+                        let Ok(client_addr) =
+                            client_address.value().to_string().parse::<SocketAddr>()
+                        else {
+                            warn!("Invalid client IP adress");
                             return;
                         };
 
@@ -341,8 +389,7 @@ fn render_parameters_screen(
                             NetcodeServerTransport::new(server_config, socket).unwrap();
                         commands.insert_resource(server_transport);
 
-                        let client_adrr = "127.0.0.1:0".to_string();
-                        let socket = UdpSocket::bind(client_adrr).unwrap();
+                        let socket = UdpSocket::bind(client_addr).unwrap();
                         let current_time = SystemTime::now()
                             .duration_since(SystemTime::UNIX_EPOCH)
                             .unwrap();
@@ -398,7 +445,45 @@ fn render_parameters_screen(
                             border: px(2).all(),
                             ..Default::default()
                         },
-                        IpAdressCollectionNode,
+                        ServerIpAdressCollectionNode,
+                        BorderColor::from(Color::from(SLATE_700)),
+                        EditableText {
+                            visible_width: Some(10.),
+                            allow_newlines: false,
+                            max_characters: Some(25),
+                            ..Default::default()
+                        },
+                        TextLayout::no_wrap(),
+                        TextFont {
+                            font_size: FontSize::Vh(4.0),
+                            ..default()
+                        },
+                        TextCursorStyle::default(),
+                        BackgroundColor(SLATE_800.into()),
+                    )
+                ],
+            ));
+
+            commands.spawn((
+                Node {
+                    width: Val::Percent(25.0),
+                    height: Val::Vh(7.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ChildOf(background_node.entity()),
+                children![
+                    (
+                        Text::new("IP address and port to receive client messages on:"),
+                        TextFont::from_font_size(FontSize::Vh(2.0)),
+                    ),
+                    (
+                        Node {
+                            width: Val::Percent(100.0),
+                            border: px(2).all(),
+                            ..Default::default()
+                        },
+                        ClientIpAdressCollectionNode,
                         BorderColor::from(Color::from(SLATE_700)),
                         EditableText {
                             visible_width: Some(10.),
@@ -481,8 +566,9 @@ fn render_parameters_screen(
                 .observe(
                     |_: On<Pointer<Click>>,
                      mut commands: Commands,
-                     ip_address: Single<&EditableText, With<IpAdressCollectionNode>>,
+                     server_address: Single<&EditableText, With<ServerIpAdressCollectionNode>>,
                      name: Single<&EditableText, With<GamertagCollectionNode>>,
+                     client_address: Single<&EditableText, With<ClientIpAdressCollectionNode>>,
                      mut state: ResMut<NextState<AppState>>| {
                         if name.value().into_iter().len() > 15 {
                             warn!("Client's name is too long.");
@@ -499,8 +585,15 @@ fn render_parameters_screen(
                             return;
                         };
 
-                        let Ok(server_addr) = ip_address.value().to_string().parse() else {
+                        let Ok(server_addr) = server_address.value().to_string().parse() else {
                             warn!("Invalid IP adress");
+                            return;
+                        };
+
+                        let Ok(client_addr) =
+                            client_address.value().to_string().parse::<SocketAddr>()
+                        else {
+                            warn!("Invalid client IP adress");
                             return;
                         };
 
@@ -512,13 +605,12 @@ fn render_parameters_screen(
 
                         let authentication = ClientAuthentication::Unsecure {
                             server_addr,
-                            client_id: (time.as_secs_f64() * 1000.0) as u64,
+                            client_id: rand::random::<u64>(),
                             user_data: None,
                             protocol_id: VERSION_NUMBER,
                         };
 
-                        let client_adrr = "127.0.0.1:0".to_string();
-                        let socket = UdpSocket::bind(client_adrr).unwrap();
+                        let socket = UdpSocket::bind(client_addr).unwrap();
                         let current_time = time;
 
                         let transport =
