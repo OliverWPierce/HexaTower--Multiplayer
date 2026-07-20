@@ -53,7 +53,13 @@ fn end_turn(
     mut action_input_manager: ResMut<ActionInputManager>,
     networking_mode: Res<MultiplayerNetworkingMode>,
     acting_player: Res<OperatingPlayer>,
+    client: Option<ResMut<RenetClient>>,
 ) -> Result<(), BevyError> {
+    let request = BackendRequest {
+        acting_player: acting_player.0,
+        request: RequestType::EndTurn,
+    };
+
     let change_log = try_consume_request(
         BackendRequest {
             acting_player: acting_player.0,
@@ -61,6 +67,13 @@ fn end_turn(
         },
         &mut logical_world.0,
     )?;
+
+    if let Some(mut client) = client {
+        client.send_message(
+            DefaultChannel::ReliableOrdered,
+            postcard::to_stdvec(&NetworkTransmission::ActionDone(request)).unwrap(),
+        );
+    }
 
     for item in change_log.read() {
         write_message(item.clone(), &mut commands, &networking_mode);
