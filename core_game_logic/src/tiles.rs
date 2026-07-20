@@ -5,6 +5,9 @@ use thiserror::Error;
 use crate::{markets::MarketId, tile_mapping::TileId};
 
 pub fn initialize_tiles(world: &mut World, ring_count: u32) {
+    let _ = world.register_component::<TileId>();
+    let _ = world.register_component::<MarketTile>();
+
     let ordered_tiles = world
         .spawn_batch(
             (0..(3 * (ring_count + 1) * ring_count + 1))

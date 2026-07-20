@@ -46,9 +46,19 @@ impl TileActionFunctionality for MakeMarketTile {
     fn update_eligibility(
         &self,
         selection_status: &mut super::selection_mechanics::SelectionData,
-        _world: &bevy::ecs::world::World,
+        world: &bevy::ecs::world::World,
     ) {
         selection_status.set_all_possible_elligible();
+
+        for (tile_id, entity) in world.resource::<TileDirectory>().id_entity_pairs() {
+            if world.get::<MarketTile>(entity).is_none() {
+                continue;
+            }
+
+            selection_status
+                .try_set_state(tile_id, super::State::Neither)
+                .unwrap()
+        }
     }
 }
 

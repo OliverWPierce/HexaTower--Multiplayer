@@ -15,6 +15,7 @@ use crate::{
 pub struct ArchetypeDirectory(Box<[LogicalPieceArchetype]>);
 
 pub fn initialize_pieces(world: &mut World, piece_archetypes: Box<[LogicalPieceArchetype]>) {
+    let _ = world.register_component::<OccupiedByPiece>();
     world.insert_resource(ArchetypeDirectory(piece_archetypes));
 }
 

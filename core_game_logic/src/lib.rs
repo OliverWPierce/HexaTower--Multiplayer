@@ -16,10 +16,9 @@ use crate::{
     cards::{CardId, LogicalCard, initialize_cards},
     markets::{LogicalMarket, MarketDirectory},
     orders::{LogicalOrder, initialize_orders},
-    pieces::{LogicalPieceArchetype, OccupiedByPiece, initialize_pieces},
-    players::{ActivePlayer, PlayerDirectory, PlayerId, initialize_players},
+    pieces::{LogicalPieceArchetype, initialize_pieces},
+    players::{ActivePlayer, PlayerDirectory, initialize_players},
     requests::ChangeLog,
-    tile_mapping::TileId,
     tiles::initialize_tiles,
 };
 
@@ -36,9 +35,6 @@ pub struct CreationParameters {
 impl CreationParameters {
     pub fn create_logical_world(self) -> (bevy::ecs::world::World, ChangeLog) {
         let mut logical_world = bevy::ecs::world::World::new();
-
-        let _ = logical_world.register_component::<TileId>();
-        let _ = logical_world.register_component::<OccupiedByPiece>();
 
         initialize_tiles(&mut logical_world, self.board_size);
         initialize_cards(&mut logical_world, self.all_cards);
