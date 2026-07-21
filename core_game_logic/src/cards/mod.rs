@@ -12,8 +12,10 @@ use crate::{
     players::ActivePlayer,
     requests::ActionProcessCache,
     tile_based_actions::{
-        self, TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo,
-        make_market_tile::MakeMarketTile, spawn_pieces::SpawnPieces,
+        self, TileAction, TileActionProcessCache,
+        change_tile_type::ConvertTileTo,
+        make_market_tile::MakeMarketTile,
+        spawn_pieces::{SpawnPieces, SpawningRestrictions},
     },
     tiles::TileType,
 };
@@ -27,6 +29,7 @@ pub enum CardFunction {
     SpawnPiece {
         selection_bounds: Range<usize>,
         piece_archetype: ArchetypeId,
+        restrictions: SpawningRestrictions,
     },
     SpawnMarket {
         selection_bounds: Range<usize>,
@@ -75,11 +78,13 @@ impl CardFunction {
             CardFunction::SpawnPiece {
                 selection_bounds,
                 piece_archetype,
+                restrictions,
             } => TileActionProcessCache::initialize(
                 TileAction::new(
                     SpawnPieces {
                         archetype: *piece_archetype,
                         owner: world.resource::<ActivePlayer>().0,
+                        restrictions: *restrictions,
                     },
                     selection_bounds.clone(),
                 )?,

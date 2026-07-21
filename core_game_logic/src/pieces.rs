@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{
     orders::OrderId,
-    players::{Coins, PlayerId},
+    players::{Coins, PlayerId, PlayerOrdersRemaining},
     requests::{ActionEffect, ChangeLog},
     tile_mapping::{
         HexVector2d, NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST, TileId,
@@ -16,6 +16,18 @@ pub struct ArchetypeDirectory(Box<[LogicalPieceArchetype]>);
 
 pub fn initialize_pieces(world: &mut World, piece_archetypes: Box<[LogicalPieceArchetype]>) {
     let _ = world.register_component::<OccupiedByPiece>();
+    let _ = world.register_component::<IsSpawnPoint>();
+    let _ = world.register_component::<PieceOwnedByPlayer>();
+    let _ = world.register_component::<OwnsPieces>();
+    let _ = world.register_component::<IsWinCondition>();
+    let _ = world.register_component::<GivesExtraPlayerOrder>();
+    let _ = world.register_component::<Health>();
+    let _ = world.register_component::<OrdersReceivable>();
+    let _ = world.register_component::<PlayerOrdersRemaining>();
+    let _ = world.register_component::<MonetaryValue>();
+    let _ = world.register_component::<FacingHexDirection>();
+    let _ = world.register_component::<OccupiesTile>();
+
     world.insert_resource(ArchetypeDirectory(piece_archetypes));
 }
 
@@ -27,6 +39,7 @@ pub struct LogicalPieceArchetype {
     pub gives_extra_player_order: bool,
     pub default_monetary_value: u32,
     pub is_win_condition: bool,
+    pub is_spawnpoint: bool,
 }
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -35,6 +48,9 @@ pub struct ArchetypeId(pub u32);
 #[derive(Debug, Error)]
 #[error{"Tried to get a piece archetype which did not exist for this game {0:?}."}]
 pub struct InvaildIDErr(pub ArchetypeId);
+
+#[derive(Debug, Component)]
+pub struct IsSpawnPoint;
 
 impl ArchetypeDirectory {
     pub fn get_archetype(

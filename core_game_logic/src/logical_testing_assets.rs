@@ -3,6 +3,7 @@ use crate::{
     markets::{CardPrice, LogicalMarket, MarketId},
     orders::{LogicalOrder, OrderId},
     pieces::{ArchetypeId, LogicalPieceArchetype, Orders},
+    tile_based_actions::spawn_pieces::SpawningRestrictions,
     tiles::TileType,
 };
 // only used in testing
@@ -24,6 +25,7 @@ pub const LOGICAL_CARDS_FOR_TESTING: [LogicalCard; 6] = [
         functionality: CardFunction::SpawnPiece {
             selection_bounds: 1..2,
             piece_archetype: ArchetypeId(1),
+            restrictions: SpawningRestrictions::Anywhere,
         },
     },
     LogicalCard {
@@ -36,12 +38,14 @@ pub const LOGICAL_CARDS_FOR_TESTING: [LogicalCard; 6] = [
         functionality: CardFunction::SpawnPiece {
             selection_bounds: 1..1,
             piece_archetype: ArchetypeId(2),
+            restrictions: SpawningRestrictions::StandardRestrictions,
         },
     },
     LogicalCard {
         functionality: CardFunction::SpawnPiece {
             selection_bounds: 1..1,
             piece_archetype: ArchetypeId(0),
+            restrictions: SpawningRestrictions::StandardRestrictions,
         },
     },
 ];
@@ -61,7 +65,7 @@ pub const LOGICAL_MARKETS_FOR_TESTING: [LogicalMarket; 2] = [
 ];
 //only used in testing.
 #[allow(unused)]
-pub const STARTING_CARDS_FOR_TESTING: [CardId; 4] = [CardId(0), CardId(1), CardId(2), CardId(3)];
+pub const STARTING_CARDS_FOR_TESTING: [CardId; 4] = [CardId(5), CardId(4), CardId(2), CardId(3)];
 
 //only used in testing.
 #[allow(unused)]
@@ -79,6 +83,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
         gives_extra_player_order: false,
         default_monetary_value: 5,
         is_win_condition: false,
+        is_spawnpoint: false,
     },
     LogicalPieceArchetype {
         max_health: 1,
@@ -90,9 +95,10 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
             None,
             None,
         ]),
-        gives_extra_player_order: false,
+        gives_extra_player_order: true,
         default_monetary_value: 4,
         is_win_condition: true,
+        is_spawnpoint: true,
     },
     LogicalPieceArchetype {
         max_health: 12,
@@ -101,6 +107,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
         gives_extra_player_order: true,
         default_monetary_value: 8,
         is_win_condition: false,
+        is_spawnpoint: false,
     },
 ];
 
