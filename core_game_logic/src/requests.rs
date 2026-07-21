@@ -256,7 +256,7 @@ pub fn try_consume_request(
             market_tile,
             slot_in_market,
         } => {
-            let tile_entity = world.resource::<TileDirectory>().get_entity(market_tile)?;
+            let tile_entity = world.resource::<TileDirectory>().get_entity(market_tile);
             let player_ent = *world
                 .resource::<PlayerDirectory>()
                 .get(request_to_process.acting_player);
@@ -337,7 +337,7 @@ pub fn try_consume_request(
             index_of_order,
         } => {
             let piece = world
-                .get::<OccupiedByPiece>(world.resource::<TileDirectory>().get_entity(tile)?)
+                .get::<OccupiedByPiece>(world.resource::<TileDirectory>().get_entity(tile))
                 .ok_or(NoPieceOnTile(tile))?
                 .piece();
 

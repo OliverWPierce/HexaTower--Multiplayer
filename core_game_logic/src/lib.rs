@@ -75,4 +75,10 @@ pub trait IndexingId: Debug {}
 
 #[derive(Debug, thiserror::Error)]
 #[error("Tried to create an indexing id, but it was invalid. Attempted to create id: {0:?}")]
-pub struct InvalidIdErr<I: IndexingId>(pub I);
+pub struct InvalidIdErr<I: IndexingId>(I);
+
+impl<I: IndexingId> InvalidIdErr<I> {
+    fn new(id: I) -> Self {
+        Self(id)
+    }
+}

@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{pieces::FacingHexDirection, tile_mapping::TileId, tiles};
+use crate::{
+    pieces::FacingHexDirection,
+    tile_mapping::{TileId, TileIdServer},
+    tiles,
+};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum State {
@@ -31,9 +35,10 @@ pub enum SelectionError {
 }
 
 impl SelectionData {
-    pub fn new(tiles_on_board: usize) -> Self {
+    pub fn new(total_tile_count: TileIdServer) -> Self {
         SelectionData {
-            all_tile_states: vec![State::Neither; tiles_on_board].into_boxed_slice(),
+            all_tile_states: vec![State::Neither; total_tile_count.total_tiles_on_board as usize]
+                .into_boxed_slice(),
             ordered_selections: Vec::new(),
         }
     }

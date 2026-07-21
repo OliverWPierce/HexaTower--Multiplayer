@@ -7,8 +7,8 @@ use crate::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     requests::ChangeLog,
     tile_based_actions::selection_mechanics::{SelectionData, SelectionError},
-    tile_mapping::TileId,
-    tiles::{InvaildIDErr, TileDirectory},
+    tile_mapping::{TileId, TileIdServer},
+    tiles::TileDirectory,
 };
 
 pub mod change_tile_type;
@@ -67,8 +67,7 @@ pub struct TileActionProcessCache {
 
 impl TileActionProcessCache {
     pub fn initialize(action: TileAction, world: &World) -> Self {
-        let tiles_on_board = world.resource::<TileDirectory>().tile_count();
-        let mut initial_selection_data = SelectionData::new(tiles_on_board);
+        let mut initial_selection_data = SelectionData::new(*world.resource::<TileIdServer>());
 
         action
             .action_functionality

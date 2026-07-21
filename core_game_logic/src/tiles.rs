@@ -1,37 +1,39 @@
 use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
 
-use thiserror::Error;
-
-use crate::{markets::MarketId, tile_mapping::TileId};
+use crate::{
+    IndexingId, InvalidIdErr,
+    markets::MarketId,
+    tile_mapping::{TileId, TileIdServer},
+};
 
 pub fn initialize_tiles(world: &mut World, ring_count: u32) {
     let _ = world.register_component::<TileId>();
     let _ = world.register_component::<MarketTile>();
 
+    let tile_server = TileIdServer {
+        total_tiles_on_board: (3 * (ring_count + 1) * ring_count + 1),
+    };
+
     let ordered_tiles = world
         .spawn_batch(
-            (0..(3 * (ring_count + 1) * ring_count + 1))
-                .map(|id| (TileId::new(id), TileType::Basic)),
+            (0..tile_server.total_tiles_on_board)
+                .map(|id| (tile_server.construct_tile_id(id).unwrap(), TileType::Basic)),
         )
         .collect::<Vec<Entity>>()
         .into_boxed_slice();
 
     world.insert_resource(TileDirectory(ordered_tiles));
+    world.insert_resource(tile_server);
 }
+
+impl IndexingId for TileId {}
 
 #[derive(Debug, Resource)]
 pub struct TileDirectory(Box<[Entity]>);
 
-#[derive(Debug, Error)]
-#[error{"Tried to get a tile which was out of bounds for this board size."}]
-pub struct InvaildIDErr(pub TileId);
-
 impl TileDirectory {
-    pub fn get_entity(&self, tile_id: TileId) -> Result<Entity, InvaildIDErr> {
-        self.0
-            .get(tile_id.id() as usize)
-            .copied()
-            .ok_or(InvaildIDErr(tile_id))
+    pub fn get_entity(&self, tile: TileId) -> Entity {
+        self.0[tile.id() as usize]
     }
 
     pub fn tile_entities(&self) -> &[Entity] {
@@ -39,15 +41,14 @@ impl TileDirectory {
     }
 
     pub fn id_entity_pairs(&self) -> impl Iterator<Item = (TileId, Entity)> {
+        let server = TileIdServer {
+            total_tiles_on_board: self.0.len() as u32,
+        };
+
         self.0
             .iter()
             .enumerate()
-            .map(|(id, ent)| (TileId::new(id as u32), *ent))
-    }
-
-    /// This is the total number of tiles on the board, as you would count them (not programmer counting where we start at zero).
-    pub fn tile_count(&self) -> usize {
-        self.0.len()
+            .map(move |(index, ent)| (server.construct_tile_id(index as u32).unwrap(), *ent))
     }
 }
 

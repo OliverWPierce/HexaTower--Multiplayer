@@ -5,26 +5,42 @@ use std::{
 };
 
 use bevy::{
-    ecs::component::Component,
+    ecs::{component::Component, resource::Resource},
     math::{Vec2, Vec3},
 };
 use serde::{Deserialize, Serialize};
+
+use crate::InvalidIdErr;
 
 /// Tile ids start at zero and work counter clockwise from the origin, starting at the tile directly beneath the origin.
 #[derive(Debug, Component, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 #[component(immutable)]
 pub struct TileId(u32);
 
-pub const SQRT_3: f32 = 1.7320508;
+#[derive(Debug, Resource, Clone, Copy)]
+pub struct TileIdServer {
+    /// the number of tiles on the board, as one would count them. (so, if the maximum id is 59, this number is 60.)
+    pub total_tiles_on_board: u32,
+}
 
 impl TileId {
-    pub fn new(id: u32) -> Self {
-        TileId(id)
-    }
     pub fn id(&self) -> u32 {
         self.0
     }
 }
+
+impl TileIdServer {
+    pub fn construct_tile_id(&self, id: u32) -> Result<TileId, InvalidIdErr<TileId>> {
+        if (0..self.total_tiles_on_board).contains(&id) {
+            Ok(TileId(id))
+        } else {
+            Err(InvalidIdErr::new(TileId(id)))
+        }
+    }
+}
+
+pub const SQRT_3: f32 = 1.7320508;
+
 /// The total number of tiles on the board, including the tile with id zero. This is based on the number of rings the board was created with, with tile zero counted as ring zero. (ie. the first ring to actually look like a ring is ring 1.)
 pub fn tiles_on_board(rings_on_board: u32) -> u32 {
     (3 * (rings_on_board + 1) * rings_on_board) + 1
@@ -184,7 +200,7 @@ mod tests {
     #[test]
     fn tile_conversions() {
         for id in 0..10000 {
-            let start_id = TileId::new(id);
+            let start_id = TileId(id);
 
             let end_id: TileId = HexVector2d::from(start_id).into();
 
@@ -197,8 +213,8 @@ mod tests {
     #[test]
     fn test_adjacencies() {
         for id in 0..61 {
-            let northern_adjaceny: TileId = (HexVector2d::from(TileId::new(id)) + NORTH).into();
-            println!("The tile north of {id} is {}", northern_adjaceny.id());
+            let northern_adjaceny: TileId = (HexVector2d::from(TileId(id)) + NORTH).into();
+            println!("The tile north of {id} is {}", northern_adjaceny.0);
         }
     }
 }
