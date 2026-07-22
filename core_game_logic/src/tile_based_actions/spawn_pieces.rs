@@ -25,6 +25,7 @@ pub struct SpawnPieces {
 pub enum SpawningRestrictions {
     Anywhere,
     StandardRestrictions,
+    TowerSpawns,
 }
 
 impl TileActionFunctionalityCapabilityConstants for SpawnPieces {
@@ -158,18 +159,58 @@ impl TileActionFunctionality for SpawnPieces {
                     selection_status.maybe_set_inelligible(tile);
                 }
             }
+            SpawningRestrictions::TowerSpawns => {
+                selection_status.set_all_possible_elligible();
+
+                let friendly_player = *world.resource::<PlayerDirectory>().get(self.owner);
+                let tile_server = world.resource::<TileIdServer>();
+
+                for (tile, piece) in world
+                    .try_query::<(&TileId, &OccupiedByPiece)>()
+                    .unwrap()
+                    .iter(world)
+                {
+                    selection_status.maybe_set_inelligible(*tile);
+                    if world.get::<IsSpawnPoint>(piece.piece()).is_some()
+                        && let Some(PieceOwnedByPlayer(owner)) =
+                            world.get::<PieceOwnedByPlayer>(piece.piece())
+                        && *owner != friendly_player
+                    {
+                        let vectors_adjacent_to_enemy_spawnpoints =
+                            HexVector2d::from(*tile).adjacencies();
+
+                        for vector in vectors_adjacent_to_enemy_spawnpoints {
+                            if let Some(tile) = vector.to_valid_tile_id(tile_server) {
+                                selection_status.maybe_set_inelligible(tile);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 impl ForensicDescribe for SpawnPieces {
     fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
-        Box::new([
+        let mut text_fragments = vec![
             TextSnippet::new_basic_text("Spawn "),
             TextSnippet::Link(LinkedGamplayElement::Piece(self.archetype)),
             TextSnippet::new_basic_text(" on selected tiles."),
             TextSnippet::Link(LinkedGamplayElement::Player(self.owner)),
             TextSnippet::new_basic_text(" will own and command this piece."),
-        ])
+        ];
+
+        match self.restrictions {
+            SpawningRestrictions::Anywhere => (),
+            SpawningRestrictions::StandardRestrictions => text_fragments.push(TextSnippet::new_basic_text(
+                "Piece must be spawned next to a friendly spawnpoint and away from an enemy spawnpoint.",
+            )),
+            SpawningRestrictions::TowerSpawns => text_fragments.push(TextSnippet::new_basic_text(
+                "Piece can be spawned anywhere, except next to enemy spawnpoints.",
+            )),
+        }
+
+        text_fragments.into_boxed_slice()
     }
 }

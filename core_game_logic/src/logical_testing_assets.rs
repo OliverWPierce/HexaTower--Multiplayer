@@ -25,7 +25,7 @@ pub const LOGICAL_CARDS_FOR_TESTING: [LogicalCard; 6] = [
         functionality: CardFunction::SpawnPiece {
             selection_bounds: 1..2,
             piece_archetype: ArchetypeId(1),
-            restrictions: SpawningRestrictions::Anywhere,
+            restrictions: SpawningRestrictions::TowerSpawns,
         },
     },
     LogicalCard {

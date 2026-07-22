@@ -86,7 +86,7 @@ impl OwnsPieces {
     }
 }
 
-// It is important to note that not all piece's have owners. For example, if a player dies and their pieces are for sale, their pieces lack an owner.
+/// It is important to note that not all piece's have owners. For example, if a player dies and their pieces are for sale, their pieces lack an owner.
 #[derive(Component)]
 #[relationship(relationship_target = OwnsPieces)]
 pub struct PieceOwnedByPlayer(pub Entity);
