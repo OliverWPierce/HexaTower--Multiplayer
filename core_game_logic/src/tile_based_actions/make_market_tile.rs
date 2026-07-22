@@ -24,12 +24,7 @@ impl TileActionFunctionality for MakeMarketTile {
         world.insert_batch(
             validated_selections
                 .iter()
-                .map(|tile| {
-                    (
-                        tile_entities.get_entity(tile.id).unwrap(),
-                        MarketTile(self.market),
-                    )
-                })
+                .map(|tile| (tile_entities.get_entity(tile.id), MarketTile(self.market)))
                 .collect::<Box<[_]>>(),
         );
 
@@ -55,9 +50,7 @@ impl TileActionFunctionality for MakeMarketTile {
                 continue;
             }
 
-            selection_status
-                .try_set_state(tile_id, super::State::Neither)
-                .unwrap()
+            selection_status.maybe_set_inelligible(tile_id);
         }
     }
 }

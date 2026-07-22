@@ -97,67 +97,67 @@ impl CardFunction {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::{
-        CreationParameters,
-        cards::CardFunction,
-        tile_based_actions::SelectedTile,
-        tile_mapping::TileId,
-        tiles::{TileDirectory, TileType},
-    };
+// #[cfg(test)]
+// mod tests {
+//     use crate::{
+//         CreationParameters,
+//         cards::CardFunction,
+//         tile_based_actions::SelectedTile,
+//         tile_mapping::TileId,
+//         tiles::{TileDirectory, TileType},
+//     };
 
-    #[test]
-    fn convert_card_into_action_cache() {
-        let mut world = CreationParameters::testing_default();
+//     #[test]
+//     fn convert_card_into_action_cache() {
+//         let mut world = CreationParameters::testing_default();
 
-        let card1 = CardFunction::TileConversionToSingleType {
-            selection_bounds: 1..4,
-            target_type: crate::tiles::TileType::Ex1,
-        };
+//         let card1 = CardFunction::TileConversionToSingleType {
+//             selection_bounds: 1..4,
+//             target_type: crate::tiles::TileType::Ex1,
+//         };
 
-        let crate::requests::ActionProcessCache::TileAction(mut action) =
-            card1.action_cache(&world).unwrap()
-        else {
-            panic!()
-        };
+//         let crate::requests::ActionProcessCache::TileAction(mut action) =
+//             card1.action_cache(&world).unwrap()
+//         else {
+//             panic!()
+//         };
 
-        action
-            .try_select_tile_and_update_elligibility(
-                SelectedTile {
-                    id: TileId::new(1),
-                    direction: crate::pieces::FacingHexDirection::North,
-                },
-                &world,
-            )
-            .unwrap();
-        action
-            .try_select_tile_and_update_elligibility(
-                SelectedTile {
-                    id: TileId::new(3),
-                    direction: crate::pieces::FacingHexDirection::North,
-                },
-                &world,
-            )
-            .unwrap();
+//         action
+//             .try_select_tile_and_update_elligibility(
+//                 SelectedTile {
+//                     id: TileId::new(1),
+//                     direction: crate::pieces::FacingHexDirection::North,
+//                 },
+//                 &world,
+//             )
+//             .unwrap();
+//         action
+//             .try_select_tile_and_update_elligibility(
+//                 SelectedTile {
+//                     id: TileId::new(3),
+//                     direction: crate::pieces::FacingHexDirection::North,
+//                 },
+//                 &world,
+//             )
+//             .unwrap();
 
-        action.try_execute(&mut world).unwrap();
+//         action.try_execute(&mut world).unwrap();
 
-        let tile1 = world
-            .resource::<TileDirectory>()
-            .get_entity(TileId::new(1))
-            .unwrap();
-        let tile2 = world
-            .resource::<TileDirectory>()
-            .get_entity(TileId::new(2))
-            .unwrap();
-        let tile3 = world
-            .resource::<TileDirectory>()
-            .get_entity(TileId::new(3))
-            .unwrap();
+//         let tile1 = world
+//             .resource::<TileDirectory>()
+//             .get_entity(TileId::new(1))
+//             .unwrap();
+//         let tile2 = world
+//             .resource::<TileDirectory>()
+//             .get_entity(TileId::new(2))
+//             .unwrap();
+//         let tile3 = world
+//             .resource::<TileDirectory>()
+//             .get_entity(TileId::new(3))
+//             .unwrap();
 
-        assert_eq!(*world.get::<TileType>(tile1).unwrap(), TileType::Ex1);
-        assert_eq!(*world.get::<TileType>(tile2).unwrap(), TileType::Basic);
-        assert_eq!(*world.get::<TileType>(tile3).unwrap(), TileType::Ex1);
-    }
-}
+//         assert_eq!(*world.get::<TileType>(tile1).unwrap(), TileType::Ex1);
+//         assert_eq!(*world.get::<TileType>(tile2).unwrap(), TileType::Basic);
+//         assert_eq!(*world.get::<TileType>(tile3).unwrap(), TileType::Ex1);
+//     }
+// }

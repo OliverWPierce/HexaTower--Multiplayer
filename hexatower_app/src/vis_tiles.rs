@@ -18,7 +18,6 @@ use crate::{
     AppState,
     functional_assets::{LogicalWorld, SetUpBoard},
     inputs_interface::ActionInputManager,
-    main_menu::PresetBoardSizes,
     vis_pieces::VisOccupies,
 };
 
@@ -62,7 +61,7 @@ fn spawn_tiles_and_initialize_inficators(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    board_size: Res<PresetBoardSizes>,
+    logical_world: Res<LogicalWorld>,
 ) {
     let tile_models = TileModels {
         basic: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/basic_tile.glb")),
@@ -91,8 +90,10 @@ fn spawn_tiles_and_initialize_inficators(
 
     let mut vis_tiles = Vec::new();
 
-    for tile_id in 0..core_game_logic::tile_mapping::tiles_on_board(board_size.ring_count()) {
-        let tile_id = TileId::new(tile_id);
+    let tile_id_server = logical_world.0.resource::<TileIdServer>();
+
+    for tile_id in 0..tile_id_server.total_tiles_on_board {
+        let tile_id = tile_id_server.construct_tile_id(tile_id).unwrap();
         let horizontal_location: Vec2 = HexVector2d::from(tile_id).into();
 
         let new_vis_tile = commands
@@ -249,7 +250,7 @@ fn indicate_direction(
     if let Ok(&ChildOf(parent)) = tile_meshes.get(trigger.entity)
         && let Ok(tile) = tiles.get(parent)
         && let Some(ActionProcessCache::TileAction(selection_data)) = loaded_action.process_cache()
-        && *selection_data.get_tile_state(*tile)?
+        && *selection_data.get_tile_state(*tile)
             == core_game_logic::tile_based_actions::State::Elligible
         && let Some(target) = trigger.hit.position
     {

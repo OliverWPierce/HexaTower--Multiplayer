@@ -1,4 +1,7 @@
-use std::{fmt::Debug, ops::Range};
+use std::{
+    fmt::Debug,
+    ops::{Index, Range},
+};
 
 use bevy::ecs::world::World;
 use thiserror::Error;
@@ -6,9 +9,8 @@ use thiserror::Error;
 use crate::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     requests::ChangeLog,
-    tile_based_actions::selection_mechanics::{SelectionData, SelectionError},
+    tile_based_actions::selection_mechanics::{InvalidSelection, SelectionData},
     tile_mapping::{TileId, TileIdServer},
-    tiles::TileDirectory,
 };
 
 pub mod change_tile_type;
@@ -87,14 +89,12 @@ impl TileActionProcessCache {
         &mut self,
         hopeful_tile: SelectedTile,
         world: &World,
-    ) -> Result<(), SelectionError> {
-        self.selections.try_set_state(
-            hopeful_tile.id,
-            selection_mechanics::State::Selected(hopeful_tile.direction),
-        )?;
+    ) -> Result<(), InvalidSelection> {
+        self.selections
+            .try_select(hopeful_tile.id, hopeful_tile.direction)?;
 
         if self.selections.selection_count() >= self.action.tile_range_for_execution.end {
-            self.selections.clear_elligibles();
+            self.selections.set_all_possible_inelligible();
         } else {
             self.action
                 .action_functionality
@@ -131,11 +131,8 @@ impl TileActionProcessCache {
         self.selections.get_validated_ordered_selections()
     }
 
-    pub fn get_tile_state(&self, tile: TileId) -> Result<&State, InvaildIDErr> {
-        self.selections
-            .get_states()
-            .get(tile.id() as usize)
-            .ok_or(InvaildIDErr(tile))
+    pub fn get_tile_state(&self, tile: TileId) -> &State {
+        self.selections.get_states().index(tile.id() as usize)
     }
 }
 

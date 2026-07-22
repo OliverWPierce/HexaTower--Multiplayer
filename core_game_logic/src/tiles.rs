@@ -1,7 +1,7 @@
 use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
 
 use crate::{
-    IndexingId, InvalidIdErr,
+    IndexingId,
     markets::MarketId,
     tile_mapping::{TileId, TileIdServer},
 };

@@ -459,7 +459,7 @@ fn manage_market_ui_panel(
             logical_world
                 .0
                 .resource::<TileDirectory>()
-                .get_entity(active_tile)?,
+                .get_entity(active_tile),
         )
     {
         if let Some(FrontendAction::PurchaseCard { slot }) = manager.loaded_action() {

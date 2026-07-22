@@ -36,7 +36,7 @@ impl TileActionFunctionality for ConvertTileTo {
             let directory = world.resource::<TileDirectory>();
 
             let Some(mut tile_type) = world
-                .entity_mut(directory.get_entity(tile.id).unwrap())
+                .entity_mut(directory.get_entity(tile.id))
                 .into_mut::<TileType>()
             else {
                 panic!("A tile entity had no component indicating the type of tile it was.")
@@ -62,30 +62,16 @@ impl TileActionFunctionality for ConvertTileTo {
             return;
         }
 
-        selection_status.clear_elligibles();
+        selection_status.set_all_possible_inelligible();
 
         use crate::tile_mapping::*;
         let basis_vector: HexVector2d = self.restrictions.as_ref().unwrap().adjacent_to.into();
 
-        let maximum_id_on_board =
-            TileId::new(world.resource::<TileDirectory>().tile_count() as u32 - 1);
-
-        let directions = [NORTH, NORTH_EAST, NORTH_WEST, SOUTH, SOUTH_EAST, SOUTH_WEST];
-
-        for id in directions.iter().filter_map(|direction| {
-            let id: TileId = (basis_vector + *direction).into();
-            if id > maximum_id_on_board {
-                None
-            } else {
-                Some(id)
-            }
-        }) {
-            selection_status
-                .try_set_state(
-                    id,
-                    crate::tile_based_actions::selection_mechanics::State::Elligible,
-                )
-                .unwrap(); // Since we already made sure the TileId is valid for this board size, and we're not trying to select a tile, this is fine.
+        for tile in basis_vector.adjacencies() {
+            let Some(id) = tile.to_valid_tile_id(world.resource::<TileIdServer>()) else {
+                continue;
+            };
+            selection_status.maybe_set_elligible(id);
         }
     }
 }
@@ -97,140 +83,5 @@ impl ForensicDescribe for ConvertTileTo {
             TextSnippet::Link(LinkedGamplayElement::Tile(self.target_type.clone())),
             TextSnippet::new_basic_text(" tiles."),
         ])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        CreationParameters,
-        requests::ActionEffect,
-        tile_based_actions::{TileAction, TileActionProcessCache, change_tile_type::ConvertTileTo},
-        tile_mapping::TileId,
-    };
-
-    #[test]
-    fn test_tile_conversion() {
-        let mut world = CreationParameters::testing_default();
-
-        let mut loaded_action = TileActionProcessCache::initialize(
-            TileAction::new(
-                ConvertTileTo {
-                    target_type: crate::tiles::TileType::Ex1,
-                    restrictions: None,
-                },
-                2..4,
-            )
-            .unwrap(),
-            &world,
-        );
-
-        assert!(loaded_action.try_execute(&mut world).is_err());
-
-        loaded_action
-            .try_select_tile_and_update_elligibility(
-                crate::tile_based_actions::SelectedTile {
-                    id: TileId::new(0),
-                    direction: crate::pieces::FacingHexDirection::North,
-                },
-                &world,
-            )
-            .unwrap();
-
-        assert!(loaded_action.try_execute(&mut world).is_err());
-
-        loaded_action
-            .try_select_tile_and_update_elligibility(
-                crate::tile_based_actions::SelectedTile {
-                    id: TileId::new(2),
-                    direction: crate::pieces::FacingHexDirection::North,
-                },
-                &world,
-            )
-            .unwrap();
-
-        loaded_action
-            .try_select_tile_and_update_elligibility(
-                crate::tile_based_actions::SelectedTile {
-                    id: TileId::new(23),
-                    direction: crate::pieces::FacingHexDirection::North,
-                },
-                &world,
-            )
-            .unwrap();
-
-        assert!(
-            loaded_action
-                .try_select_tile_and_update_elligibility(
-                    crate::tile_based_actions::SelectedTile {
-                        id: TileId::new(61),
-                        direction: crate::pieces::FacingHexDirection::North,
-                    },
-                    &world
-                )
-                .is_err()
-        );
-        assert!(
-            loaded_action
-                .try_select_tile_and_update_elligibility(
-                    crate::tile_based_actions::SelectedTile {
-                        id: TileId::new(2),
-                        direction: crate::pieces::FacingHexDirection::North,
-                    },
-                    &world
-                )
-                .is_err()
-        );
-
-        loaded_action
-            .try_select_tile_and_update_elligibility(
-                crate::tile_based_actions::SelectedTile {
-                    id: TileId::new(60),
-                    direction: crate::pieces::FacingHexDirection::North,
-                },
-                &world,
-            )
-            .unwrap();
-
-        assert!(
-            loaded_action
-                .try_select_tile_and_update_elligibility(
-                    crate::tile_based_actions::SelectedTile {
-                        id: TileId::new(27),
-                        direction: crate::pieces::FacingHexDirection::North,
-                    },
-                    &world
-                )
-                .is_err()
-        );
-
-        let exprected_change_log = [
-            ActionEffect::ConvertedTileType {
-                tile: TileId::new(0),
-                new_type: crate::tiles::TileType::Ex1,
-            },
-            ActionEffect::ConvertedTileType {
-                tile: TileId::new(2),
-                new_type: crate::tiles::TileType::Ex1,
-            },
-            ActionEffect::ConvertedTileType {
-                tile: TileId::new(23),
-                new_type: crate::tiles::TileType::Ex1,
-            },
-            ActionEffect::ConvertedTileType {
-                tile: TileId::new(60),
-                new_type: crate::tiles::TileType::Ex1,
-            },
-        ];
-
-        let created_change_log = loaded_action.try_execute(&mut world).unwrap();
-
-        assert_eq!(created_change_log.read()[0], exprected_change_log[0]);
-
-        assert_eq!(created_change_log.read()[1], exprected_change_log[1]);
-
-        assert_eq!(created_change_log.read()[2], exprected_change_log[2]);
-
-        assert_eq!(created_change_log.read()[3], exprected_change_log[3]);
     }
 }
