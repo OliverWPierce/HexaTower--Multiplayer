@@ -54,21 +54,17 @@ impl SelectionData {
 
     pub fn set_all_possible_elligible(&mut self) {
         for tile in self.all_tile_states.iter_mut() {
-            if let State::Selected(..) = tile {
-                return;
+            if *tile == State::Neither {
+                *tile = State::Elligible
             }
-
-            *tile = State::Elligible
         }
     }
 
     pub fn set_all_possible_inelligible(&mut self) {
         for tile in self.all_tile_states.iter_mut() {
-            if let State::Selected(..) = tile {
-                return;
+            if *tile == State::Elligible {
+                *tile = State::Neither
             }
-
-            *tile = State::Neither
         }
     }
 

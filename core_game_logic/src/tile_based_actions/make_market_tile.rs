@@ -46,11 +46,9 @@ impl TileActionFunctionality for MakeMarketTile {
         selection_status.set_all_possible_elligible();
 
         for (tile_id, entity) in world.resource::<TileDirectory>().id_entity_pairs() {
-            if world.get::<MarketTile>(entity).is_none() {
-                continue;
+            if world.get::<MarketTile>(entity).is_some() {
+                selection_status.maybe_set_inelligible(tile_id);
             }
-
-            selection_status.maybe_set_inelligible(tile_id);
         }
     }
 }
