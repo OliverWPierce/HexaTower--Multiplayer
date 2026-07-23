@@ -209,6 +209,18 @@ impl HexVector2d {
             self + SOUTH_WEST,
         ]
     }
+
+    pub fn adjacent_ids_with_depth(self, depth: u8, server: &TileIdServer) -> Box<[TileId]> {
+        let mut found_ids = Vec::new();
+
+        for id in 0..((3 * (depth + 1) * depth + 1) as u32) {
+            if let Some(id) = (HexVector2d::from(id) + self).to_valid_tile_id(server) {
+                found_ids.push(id);
+            }
+        }
+
+        found_ids.into_boxed_slice()
+    }
 }
 
 impl From<TileId> for HexVector2d {

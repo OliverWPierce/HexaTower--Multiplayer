@@ -9,6 +9,7 @@ use crate::{
     tile_based_actions::{
         TileAction, TileActionProcessCache,
         change_tile_type::{AdjecentRestriction, ConvertTileTo},
+        move_piece::{MovePiece, MovementMethod},
     },
     tile_mapping::TileId,
     tiles::TileType,
@@ -51,7 +52,17 @@ impl OrderFunction {
                 world,
             )
             .into()),
-            OrderFunction::Ex1 => todo!(),
+            OrderFunction::Ex1 => Ok(TileActionProcessCache::initialize(
+                TileAction::new(
+                    MovePiece {
+                        piece_on_tile: piece_occupies_tile,
+                        method: MovementMethod::Adjacent { depth: 2 },
+                    },
+                    1..1,
+                )?,
+                world,
+            )
+            .into()),
         }
     }
 }

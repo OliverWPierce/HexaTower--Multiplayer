@@ -76,6 +76,10 @@ pub enum ActionEffect {
         on_tile: TileId,
         new_rotation: FacingHexDirection,
     },
+    PieceMoved {
+        from_tile: TileId,
+        to_tile: TileId,
+    },
 }
 
 #[derive(Default, Debug)]
