@@ -11,7 +11,7 @@ use crate::{
     functional_assets::LogicalWorld,
     main_menu::BoardSetupInstructions,
     vis_markets::MarketSpawned,
-    vis_pieces::{PieceSpawned, RotatePieceMessage},
+    vis_pieces::{PieceMoved, PieceSpawned, RotatePieceMessage},
     vis_tiles::TileTypeConverted,
 };
 
@@ -118,8 +118,11 @@ pub fn write_message(
             MultiplayerNetworkingMode::SingleDevice => {
                 commands.insert_resource(OperatingPlayer(new_acting_player))
             }
-            _ => (),
+            _ => println!("A turn has begun!"),
         },
+        ActionEffect::PieceMoved { from_tile, to_tile } => {
+            commands.write_message(PieceMoved { from_tile, to_tile });
+        }
         _ => warn!("Display method not yet implemented..."),
     }
 }
