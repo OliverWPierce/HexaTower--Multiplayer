@@ -1,7 +1,7 @@
 use crate::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
-    pieces::{OccupiedByPiece, damage_and_maybe_kill_piece},
-    players::ActivePlayer,
+    pieces::{OccupiedByPiece, PieceOwnedByPlayer, damage_and_maybe_kill_piece},
+    players::PlayerId,
     requests::ChangeLog,
     tile_based_actions::{
         SelectedTile, TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
@@ -27,16 +27,26 @@ impl TileActionFunctionality for PieceAttacksAdjacent {
         world: &mut bevy::ecs::world::World,
     ) -> crate::requests::ChangeLog {
         let mut log = ChangeLog::default();
-        let attacking_player = world.resource::<ActivePlayer>().0;
+        let attacking_player = {
+            let attacking_piece = world
+                .get::<OccupiedByPiece>(
+                    world
+                        .resource::<TileDirectory>()
+                        .get_entity(self.attacker_occupies_tile),
+                )
+                .unwrap()
+                .piece();
+            world
+                .get::<PieceOwnedByPlayer>(attacking_piece)
+                .map(|owner| {
+                    *world
+                        .get::<PlayerId>(owner.0)
+                        .expect("All players should have an ID")
+                })
+        };
 
         for SelectedTile { id: tile, .. } in validated_selections.iter() {
-            damage_and_maybe_kill_piece(
-                self.damage,
-                *tile,
-                Some(attacking_player),
-                &mut log,
-                world,
-            );
+            damage_and_maybe_kill_piece(self.damage, *tile, attacking_player, &mut log, world);
         }
 
         log

@@ -230,7 +230,7 @@ pub fn try_consume_request(
                 .resource::<CardDirectory>()
                 .get_card(card)?
                 .functionality
-                .action_cache(world)?;
+                .action_cache(world, world.resource::<ActivePlayer>().0)?;
 
             let mut log = match action_cache {
                 ActionProcessCache::TileAction(mut tile_action_process_cache) => {
@@ -408,7 +408,9 @@ pub fn try_consume_request(
                 ActionProcessCache::Ex1 => todo!(),
             }
 
-            world.get_mut::<OrdersReceivable>(piece).unwrap().currently -= 1;
+            if let Some(mut orders) = world.get_mut::<OrdersReceivable>(piece) {
+                orders.currently -= 1
+            }
 
             world
                 .get_mut::<PlayerOrdersRemaining>(acting_player)

@@ -338,7 +338,7 @@ fn render_card_execution_panel(
         .resource::<CardDirectory>()
         .get_card(*card)?
         .functionality
-        .action_cache(&logical_world.0)?
+        .action_cache(&logical_world.0, operating_player.0)?
         .forensic_description()
     {
         match snippet {

@@ -1,3 +1,9 @@
+/// Rules of this module:
+///
+/// 1. action executions are free to panic when they feel like it. The elligibility step should prevent problems from ever reaching the execution step.
+/// 2. Never assume that all pieces have owners.
+/// 3. Never use the "Active Player" resource... this creates problems for players who are experimenting with the board while it is not their turn. If you need such information,
+/// get it from the fields of structs implementing TileActionFunctionality.
 use std::{
     fmt::Debug,
     ops::{Index, Range},

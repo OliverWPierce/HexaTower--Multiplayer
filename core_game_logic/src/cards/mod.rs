@@ -9,7 +9,7 @@ pub use card_storage::*;
 use crate::{
     markets::MarketId,
     pieces::ArchetypeId,
-    players::ActivePlayer,
+    players::PlayerId,
     requests::ActionProcessCache,
     tile_based_actions::{
         self, TileAction, TileActionProcessCache,
@@ -51,6 +51,7 @@ impl CardFunction {
     pub fn action_cache(
         &self,
         world: &World,
+        basis_player: PlayerId,
     ) -> Result<ActionProcessCache, CardFunctionConversionError> {
         let cache = match self {
             CardFunction::TileConversionToSingleType {
@@ -83,7 +84,7 @@ impl CardFunction {
                 TileAction::new(
                     SpawnPieces {
                         archetype: *piece_archetype,
-                        owner: world.resource::<ActivePlayer>().0,
+                        owner: basis_player,
                         restrictions: *restrictions,
                     },
                     selection_bounds.clone(),
