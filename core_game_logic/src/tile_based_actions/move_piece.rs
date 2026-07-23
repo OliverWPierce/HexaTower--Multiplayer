@@ -13,7 +13,7 @@ pub struct MovePiece {
     pub method: MovementMethod,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum MovementMethod {
     Adjacent { depth: u8 },
     Forward { depth: u8 },

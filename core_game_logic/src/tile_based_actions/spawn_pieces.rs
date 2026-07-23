@@ -3,8 +3,8 @@ use bevy::ecs::query::With;
 use crate::{
     forensic_action_descriptions::{ForensicDescribe, LinkedGamplayElement, TextSnippet},
     pieces::{
-        self, GivesExtraPlayerOrder, Health, IsSpawnPoint, IsWinCondition, OccupiedByPiece,
-        OccupiesTile, OrdersReceivable, PieceOwnedByPlayer,
+        self, GivesExtraPlayerOrder, Health, IsSpawnPoint, IsWinCondition, MonetaryValue,
+        OccupiedByPiece, OccupiesTile, OrdersReceivable, PieceOwnedByPlayer,
     },
     players::{PlayerDirectory, PlayerId, PlayerState},
     requests::{ActionEffect, ChangeLog},
@@ -67,6 +67,7 @@ impl TileActionFunctionality for SpawnPieces {
                 },
                 blueprint.orders.clone(),
                 selection.direction,
+                MonetaryValue(blueprint.default_monetary_value),
             ));
 
             if blueprint.gives_extra_player_order {

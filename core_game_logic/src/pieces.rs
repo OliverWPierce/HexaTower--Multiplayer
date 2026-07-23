@@ -111,7 +111,7 @@ pub struct OrdersReceivable {
 pub struct GivesExtraPlayerOrder;
 
 #[derive(Debug, Component)]
-pub struct MonetaryValue(u32);
+pub struct MonetaryValue(pub u32);
 
 /// panics if there is no piece on the Tile.
 pub fn damage_and_maybe_kill_piece(
@@ -154,6 +154,8 @@ pub fn damage_and_maybe_kill_piece(
                 from_tile: Some(on_tile),
             });
         }
+
+        world.despawn(piece);
     }
 }
 

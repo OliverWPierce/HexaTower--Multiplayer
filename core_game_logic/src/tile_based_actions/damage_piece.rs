@@ -11,9 +11,9 @@ use crate::{
 };
 #[derive(Debug)]
 pub struct PieceAttacksAdjacent {
-    attacker_occupies_tile: TileId,
-    damage: u32,
-    adjacency_depth: u8,
+    pub attacker_occupies_tile: TileId,
+    pub damage: u32,
+    pub adjacency_depth: u8,
 }
 
 impl TileActionFunctionalityCapabilityConstants for PieceAttacksAdjacent {

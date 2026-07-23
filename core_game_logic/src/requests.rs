@@ -465,5 +465,7 @@ pub fn try_consume_request(
         });
     }
 
+    println!("Change log is as follows {:?}", log);
+
     Ok(log)
 }

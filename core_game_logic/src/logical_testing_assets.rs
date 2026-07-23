@@ -3,7 +3,7 @@ use crate::{
     markets::{CardPrice, LogicalMarket, MarketId},
     orders::{LogicalOrder, OrderId},
     pieces::{ArchetypeId, LogicalPieceArchetype, Orders},
-    tile_based_actions::spawn_pieces::SpawningRestrictions,
+    tile_based_actions::{move_piece::MovementMethod, spawn_pieces::SpawningRestrictions},
     tiles::TileType,
 };
 // only used in testing
@@ -113,12 +113,15 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
 
 pub const LOGICAL_ORDERS_FOR_TESTING: [LogicalOrder; 3] = [
     LogicalOrder {
-        functionality: crate::orders::OrderFunction::Ex1,
+        functionality: crate::orders::OrderFunction::BasicMovement(MovementMethod::Forward {
+            depth: 2,
+        }),
     },
     LogicalOrder {
-        functionality: crate::orders::OrderFunction::ConvertAdjacentTiles {
-            selection_range: 1..1,
-            target_type: TileType::Basic,
+        functionality: crate::orders::OrderFunction::DamageAdjacent {
+            depth: 2,
+            selection_range: 1..4,
+            damage: 70,
         },
     },
     LogicalOrder {
