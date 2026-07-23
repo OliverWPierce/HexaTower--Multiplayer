@@ -66,6 +66,10 @@ pub enum ActionEffect {
         on_tile: TileId,
         hp_removed: u32,
     },
+    HealedPiece {
+        on_tile: TileId,
+        hp_added: u32,
+    },
     PieceKilled {
         on_tile: TileId,
     },

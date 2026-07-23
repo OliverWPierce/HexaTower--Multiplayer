@@ -14,6 +14,7 @@ use crate::{
 };
 
 pub mod change_tile_type;
+pub mod damage_piece;
 pub mod make_market_tile;
 pub mod move_piece;
 mod selection_mechanics;
