@@ -268,6 +268,12 @@ fn indicate_direction(
             Dir3::Y,
         );
 
+        println!(
+            "{:?}, {:?}",
+            *tile,
+            hex_direction_from_click_data(tile_position, target,)
+        );
+
         Ok(())
     } else {
         *visibility = Visibility::Hidden;
@@ -280,18 +286,18 @@ fn hex_direction_from_click_data(tile_location: Vec3, hit_location: Vec3) -> Fac
 
     if hit_vector_with_tile_as_origin.y > 0.0 {
         if hit_vector_with_tile_as_origin.y < hit_vector_with_tile_as_origin.x * -SQRT_3 {
-            FacingHexDirection::SouthEast
+            FacingHexDirection::NorthWest
         } else if hit_vector_with_tile_as_origin.y < hit_vector_with_tile_as_origin.x * SQRT_3 {
-            FacingHexDirection::SouthWest
+            FacingHexDirection::NorthEast
         } else {
-            FacingHexDirection::South
+            FacingHexDirection::North
         }
     } else if hit_vector_with_tile_as_origin.y > hit_vector_with_tile_as_origin.x * -SQRT_3 {
-        FacingHexDirection::NorthWest
+        FacingHexDirection::SouthEast
     } else if hit_vector_with_tile_as_origin.y > hit_vector_with_tile_as_origin.x * SQRT_3 {
-        FacingHexDirection::NorthEast
+        FacingHexDirection::SouthWest
     } else {
-        FacingHexDirection::North
+        FacingHexDirection::South
     }
 }
 
