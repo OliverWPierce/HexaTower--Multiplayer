@@ -434,8 +434,7 @@ pub fn try_consume_request(
             if *world.get::<PlayerState>(player).unwrap() == PlayerState::HasNoWinConditionYet
                 || world
                     .get::<OwnsPieces>(player)
-                    .unwrap()
-                    .list()
+                    .map_or::<&[_], _>(&[], |pieces| pieces.list())
                     .iter()
                     .any(|piece| world.get::<IsWinCondition>(*piece).is_some())
             {
