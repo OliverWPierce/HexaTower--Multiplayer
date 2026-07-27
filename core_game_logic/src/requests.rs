@@ -12,8 +12,8 @@ use crate::{
         PieceOwnedByPlayer,
     },
     players::{
-        self, ActivePlayer, Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory, PlayerId,
-        PlayerOrdersRemaining, PlayerState,
+        self, ActivePlayer, Coins, InventoryIndex, LifeState, PlayerCardInventory, PlayerDirectory,
+        PlayerId, PlayerOrdersRemaining, compute_player_state,
     },
     tile_based_actions::{SelectedTile, TileActionProcessCache},
     tile_mapping::TileId,
@@ -84,6 +84,7 @@ pub enum ActionEffect {
         from_tile: TileId,
         to_tile: TileId,
     },
+    PlayerDied(PlayerId),
 }
 
 #[derive(Default, Debug)]
@@ -212,6 +213,13 @@ pub fn try_consume_request(
         return Err(NotPlayersTurn(request_to_process.acting_player).into());
     }
 
+    let player_states_before_action = world
+        .resource::<PlayerDirectory>()
+        .list()
+        .iter()
+        .map(|&player| compute_player_state(world, player))
+        .collect::<Box<_>>();
+
     let mut log = match request_to_process.request {
         RequestType::UseCard {
             inventory_index,
@@ -326,9 +334,18 @@ pub fn try_consume_request(
                     .list()
                     .split_at(exiting_player.id() as usize);
 
-                *world.get::<PlayerId>(*next_players.iter().skip(1).chain(preceding_players).find(|player| *world.get::<PlayerState>(**player).unwrap() != PlayerState::Dead)
-                        .expect("Tried to end turn, but all players were dead (except perhaps the active player.) This indicates the game is over, which should have been handled by another system. (Players cannot end their turn when the game is over)."))
-                        .unwrap()
+                let Some(&ent_of_next_player) = next_players
+                    .iter()
+                    .skip(1)
+                    .chain(preceding_players)
+                    .find(|player| compute_player_state(world, **player) != LifeState::Dead)
+                else {
+                    change_log.write(ActionEffect::GameOver { winner: None });
+                    println!("Change log is as follows {:?}", change_log);
+                    return Ok(change_log);
+                };
+
+                *world.get::<PlayerId>(ent_of_next_player).unwrap()
             };
 
             world.resource_mut::<ActivePlayer>().0 = next_player;
@@ -421,49 +438,49 @@ pub fn try_consume_request(
         }
     };
 
-    let living_players = {
-        let mut alive = 0;
+    let player_states_after_action = world
+        .resource::<PlayerDirectory>()
+        .list()
+        .iter()
+        .map(|&player| compute_player_state(world, player));
 
-        for player in world
-            .resource::<PlayerDirectory>()
-            .list()
-            .iter()
-            .copied()
-            .collect::<Box<[Entity]>>()
-        {
-            if *world.get::<PlayerState>(player).unwrap() == PlayerState::HasNoWinConditionYet
-                || world
-                    .get::<OwnsPieces>(player)
-                    .map_or::<&[_], _>(&[], |pieces| pieces.list())
-                    .iter()
-                    .any(|piece| world.get::<IsWinCondition>(*piece).is_some())
-            {
-                alive += 1;
-            } else {
-                let mut state = world.get_mut::<PlayerState>(player).unwrap();
-
-                match *state {
-                    PlayerState::HasNoWinConditionYet => (),
-                    PlayerState::Alive => *state = PlayerState::Dead,
-                    PlayerState::Dead => (),
-                }
-            }
+    for (index, (prior_state, new_state)) in player_states_before_action
+        .iter()
+        .copied()
+        .zip(player_states_after_action)
+        .enumerate()
+    {
+        if !(prior_state == LifeState::Alive && new_state == LifeState::Dead) {
+            continue;
         }
-        alive
-    };
 
-    if living_players == 0 {
-        log.write(ActionEffect::GameOver { winner: None });
-    } else if living_players == 1 {
-        let winner = world
-            .resource::<PlayerDirectory>()
-            .list()
-            .iter()
-            .find(|player| *world.get::<PlayerState>(**player).unwrap() == PlayerState::Alive)
-            .unwrap();
-        log.write(ActionEffect::GameOver {
-            winner: Some(*world.get::<PlayerId>(*winner).unwrap()),
-        });
+        log.write(ActionEffect::PlayerDied(
+            world.resource::<PlayerDirectory>().make_id(index as u8)?,
+        ));
+
+        if world.resource::<ActivePlayer>().0.id() == index as u8 {
+            // the current player has died and we need to start a new turn.
+            todo!()
+        }
+    }
+
+    let surviving_players = world
+        .resource::<PlayerDirectory>()
+        .list()
+        .iter()
+        .filter(|&&player| compute_player_state(world, player) == LifeState::Alive)
+        .collect::<Box<[_]>>();
+
+    match surviving_players.len() {
+        0 => log.write(ActionEffect::GameOver { winner: None }),
+        1 => log.write(ActionEffect::GameOver {
+            winner: Some(
+                *world
+                    .get::<PlayerId>(**surviving_players.first().unwrap())
+                    .unwrap(),
+            ),
+        }),
+        _ => (),
     }
 
     println!("Change log is as follows {:?}", log);

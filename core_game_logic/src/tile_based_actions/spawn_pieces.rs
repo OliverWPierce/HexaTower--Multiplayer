@@ -6,7 +6,7 @@ use crate::{
         self, GivesExtraPlayerOrder, Health, IsSpawnPoint, IsWinCondition, MonetaryValue,
         OccupiedByPiece, OccupiesTile, OrdersReceivable, PieceOwnedByPlayer,
     },
-    players::{PlayerDirectory, PlayerId, PlayerState},
+    players::{HasNoWinCondtionYet, PlayerDirectory, PlayerId},
     requests::{ActionEffect, ChangeLog},
     tile_based_actions::{
         TileActionFunctionality, TileActionFunctionalityCapabilityConstants,
@@ -80,7 +80,9 @@ impl TileActionFunctionality for SpawnPieces {
 
             if blueprint.is_win_condition {
                 piece.insert(IsWinCondition);
-                *world.get_mut::<PlayerState>(player_entity).unwrap() = PlayerState::Alive;
+                world
+                    .entity_mut(player_entity)
+                    .remove::<HasNoWinCondtionYet>();
             }
 
             log.write(ActionEffect::SpawnedPiece {
