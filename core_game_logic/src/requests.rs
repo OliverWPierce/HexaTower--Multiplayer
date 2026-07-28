@@ -432,6 +432,8 @@ pub fn try_consume_request(
         }
     };
 
+    let mut player_killed_self = false;
+
     let player_states_after_action = world
         .resource::<PlayerDirectory>()
         .list()
@@ -454,8 +456,7 @@ pub fn try_consume_request(
         ));
 
         if world.resource::<ActivePlayer>().0.id() == index as u8 {
-            // the current player has died and we need to start a new turn or end the game.
-            start_next_turn(world, &mut log);
+            player_killed_self = true;
         }
     }
 
@@ -475,13 +476,19 @@ pub fn try_consume_request(
                     .unwrap(),
             ),
         }),
-        _ => (),
+        _ => {
+            if player_killed_self {
+                log.write(ActionEffect::EndedTurn(world.resource::<ActivePlayer>().0));
+                start_next_turn(world, &mut log);
+            }
+        }
     }
 
     println!("Change log is as follows {:?}", log);
 
     Ok(log)
 }
+
 /// Note, if no players are viable to take over the turn, the turn will logically remain the current player's; this indicates that the game should end.
 fn start_next_turn(world: &mut World, log: &mut ChangeLog) {
     let exiting_player = world.resource::<ActivePlayer>().0;
