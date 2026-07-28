@@ -480,6 +480,10 @@ pub fn try_consume_request(
             if player_killed_self {
                 log.write(ActionEffect::EndedTurn(world.resource::<ActivePlayer>().0));
                 start_next_turn(world, &mut log);
+                if request_to_process.acting_player == world.resource::<ActivePlayer>().0 {
+                    // the start turn function couldn't find a player who survived their start-turn cycle, so the game ends.
+                    log.write(ActionEffect::GameOver { winner: None });
+                }
             }
         }
     }
@@ -510,11 +514,6 @@ fn start_next_turn(world: &mut World, log: &mut ChangeLog) {
         }
 
         let id = *world.get::<PlayerId>(player).unwrap();
-
-        if id == exiting_player {
-            // the game is over. We don't write an event for it here though, since it will be caught at the end of the request anyway.
-            return;
-        }
 
         // we've found a candidate for the next player!
         log.write(ActionEffect::BeganTurn(id));
