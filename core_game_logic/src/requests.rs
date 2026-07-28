@@ -1,4 +1,7 @@
-use bevy::ecs::{entity::Entity, world::World};
+use bevy::{
+    ecs::{entity::Entity, world::World},
+    log::error,
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -13,7 +16,7 @@ use crate::{
     },
     players::{
         self, ActivePlayer, Coins, InventoryIndex, LifeState, PlayerCardInventory, PlayerDirectory,
-        PlayerId, PlayerOrdersRemaining, compute_player_state,
+        PlayerId, PlayerOrdersRemaining, apply_start_turn_effects, compute_player_state,
     },
     tile_based_actions::{SelectedTile, TileActionProcessCache},
     tile_mapping::TileId,
@@ -176,6 +179,10 @@ struct UnexpectedInputType;
 struct NotPlayersTurn(PlayerId);
 
 #[derive(Debug, Error)]
+#[error("Player {0:?} is dead and cannot make requests")]
+struct PlayerIsDead(PlayerId);
+
+#[derive(Debug, Error)]
 pub enum PurchaseCardError {
     #[error("Tile {0:?} is not a market tile.")]
     TileIsNotMarket(TileId),
@@ -211,6 +218,17 @@ pub fn try_consume_request(
 ) -> anyhow::Result<ChangeLog> {
     if request_to_process.acting_player != world.resource::<ActivePlayer>().0 {
         return Err(NotPlayersTurn(request_to_process.acting_player).into());
+    }
+
+    if compute_player_state(
+        world,
+        *world
+            .resource::<PlayerDirectory>()
+            .get(request_to_process.acting_player),
+    ) == LifeState::Dead
+    {
+        error!("The active player is dead and still attempting to make requests! Bad bad bad...");
+        return Err(PlayerIsDead(request_to_process.acting_player).into());
     }
 
     let player_states_before_action = world
@@ -322,39 +340,15 @@ pub fn try_consume_request(
         RequestType::EndTurn => {
             let exiting_player = world.resource::<ActivePlayer>().0;
 
-            let mut change_log = ChangeLog::default();
+            let mut log = ChangeLog::default();
 
-            change_log.write(ActionEffect::EndedTurn(exiting_player));
+            log.write(ActionEffect::EndedTurn(exiting_player));
 
-            change_log.append(&mut players::apply_end_turn_effects(world, exiting_player));
+            log.append(&mut players::apply_end_turn_effects(world, exiting_player));
 
-            let next_player = {
-                let (preceding_players, next_players) = world
-                    .resource::<PlayerDirectory>()
-                    .list()
-                    .split_at(exiting_player.id() as usize);
+            start_next_turn(world, &mut log);
 
-                let Some(&ent_of_next_player) = next_players
-                    .iter()
-                    .skip(1)
-                    .chain(preceding_players)
-                    .find(|player| compute_player_state(world, **player) != LifeState::Dead)
-                else {
-                    change_log.write(ActionEffect::GameOver { winner: None });
-                    println!("Change log is as follows {:?}", change_log);
-                    return Ok(change_log);
-                };
-
-                *world.get::<PlayerId>(ent_of_next_player).unwrap()
-            };
-
-            world.resource_mut::<ActivePlayer>().0 = next_player;
-
-            change_log.write(ActionEffect::BeganTurn(next_player));
-
-            change_log.append(&mut players::apply_start_turn_effects(world, next_player));
-
-            change_log
+            log
         }
         RequestType::UseOrder {
             tile,
@@ -442,7 +436,8 @@ pub fn try_consume_request(
         .resource::<PlayerDirectory>()
         .list()
         .iter()
-        .map(|&player| compute_player_state(world, player));
+        .map(|&player| compute_player_state(world, player))
+        .collect::<Box<[_]>>();
 
     for (index, (prior_state, new_state)) in player_states_before_action
         .iter()
@@ -459,8 +454,8 @@ pub fn try_consume_request(
         ));
 
         if world.resource::<ActivePlayer>().0.id() == index as u8 {
-            // the current player has died and we need to start a new turn.
-            todo!()
+            // the current player has died and we need to start a new turn or end the game.
+            start_next_turn(world, &mut log);
         }
     }
 
@@ -486,4 +481,49 @@ pub fn try_consume_request(
     println!("Change log is as follows {:?}", log);
 
     Ok(log)
+}
+/// Note, if no players are viable to take over the turn, the turn will logically remain the current player's; this indicates that the game should end.
+fn start_next_turn(world: &mut World, log: &mut ChangeLog) {
+    let exiting_player = world.resource::<ActivePlayer>().0;
+
+    let (preceding_players, next_players) = world
+        .resource::<PlayerDirectory>()
+        .list()
+        .split_at(exiting_player.id() as usize);
+
+    for player in next_players
+        .iter()
+        .skip(1)
+        .chain(preceding_players)
+        .copied()
+        .collect::<Box<[_]>>()
+    {
+        if compute_player_state(world, player) == LifeState::Dead {
+            continue;
+        }
+
+        let id = *world.get::<PlayerId>(player).unwrap();
+
+        if id == exiting_player {
+            // the game is over. We don't write an event for it here though, since it will be caught at the end of the request anyway.
+            return;
+        }
+
+        // we've found a candidate for the next player!
+        log.write(ActionEffect::BeganTurn(id));
+        log.append(&mut apply_start_turn_effects(world, id));
+
+        // now we see if they died at the start of their turn...
+        if compute_player_state(world, player) != LifeState::Dead {
+            world.resource_mut::<ActivePlayer>().0 = id;
+            return;
+        } else {
+            log.write(ActionEffect::PlayerDied(id));
+            log.write(ActionEffect::EndedTurn(id));
+        }
+    }
+
+    println!(
+        "No viable candidate found to replace the active player. The game should be ending during the changelog of this request."
+    )
 }
