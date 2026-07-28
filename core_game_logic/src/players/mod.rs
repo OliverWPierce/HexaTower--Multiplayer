@@ -7,7 +7,7 @@ use thiserror::Error;
 use crate::{
     IndexingId, InvalidIdErr,
     cards::CardId,
-    pieces::{GivesExtraPlayerOrder, OccupiesTile, OrdersReceivable, OwnsPieces},
+    pieces::{GivesExtraPlayerOrder, IsWinCondition, OccupiesTile, OrdersReceivable, OwnsPieces},
     requests::{ActionEffect, ChangeLog},
     tile_mapping::TileId,
 };
@@ -66,7 +66,7 @@ pub fn initialize_players(world: &mut World, player_count: u8, starting_cards: &
                     max_size: STARTING_INVENTORY_MAX_SIZE,
                 },
                 Coins(STARTING_COINS),
-                PlayerState::HasNoWinConditionYet,
+                HasNoWinCondtionYet,
                 PlayerOrdersRemaining { remaining: 2 },
             )
         }))
@@ -170,6 +170,7 @@ pub fn apply_start_turn_effects(world: &mut World, player: PlayerId) -> ChangeLo
     ChangeLog::default()
 }
 
+/// Note that the player may have no pieces at this stage!
 pub fn apply_end_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog {
     let player_ent = *world.resource::<PlayerDirectory>().get(player);
 
@@ -226,14 +227,33 @@ pub fn apply_end_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog 
 
     log
 }
-#[derive(Debug, Component, PartialEq, Eq)]
-pub enum PlayerState {
-    HasNoWinConditionYet,
+
+#[derive(Debug, Component)]
+pub struct PlayerOrdersRemaining {
+    pub remaining: u8,
+}
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum LifeState {
     Alive,
     Dead,
 }
 
 #[derive(Debug, Component)]
-pub struct PlayerOrdersRemaining {
-    pub remaining: u8,
+pub struct HasNoWinCondtionYet;
+
+pub fn compute_player_state(world: &World, player: Entity) -> LifeState {
+    if world.get::<HasNoWinCondtionYet>(player).is_some() {
+        return LifeState::Alive;
+    }
+
+    if let Some(pieces) = world.get::<OwnsPieces>(player)
+        && pieces
+            .list()
+            .iter()
+            .any(|piece| world.get::<IsWinCondition>(*piece).is_some())
+    {
+        LifeState::Alive
+    } else {
+        LifeState::Dead
+    }
 }

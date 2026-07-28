@@ -24,12 +24,7 @@ impl TileActionFunctionality for MakeMarketTile {
         world.insert_batch(
             validated_selections
                 .iter()
-                .map(|tile| {
-                    (
-                        tile_entities.get_entity(tile.id).unwrap(),
-                        MarketTile(self.market),
-                    )
-                })
+                .map(|tile| (tile_entities.get_entity(tile.id), MarketTile(self.market)))
                 .collect::<Box<[_]>>(),
         );
 
@@ -46,9 +41,15 @@ impl TileActionFunctionality for MakeMarketTile {
     fn update_eligibility(
         &self,
         selection_status: &mut super::selection_mechanics::SelectionData,
-        _world: &bevy::ecs::world::World,
+        world: &bevy::ecs::world::World,
     ) {
         selection_status.set_all_possible_elligible();
+
+        for (tile_id, entity) in world.resource::<TileDirectory>().id_entity_pairs() {
+            if world.get::<MarketTile>(entity).is_some() {
+                selection_status.maybe_set_inelligible(tile_id);
+            }
+        }
     }
 }
 

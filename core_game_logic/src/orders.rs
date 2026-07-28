@@ -9,6 +9,8 @@ use crate::{
     tile_based_actions::{
         TileAction, TileActionProcessCache,
         change_tile_type::{AdjecentRestriction, ConvertTileTo},
+        damage_piece::PieceAttacksAdjacent,
+        move_piece::{MovePiece, MovementMethod},
     },
     tile_mapping::TileId,
     tiles::TileType,
@@ -19,7 +21,12 @@ pub enum OrderFunction {
         selection_range: Range<usize>,
         target_type: TileType,
     },
-    Ex1,
+    BasicMovement(MovementMethod),
+    DamageAdjacent {
+        depth: u8,
+        selection_range: Range<usize>,
+        damage: u32,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -51,7 +58,34 @@ impl OrderFunction {
                 world,
             )
             .into()),
-            OrderFunction::Ex1 => todo!(),
+            OrderFunction::BasicMovement(method) => Ok(TileActionProcessCache::initialize(
+                TileAction::new(
+                    MovePiece {
+                        piece_on_tile: piece_occupies_tile,
+                        method: *method,
+                    },
+                    1..1,
+                )?,
+                world,
+            )
+            .into()),
+            OrderFunction::DamageAdjacent {
+                depth,
+                selection_range,
+                damage,
+            } => Ok(ActionProcessCache::from(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        PieceAttacksAdjacent {
+                            attacker_occupies_tile: piece_occupies_tile,
+                            damage: *damage,
+                            adjacency_depth: *depth,
+                        },
+                        selection_range.clone(),
+                    )?,
+                    world,
+                ),
+            )),
         }
     }
 }

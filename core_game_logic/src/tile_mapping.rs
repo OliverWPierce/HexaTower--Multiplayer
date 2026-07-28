@@ -5,26 +5,42 @@ use std::{
 };
 
 use bevy::{
-    ecs::component::Component,
+    ecs::{component::Component, resource::Resource},
     math::{Vec2, Vec3},
 };
 use serde::{Deserialize, Serialize};
+
+use crate::InvalidIdErr;
 
 /// Tile ids start at zero and work counter clockwise from the origin, starting at the tile directly beneath the origin.
 #[derive(Debug, Component, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize)]
 #[component(immutable)]
 pub struct TileId(u32);
 
-pub const SQRT_3: f32 = 1.7320508;
+#[derive(Debug, Resource, Clone, Copy)]
+pub struct TileIdServer {
+    /// the number of tiles on the board, as one would count them. (so, if the maximum id is 59, this number is 60.)
+    pub total_tiles_on_board: u32,
+}
 
 impl TileId {
-    pub fn new(id: u32) -> Self {
-        TileId(id)
-    }
     pub fn id(&self) -> u32 {
         self.0
     }
 }
+
+impl TileIdServer {
+    pub fn construct_tile_id(&self, id: u32) -> Result<TileId, InvalidIdErr<TileId>> {
+        if (0..self.total_tiles_on_board).contains(&id) {
+            Ok(TileId(id))
+        } else {
+            Err(InvalidIdErr::new(TileId(id)))
+        }
+    }
+}
+
+pub const SQRT_3: f32 = 1.7320508;
+
 /// The total number of tiles on the board, including the tile with id zero. This is based on the number of rings the board was created with, with tile zero counted as ring zero. (ie. the first ring to actually look like a ring is ring 1.)
 pub fn tiles_on_board(rings_on_board: u32) -> u32 {
     (3 * (rings_on_board + 1) * rings_on_board) + 1
@@ -76,16 +92,17 @@ impl Sub for HexVector2d {
     }
 }
 
-impl From<TileId> for HexVector2d {
-    fn from(id: TileId) -> Self {
-        if id.0 == 0 {
+impl From<u32> for HexVector2d {
+    fn from(id: u32) -> Self {
+        if id == 0 {
             return HexVector2d { a: 0, b: 0 };
         }
 
-        let id = id.0 as i32;
+        let id = id as i32;
 
         let ring = {
             let mut examined_ring = 1;
+            // this loop can be avoided using floating points and square roots, but then percision suffers and becomes per-platform.
             loop {
                 if id <= 3 * (examined_ring + 1) * examined_ring {
                     break examined_ring;
@@ -111,7 +128,7 @@ impl From<TileId> for HexVector2d {
     }
 }
 
-impl From<HexVector2d> for TileId {
+impl From<HexVector2d> for u32 {
     fn from(vec: HexVector2d) -> Self {
         if vec.a.signum() != vec.b.signum() {
             let ring = max(vec.a.abs(), vec.b.abs());
@@ -119,17 +136,17 @@ impl From<HexVector2d> for TileId {
             if vec.a.abs() >= vec.b.abs() {
                 if vec.a > 0 {
                     let tile_at_ring_top = (3 * ring * (ring - 1) + 1) + 3 * ring;
-                    TileId((tile_at_ring_top + vec.b.abs()) as u32)
+                    (tile_at_ring_top + vec.b.abs()) as u32
                 } else {
                     let tile_at_bottom = 3 * ring * (ring - 1) + 1;
-                    TileId((tile_at_bottom + vec.b) as u32)
+                    (tile_at_bottom + vec.b) as u32
                 }
             } else if vec.b > 0 {
                 let tile_at_two_sixths = (3 * ring * (ring - 1) + 1) + 2 * ring;
-                TileId((tile_at_two_sixths + vec.a) as u32)
+                (tile_at_two_sixths + vec.a) as u32
             } else {
                 let tile_at_five_sixths = (3 * ring * (ring - 1) + 1) + 5 * ring;
-                TileId((tile_at_five_sixths - vec.a.abs()) as u32)
+                (tile_at_five_sixths - vec.a.abs()) as u32
             }
         } else {
             // The normal hex_vec has a blindspot, so if we're in the blindspot, we'll just pick a new coordinate system.
@@ -138,13 +155,13 @@ impl From<HexVector2d> for TileId {
             let ring = converted_vec.0.abs();
 
             if ring == 0 {
-                TileId(0)
+                0
             } else if converted_vec.0 > 0 {
                 let tile_at_ring_top = (3 * ring * (ring - 1) + 1) + 3 * ring;
-                TileId((tile_at_ring_top - converted_vec.1) as u32)
+                (tile_at_ring_top - converted_vec.1) as u32
             } else {
                 let tile_at_bottom_with_offset = 3 * ring * (ring + 1) + 1;
-                TileId((tile_at_bottom_with_offset + converted_vec.1) as u32)
+                (tile_at_bottom_with_offset + converted_vec.1) as u32
             }
         }
     }
@@ -177,6 +194,40 @@ impl From<HexVector2d> for Vec3 {
     }
 }
 
+impl HexVector2d {
+    pub fn to_valid_tile_id(self, server: &TileIdServer) -> Option<TileId> {
+        server.construct_tile_id(self.into()).ok()
+    }
+
+    pub fn adjacencies(self) -> [Self; 6] {
+        [
+            self + NORTH,
+            self + SOUTH,
+            self + NORTH_EAST,
+            self + SOUTH_EAST,
+            self + NORTH_WEST,
+            self + SOUTH_WEST,
+        ]
+    }
+
+    pub fn adjacent_ids_with_depth(self, depth: u8, server: &TileIdServer) -> Box<[TileId]> {
+        let mut found_ids = Vec::new();
+
+        for id in 0..((3 * (depth + 1) * depth + 1) as u32) {
+            if let Some(id) = (HexVector2d::from(id) + self).to_valid_tile_id(server) {
+                found_ids.push(id);
+            }
+        }
+
+        found_ids.into_boxed_slice()
+    }
+}
+
+impl From<TileId> for HexVector2d {
+    fn from(value: TileId) -> Self {
+        value.0.into()
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,9 +235,9 @@ mod tests {
     #[test]
     fn tile_conversions() {
         for id in 0..10000 {
-            let start_id = TileId::new(id);
+            let start_id = id;
 
-            let end_id: TileId = HexVector2d::from(start_id).into();
+            let end_id: u32 = HexVector2d::from(start_id).into();
 
             assert_eq!(
                 start_id, end_id,
@@ -197,8 +248,8 @@ mod tests {
     #[test]
     fn test_adjacencies() {
         for id in 0..61 {
-            let northern_adjaceny: TileId = (HexVector2d::from(TileId::new(id)) + NORTH).into();
-            println!("The tile north of {id} is {}", northern_adjaceny.id());
+            let northern_adjaceny: u32 = (HexVector2d::from(id) + NORTH).into();
+            println!("The tile north of {id} is {}", northern_adjaceny);
         }
     }
 }

@@ -17,7 +17,7 @@ pub struct VisPiecesPlugin;
 impl Plugin for VisPiecesPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<PieceSpawned>();
-
+        app.add_message::<PieceMoved>();
         app.add_message::<RotatePieceMessage>();
 
         app.add_systems(
@@ -26,6 +26,8 @@ impl Plugin for VisPiecesPlugin {
                 .chain()
                 .run_if(in_state(AppState::InGame)),
         );
+
+        app.add_systems(Update, start_piece_move.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -138,4 +140,26 @@ fn update_backend_rotation_changes(
         };
         continue;
     }
+}
+#[derive(Debug, Message)]
+pub struct PieceMoved {
+    pub from_tile: TileId,
+    pub to_tile: TileId,
+}
+
+fn start_piece_move(
+    mut message_reader: MessageReader<PieceMoved>,
+    mut pieces: Query<(&mut Transform, &mut VisOccupies)>,
+) -> Result<(), BevyError> {
+    for movement in message_reader.read() {
+        let (mut transform, mut piece_occupies) = pieces
+            .iter_mut()
+            .find(|(.., tile)| tile.0 == movement.from_tile)
+            .ok_or("No visual piece occupies the tile a logical piece has moved from.")?;
+
+        piece_occupies.0 = movement.to_tile;
+        transform.translation = HexVector2d::from(movement.to_tile).into();
+    }
+
+    Ok(())
 }

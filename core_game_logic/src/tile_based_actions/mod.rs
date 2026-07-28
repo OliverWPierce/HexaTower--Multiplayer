@@ -1,4 +1,13 @@
-use std::{fmt::Debug, ops::Range};
+/// Rules of this module:
+///
+///  1. action executions are free to panic when they feel like it. The elligibility step should prevent problems from ever reaching the execution step.
+///  2. Never assume that all pieces have owners.
+///  3. Never use the "Active Player" resource... this creates problems for players who are experimenting with the board while it is not their turn. If you need such information,
+///     get it from the fields of structs implementing TileActionFunctionality.
+use std::{
+    fmt::Debug,
+    ops::{Index, Range},
+};
 
 use bevy::ecs::world::World;
 use thiserror::Error;
@@ -6,13 +15,14 @@ use thiserror::Error;
 use crate::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     requests::ChangeLog,
-    tile_based_actions::selection_mechanics::{SelectionData, SelectionError},
-    tile_mapping::TileId,
-    tiles::{InvaildIDErr, TileDirectory},
+    tile_based_actions::selection_mechanics::{InvalidSelection, SelectionData},
+    tile_mapping::{TileId, TileIdServer},
 };
 
 pub mod change_tile_type;
+pub mod damage_piece;
 pub mod make_market_tile;
+pub mod move_piece;
 mod selection_mechanics;
 pub mod spawn_pieces;
 
@@ -67,8 +77,7 @@ pub struct TileActionProcessCache {
 
 impl TileActionProcessCache {
     pub fn initialize(action: TileAction, world: &World) -> Self {
-        let tiles_on_board = world.resource::<TileDirectory>().tile_count();
-        let mut initial_selection_data = SelectionData::new(tiles_on_board);
+        let mut initial_selection_data = SelectionData::new(*world.resource::<TileIdServer>());
 
         action
             .action_functionality
@@ -88,14 +97,12 @@ impl TileActionProcessCache {
         &mut self,
         hopeful_tile: SelectedTile,
         world: &World,
-    ) -> Result<(), SelectionError> {
-        self.selections.try_set_state(
-            hopeful_tile.id,
-            selection_mechanics::State::Selected(hopeful_tile.direction),
-        )?;
+    ) -> Result<(), InvalidSelection> {
+        self.selections
+            .try_select(hopeful_tile.id, hopeful_tile.direction)?;
 
         if self.selections.selection_count() >= self.action.tile_range_for_execution.end {
-            self.selections.clear_elligibles();
+            self.selections.set_all_possible_inelligible();
         } else {
             self.action
                 .action_functionality
@@ -132,11 +139,8 @@ impl TileActionProcessCache {
         self.selections.get_validated_ordered_selections()
     }
 
-    pub fn get_tile_state(&self, tile: TileId) -> Result<&State, InvaildIDErr> {
-        self.selections
-            .get_states()
-            .get(tile.id() as usize)
-            .ok_or(InvaildIDErr(tile))
+    pub fn get_tile_state(&self, tile: TileId) -> &State {
+        self.selections.get_states().index(tile.id() as usize)
     }
 }
 

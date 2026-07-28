@@ -207,6 +207,7 @@ fn unhover_slot(
 fn load_card_action(
     trigger: On<Pointer<Click>>,
     cards_in_inventory: Query<(&VisualCardIndex, &VisualCardId)>,
+    operating_player: Res<OperatingPlayer>,
     mut loaded_action: ResMut<ActionInputManager>,
     logical_world: Res<LogicalWorld>,
 ) -> Result<(), BevyError> {
@@ -223,7 +224,7 @@ fn load_card_action(
             .resource::<CardDirectory>()
             .get_card(*card)?
             .functionality
-            .action_cache(&logical_world.0)?,
+            .action_cache(&logical_world.0, operating_player.0)?,
     }))?;
 
     Ok(())

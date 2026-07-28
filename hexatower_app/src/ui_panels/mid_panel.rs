@@ -292,7 +292,7 @@ fn load_order(
                                 logical_world
                                     .0
                                     .resource::<TileDirectory>()
-                                    .get_entity(active_piece)?,
+                                    .get_entity(active_piece),
                             )
                             .ok_or("Tile was unnoccupied")?
                             .piece(),
@@ -326,7 +326,7 @@ fn manage_orders_panel(
             logical_world
                 .0
                 .resource::<TileDirectory>()
-                .get_entity(tile_of_active_piece)?,
+                .get_entity(tile_of_active_piece),
         )
     {
         if let Some(FrontendAction::UseOrder {

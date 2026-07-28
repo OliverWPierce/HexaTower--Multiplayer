@@ -338,7 +338,7 @@ fn render_card_execution_panel(
         .resource::<CardDirectory>()
         .get_card(*card)?
         .functionality
-        .action_cache(&logical_world.0)?
+        .action_cache(&logical_world.0, operating_player.0)?
         .forensic_description()
     {
         match snippet {
@@ -459,7 +459,7 @@ fn manage_market_ui_panel(
             logical_world
                 .0
                 .resource::<TileDirectory>()
-                .get_entity(active_tile)?,
+                .get_entity(active_tile),
         )
     {
         if let Some(FrontendAction::PurchaseCard { slot }) = manager.loaded_action() {

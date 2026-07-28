@@ -557,7 +557,7 @@ mod execution_button {
                         logical_world
                             .0
                             .resource::<TileDirectory>()
-                            .get_entity(action_manager.active_tile().ok_or("Tried to generate execution blockers for an order, but there was no active tile.")?)?,
+                            .get_entity(action_manager.active_tile().ok_or("Tried to generate execution blockers for an order, but there was no active tile.")?),
                     )
                     .ok_or("An order was loaded but the active tile was vacant")?
                     .piece();
@@ -600,7 +600,7 @@ mod execution_button {
                 let logical_tile = logical_world
                     .0
                     .resource::<TileDirectory>()
-                    .get_entity(active_tile)?;
+                    .get_entity(active_tile);
 
                 let MarketTile(browsed_market) = logical_world
                     .0

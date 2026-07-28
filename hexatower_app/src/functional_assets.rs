@@ -167,8 +167,8 @@ pub fn create_board(
             },
             VisOrder {
                 image: asset_server.load("order_icons/crossed_dagger.png"),
-                name: "Remedy".into(),
-                tooltip: "Good as new".into(),
+                name: "Stabby stabby".into(),
+                tooltip: "Is this thing sharp?".into(),
             },
             VisOrder {
                 image: asset_server.load("order_icons/single_dagger.png"),

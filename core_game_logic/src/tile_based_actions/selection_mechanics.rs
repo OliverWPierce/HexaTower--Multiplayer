@@ -1,7 +1,12 @@
+use std::ops::IndexMut;
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{pieces::FacingHexDirection, tile_mapping::TileId, tiles};
+use crate::{
+    pieces::FacingHexDirection,
+    tile_mapping::{TileId, TileIdServer},
+};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum State {
@@ -23,55 +28,15 @@ pub struct SelectedTile {
 }
 
 #[derive(Debug, Error)]
-pub enum SelectionError {
-    #[error("Tried to select a tile which was not elligible for selection.")]
-    AttemptedToSelectInelligibleTile,
-    #[error("Attempted to select a tile of invalid id. Id number {0}")]
-    InvalidIdError(#[from] tiles::InvaildIDErr),
-}
+#[error("Tried to select {0:?} which was not elligible by the current cache state.")]
+pub struct InvalidSelection(TileId);
 
 impl SelectionData {
-    pub fn new(tiles_on_board: usize) -> Self {
+    pub fn new(total_tile_count: TileIdServer) -> Self {
         SelectionData {
-            all_tile_states: vec![State::Neither; tiles_on_board].into_boxed_slice(),
+            all_tile_states: vec![State::Neither; total_tile_count.total_tiles_on_board as usize]
+                .into_boxed_slice(),
             ordered_selections: Vec::new(),
-        }
-    }
-
-    /// If you try to select a tile that is either already selected or innelligible, it will error. If you try to change a tile which is already selected, nothing will happen. This function protects invalid data from being created. (ie: selecting an inelligible tile, or selecting a tile twice.)
-    pub fn try_set_state(&mut self, tile: TileId, target: State) -> Result<(), SelectionError> {
-        let state = self
-            .all_tile_states
-            .get_mut(tile.id() as usize)
-            .ok_or(SelectionError::InvalidIdError(tiles::InvaildIDErr(tile)))?;
-
-        match target {
-            State::Elligible => {
-                if *state == State::Neither {
-                    *state = State::Elligible;
-                };
-                Ok(())
-            }
-
-            State::Selected(direction) => {
-                if *state != State::Elligible {
-                    Err(SelectionError::AttemptedToSelectInelligibleTile)
-                } else {
-                    *state = State::Selected(direction);
-                    self.ordered_selections.push(SelectedTile {
-                        id: tile,
-                        direction,
-                    });
-                    Ok(())
-                }
-            }
-
-            State::Neither => {
-                if *state == State::Elligible {
-                    *state = State::Neither;
-                };
-                Ok(())
-            }
         }
     }
 
@@ -89,29 +54,50 @@ impl SelectionData {
 
     pub fn set_all_possible_elligible(&mut self) {
         for tile in self.all_tile_states.iter_mut() {
-            if let State::Selected(..) = tile {
-                return;
+            if *tile == State::Neither {
+                *tile = State::Elligible
             }
-
-            *tile = State::Elligible
         }
     }
 
     pub fn set_all_possible_inelligible(&mut self) {
         for tile in self.all_tile_states.iter_mut() {
-            if let State::Selected(..) = tile {
-                return;
+            if *tile == State::Elligible {
+                *tile = State::Neither
             }
-
-            *tile = State::Neither
         }
     }
-    /// Does not clear selected tiles, just elligible ones.
-    pub fn clear_elligibles(&mut self) {
-        self.all_tile_states.iter_mut().for_each(|state| {
-            if *state == State::Elligible {
-                *state = State::Neither
-            }
-        });
+
+    pub fn maybe_set_inelligible(&mut self, tile: TileId) {
+        let s = self.all_tile_states.index_mut(tile.id() as usize);
+        if *s == State::Elligible {
+            *s = State::Neither;
+        }
+    }
+
+    pub fn maybe_set_elligible(&mut self, tile: TileId) {
+        let s = self.all_tile_states.index_mut(tile.id() as usize);
+        if *s == State::Neither {
+            *s = State::Elligible;
+        }
+    }
+
+    pub fn try_select(
+        &mut self,
+        tile: TileId,
+        direction: FacingHexDirection,
+    ) -> Result<(), InvalidSelection> {
+        let s = self.all_tile_states.index_mut(tile.id() as usize);
+        if *s == State::Elligible {
+            *s = State::Selected(direction);
+            self.ordered_selections.push(SelectedTile {
+                id: tile,
+                direction,
+            });
+
+            Ok(())
+        } else {
+            Err(InvalidSelection(tile))
+        }
     }
 }
