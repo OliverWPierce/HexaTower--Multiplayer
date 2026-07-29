@@ -21,6 +21,7 @@ mod ui_panels;
 mod vis_markets;
 mod vis_pieces;
 mod vis_tiles;
+mod visual_effects_3d;
 
 fn main() {
     App::new()
@@ -33,6 +34,7 @@ fn main() {
             VisPiecesPlugin,
             VisMarketsPlugin,
             ObjPlugin,
+            visual_effects_3d::VisEffects3DPlugin,
             MainMenuAndLobbyPluggin,
             RenetClientPlugin,
             RenetServerPlugin,

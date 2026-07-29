@@ -13,6 +13,7 @@ use crate::{
     vis_markets::MarketSpawned,
     vis_pieces::{PieceMoved, PieceSpawned, RotatePieceMessage},
     vis_tiles::TileTypeConverted,
+    visual_effects_3d::AlteredCoins,
 };
 
 pub struct InputInterfacePlugin;
@@ -122,6 +123,17 @@ pub fn write_message(
         },
         ActionEffect::PieceMoved { from_tile, to_tile } => {
             commands.write_message(PieceMoved { from_tile, to_tile });
+        }
+        ActionEffect::AlteredCoins {
+            player,
+            delta_coins,
+            from_tile,
+        } => {
+            commands.write_message(AlteredCoins {
+                player,
+                delta_coins,
+                from_tile,
+            });
         }
         _ => warn!("Display method not yet implemented..."),
     }
