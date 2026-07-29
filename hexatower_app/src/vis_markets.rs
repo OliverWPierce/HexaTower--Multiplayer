@@ -1,25 +1,21 @@
 use bevy::prelude::*;
-use core_game_logic::{
-    markets::MarketId,
-    tile_mapping::{HexVector2d, TileId},
-};
+use core_game_logic::{requests::ActionEffect, tile_mapping::HexVector2d};
 
-use crate::{AppState, functional_assets::VisMarketDirectory};
+use crate::{AppState, functional_assets::VisMarketDirectory, inputs_interface::EffectToDisplay};
 
 pub struct VisMarketsPlugin;
 
 impl Plugin for VisMarketsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<MarketSpawned>();
+        app.add_systems(Update, spin_markets.run_if(in_state(AppState::InGame)));
 
         app.add_systems(
             Update,
-            (spin_markets, add_markets).run_if(in_state(AppState::InGame)),
+            add_markets.run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
     }
 }
 
-// TODO: Make this a relationship component with the visual tile.
 #[derive(Debug, Component)]
 struct MarketModel;
 
@@ -34,24 +30,20 @@ fn spin_markets(
     }
 }
 
-#[derive(Debug, Message)]
-pub struct MarketSpawned {
-    pub tile: TileId,
-    pub market: MarketId,
-}
-
 fn add_markets(
-    mut markets_to_visualize: MessageReader<MarketSpawned>,
+    effect: Res<EffectToDisplay>,
     mut commands: Commands,
     visual_details: Res<VisMarketDirectory>,
 ) -> Result<(), BevyError> {
-    for MarketSpawned { tile, market } in markets_to_visualize.read() {
-        commands.spawn((
-            Transform::from_translation(Vec3::from(HexVector2d::from(*tile))),
-            MarketModel,
-            WorldAssetRoot(visual_details.get_market(*market)?.model.clone()),
-        ));
-    }
+    let ActionEffect::SpawnedNewMarket { tile, market } = effect.0 else {
+        return Ok(());
+    };
+
+    commands.spawn((
+        Transform::from_translation(Vec3::from(HexVector2d::from(tile))),
+        MarketModel,
+        WorldAssetRoot(visual_details.get_market(market)?.model.clone()),
+    ));
 
     Ok(())
 }

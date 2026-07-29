@@ -7,15 +7,12 @@ use core_game_logic::{
     markets::MarketId,
     orders::OrderId,
     players::{ActivePlayer, PlayerData},
-    requests::ChangeLog,
 };
 use thiserror::Error;
 
 use crate::{
     OperatingPlayer,
-    inputs_interface::{
-        ActionInputManager, EffectsQueue, MultiplayerNetworkingMode, NextEffectStartsIn,
-    },
+    inputs_interface::{ActionInputManager, EffectsQueue, NextEffectStartsIn},
     main_menu::BoardSetupInstructions,
     vis_pieces::visual_piece_archetypes_storage::{BasePlatesDirectory, VisualPieceArchetype},
 };
@@ -29,7 +26,6 @@ pub fn create_board(
     commands: &mut Commands,
     asset_server: &mut AssetServer,
     instructions: BoardSetupInstructions,
-    networking_mode: MultiplayerNetworkingMode,
 ) -> Result<(), BevyError> {
     let player_names = PlayerNames::new(instructions.player_names);
 

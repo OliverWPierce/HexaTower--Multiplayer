@@ -323,7 +323,7 @@ impl EffectsQueue {
 }
 
 #[derive(Debug, Resource)]
-struct EffectToDisplay(ActionEffect);
+pub struct EffectToDisplay(pub ActionEffect);
 #[derive(Debug, Resource)]
 pub struct NextEffectStartsIn(pub Timer);
 

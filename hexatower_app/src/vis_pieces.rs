@@ -1,12 +1,11 @@
 use bevy::prelude::*;
 use core_game_logic::{
-    pieces::{ArchetypeId, FacingHexDirection},
-    players::PlayerId,
+    requests::ActionEffect,
     tile_mapping::{HexVector2d, TileId},
 };
 
 use crate::{
-    AppState,
+    inputs_interface::EffectToDisplay,
     vis_pieces::visual_piece_archetypes_storage::{
         BasePlatesDirectory, VisualPieceArchetypeDirectory,
     },
@@ -16,18 +15,15 @@ pub struct VisPiecesPlugin;
 
 impl Plugin for VisPiecesPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<PieceSpawned>();
-        app.add_message::<PieceMoved>();
-        app.add_message::<RotatePieceMessage>();
-
         app.add_systems(
             Update,
-            (spawn_visuals, update_backend_rotation_changes)
-                .chain()
-                .run_if(in_state(AppState::InGame)),
+            (
+                spawn_visuals,
+                update_backend_rotation_changes,
+                start_piece_move,
+            )
+                .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
-
-        app.add_systems(Update, start_piece_move.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -67,99 +63,86 @@ pub mod visual_piece_archetypes_storage {
     pub type BasePlatesDirectory = PlayerData<Handle<WorldAsset>>;
 }
 
-#[derive(Debug, Message)]
-pub struct PieceSpawned {
-    pub tile: TileId,
-    pub archetype: ArchetypeId,
-    pub owner: PlayerId,
-    pub direction: FacingHexDirection,
-}
 #[derive(Debug, Component)]
 pub struct VisOccupies(pub TileId);
 
 const BASEPLATE_HEIGHT: f32 = 0.115;
 
 fn spawn_visuals(
-    mut spawn_events: MessageReader<PieceSpawned>,
+    effect: Res<EffectToDisplay>,
     mut commands: Commands,
     base_plates: Res<BasePlatesDirectory>,
     piece_details: Res<VisualPieceArchetypeDirectory>,
 ) -> Result<(), BevyError> {
-    for spawn in spawn_events.read() {
-        let horizontal_location: Vec2 =
-            core_game_logic::tile_mapping::HexVector2d::from(spawn.tile).into();
-        commands.spawn((
-            VisOccupies(spawn.tile),
+    let ActionEffect::SpawnedPiece {
+        tile,
+        owner: player,
+        archetype,
+        facing_direction,
+    } = effect.0
+    else {
+        return Ok(());
+    };
+    let horizontal_location: Vec2 = core_game_logic::tile_mapping::HexVector2d::from(tile).into();
+    commands.spawn((
+        VisOccupies(tile),
+        Transform::from_translation(Vec3 {
+            x: horizontal_location.x,
+            y: 0.0,
+            z: horizontal_location.y,
+        })
+        .looking_to(Vec3::from(HexVector2d::from(facing_direction)), Vec3::Y),
+        WorldAssetRoot(base_plates.get(player).clone()),
+        children![
+            WorldAssetRoot(piece_details.get_visual_details(archetype)?.model.clone()),
             Transform::from_translation(Vec3 {
-                x: horizontal_location.x,
-                y: 0.0,
-                z: horizontal_location.y,
+                x: 0.0,
+                y: BASEPLATE_HEIGHT,
+                z: 0.0
             })
-            .looking_to(Vec3::from(HexVector2d::from(spawn.direction)), Vec3::Y),
-            WorldAssetRoot(base_plates.get(spawn.owner).clone()),
-            children![
-                WorldAssetRoot(
-                    piece_details
-                        .get_visual_details(spawn.archetype)?
-                        .model
-                        .clone()
-                ),
-                Transform::from_translation(Vec3 {
-                    x: 0.0,
-                    y: BASEPLATE_HEIGHT,
-                    z: 0.0
-                })
-            ],
-        ));
-    }
+        ],
+    ));
 
     Ok(())
 }
 
-#[derive(Debug, Message)]
-pub struct RotatePieceMessage {
-    pub on_tile: TileId,
-    pub in_direction: FacingHexDirection,
-}
-
 fn update_backend_rotation_changes(
-    mut pieces_to_rotate: MessageReader<RotatePieceMessage>,
+    effect: Res<EffectToDisplay>,
     mut pieces: Query<(&mut Transform, &VisOccupies)>,
-) {
-    for &RotatePieceMessage {
+) -> Result<(), BevyError> {
+    let ActionEffect::PieceRotated {
         on_tile,
-        in_direction,
-    } in pieces_to_rotate.read()
-    {
-        if let Some((mut transform, _)) = pieces.iter_mut().find(|(_, tile)| tile.0 == on_tile) {
-            transform.look_to(Vec3::from(HexVector2d::from(in_direction)), Vec3::Y);
-        } else {
-            warn!(
-                "Tried to rotate the visual piece, but no visual piece was found on tile {on_tile:?}",
-            )
-        };
-        continue;
-    }
-}
-#[derive(Debug, Message)]
-pub struct PieceMoved {
-    pub from_tile: TileId,
-    pub to_tile: TileId,
+        new_rotation,
+    } = effect.0
+    else {
+        return Ok(());
+    };
+
+    let (mut transform, _) = pieces
+        .iter_mut()
+        .find(|(_, tile)| tile.0 == on_tile)
+        .ok_or("No visual piece occupies this tile")?;
+
+    transform.look_to(Vec3::from(HexVector2d::from(new_rotation)), Vec3::Y);
+
+    Ok(())
 }
 
 fn start_piece_move(
-    mut message_reader: MessageReader<PieceMoved>,
+    effect: Res<EffectToDisplay>,
     mut pieces: Query<(&mut Transform, &mut VisOccupies)>,
 ) -> Result<(), BevyError> {
-    for movement in message_reader.read() {
-        let (mut transform, mut piece_occupies) = pieces
-            .iter_mut()
-            .find(|(.., tile)| tile.0 == movement.from_tile)
-            .ok_or("No visual piece occupies the tile a logical piece has moved from.")?;
+    let ActionEffect::PieceMoved { from_tile, to_tile } = effect.0 else {
+        return Ok(());
+    };
 
-        piece_occupies.0 = movement.to_tile;
-        transform.translation = HexVector2d::from(movement.to_tile).into();
-    }
+    let (mut transform, mut piece_occupies) = pieces
+        .iter_mut()
+        .find(|(.., tile)| tile.0 == from_tile)
+        .ok_or("No visual piece occupies the tile a logical piece has moved from.")?;
+
+    piece_occupies.0 = to_tile;
+    transform.translation = HexVector2d::from(to_tile).into();
 
     Ok(())
 }

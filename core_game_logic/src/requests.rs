@@ -1,7 +1,4 @@
-use bevy::{
-    ecs::{entity::Entity, world::World},
-    log::error,
-};
+use bevy::{ecs::world::World, log::error};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -10,10 +7,7 @@ use crate::{
     forensic_action_descriptions::ForensicDescribe,
     markets::{MarketDirectory, MarketId, SlotInMarket},
     orders::OrderDirectory,
-    pieces::{
-        FacingHexDirection, IsWinCondition, OccupiedByPiece, Orders, OrdersReceivable, OwnsPieces,
-        PieceOwnedByPlayer,
-    },
+    pieces::{FacingHexDirection, OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
     players::{
         self, ActivePlayer, Coins, InventoryIndex, LifeState, PlayerCardInventory, PlayerDirectory,
         PlayerId, PlayerOrdersRemaining, apply_start_turn_effects, compute_player_state,
@@ -35,7 +29,7 @@ pub enum ActionEffect {
     },
     SpawnedPiece {
         tile: TileId,
-        player: PlayerId,
+        owner: PlayerId,
         archetype: crate::pieces::ArchetypeId,
         facing_direction: FacingHexDirection,
     },
