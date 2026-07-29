@@ -105,6 +105,10 @@ impl ChangeLog {
     pub fn append(&mut self, second_log: &mut ChangeLog) {
         self.0.append(&mut second_log.0);
     }
+
+    pub fn inner(self) -> Vec<ActionEffect> {
+        self.0
+    }
 }
 
 impl From<Vec<ActionEffect>> for ChangeLog {

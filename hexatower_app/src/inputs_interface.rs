@@ -1,19 +1,16 @@
+use std::{collections::VecDeque, f32, time::Duration};
+
 use bevy::prelude::*;
 use bevy_renet::{RenetClient, RenetServer, renet::DefaultChannel};
 use core_game_logic::requests::{
-    ActionEffect, ActionProcessCache, BackendRequest, InputData, RequestType, try_consume_request,
+    ActionEffect, ActionProcessCache, BackendRequest, ChangeLog, InputData, RequestType,
+    try_consume_request,
 };
 pub use loaded_action_invariance::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AppState, OperatingPlayer,
-    functional_assets::LogicalWorld,
-    main_menu::BoardSetupInstructions,
-    vis_markets::MarketSpawned,
-    vis_pieces::{PieceMoved, PieceSpawned, RotatePieceMessage},
-    vis_tiles::TileTypeConverted,
-    visual_effects_3d::AlteredCoins,
+    AppState, OperatingPlayer, functional_assets::LogicalWorld, main_menu::BoardSetupInstructions,
 };
 
 pub struct InputInterfacePlugin;
@@ -28,6 +25,7 @@ impl Plugin for InputInterfacePlugin {
             (
                 client_receive_in_game_message,
                 server_receive_in_game_messages,
+                maybe_display_effect,
             )
                 .run_if(in_state(AppState::InGame)),
         );
@@ -46,11 +44,10 @@ pub struct TryEndTurn;
 fn end_turn(
     _trigger: On<TryEndTurn>,
     mut logical_world: ResMut<LogicalWorld>,
-    mut commands: Commands,
     mut action_input_manager: ResMut<ActionInputManager>,
-    networking_mode: Res<MultiplayerNetworkingMode>,
     acting_player: Res<OperatingPlayer>,
     client: Option<ResMut<RenetClient>>,
+    mut effects_queue: ResMut<EffectsQueue>,
 ) -> Result<(), BevyError> {
     let request = BackendRequest {
         acting_player: acting_player.0,
@@ -72,71 +69,13 @@ fn end_turn(
         );
     }
 
-    for item in change_log.read() {
-        write_message(item.clone(), &mut commands, &networking_mode);
-    }
+    effects_queue
+        .0
+        .append(&mut VecDeque::from(change_log.inner()));
 
     *action_input_manager = ActionInputManager::default();
 
     Ok(())
-}
-
-pub fn write_message(
-    effect: ActionEffect,
-    commands: &mut Commands,
-    networking_mode: &MultiplayerNetworkingMode,
-) {
-    match effect {
-        ActionEffect::ConvertedTileType { tile, new_type } => {
-            commands.write_message(TileTypeConverted { tile, new_type });
-        }
-        ActionEffect::SpawnedPiece {
-            tile,
-            player,
-            archetype,
-            facing_direction,
-        } => {
-            commands.write_message(PieceSpawned {
-                tile,
-                owner: player,
-                archetype,
-                direction: facing_direction,
-            });
-        }
-        ActionEffect::PieceRotated {
-            on_tile,
-            new_rotation,
-        } => {
-            commands.write_message(RotatePieceMessage {
-                on_tile,
-                in_direction: new_rotation,
-            });
-        }
-        ActionEffect::SpawnedNewMarket { tile, market } => {
-            commands.write_message(MarketSpawned { tile, market });
-        }
-        ActionEffect::BeganTurn(new_acting_player) => match networking_mode {
-            MultiplayerNetworkingMode::SingleDevice => {
-                commands.insert_resource(OperatingPlayer(new_acting_player))
-            }
-            _ => println!("A turn has begun!"),
-        },
-        ActionEffect::PieceMoved { from_tile, to_tile } => {
-            commands.write_message(PieceMoved { from_tile, to_tile });
-        }
-        ActionEffect::AlteredCoins {
-            player,
-            delta_coins,
-            from_tile,
-        } => {
-            commands.write_message(AlteredCoins {
-                player,
-                delta_coins,
-                from_tile,
-            });
-        }
-        _ => warn!("Display method not yet implemented..."),
-    }
 }
 
 mod loaded_action_invariance {
@@ -254,9 +193,8 @@ fn try_execute_loaded_action(
     mut action_manager: ResMut<ActionInputManager>,
     acting_player: Res<OperatingPlayer>,
     mut logical_world: ResMut<LogicalWorld>,
-    mut commands: Commands,
+    mut effects_queue: ResMut<EffectsQueue>,
     client: Option<ResMut<RenetClient>>,
-    networking_mode: Res<MultiplayerNetworkingMode>,
 ) -> Result<(), BevyError> {
     let Some(action) = action_manager.loaded_action() else {
         warn!("tried to execute an action, but there was no action loaded.");
@@ -303,9 +241,9 @@ fn try_execute_loaded_action(
             );
         }
 
-        for item in change_log.read() {
-            write_message(item.clone(), &mut commands, &networking_mode);
-        }
+        effects_queue
+            .0
+            .append(&mut VecDeque::from(change_log.inner()));
     }
 
     Ok(())
@@ -324,8 +262,7 @@ pub const HOST_CLIENT_ID: u64 = 2144552;
 fn server_receive_in_game_messages(
     mut server: If<ResMut<RenetServer>>,
     mut logical_world: ResMut<LogicalWorld>,
-    mut commands: Commands,
-    networking_mode: Res<MultiplayerNetworkingMode>,
+    mut effects_queue: ResMut<EffectsQueue>,
 ) {
     for id in server.clients_id() {
         while let Some(message) = server.receive_message(id, DefaultChannel::ReliableOrdered) {
@@ -336,9 +273,9 @@ fn server_receive_in_game_messages(
                     server.broadcast_message(DefaultChannel::ReliableOrdered, message);
                 } else {
                     if let Ok(change_log) = try_consume_request(action, &mut logical_world.0) {
-                        for item in change_log.read() {
-                            write_message(item.clone(), &mut commands, &networking_mode);
-                        }
+                        effects_queue
+                            .0
+                            .append(&mut VecDeque::from(change_log.inner()));
 
                         server.broadcast_message_except(
                             id,
@@ -358,7 +295,7 @@ fn client_receive_in_game_message(
     mut client: If<ResMut<RenetClient>>,
     networking_mode: Res<MultiplayerNetworkingMode>,
     mut logical_world: ResMut<LogicalWorld>,
-    mut commands: Commands,
+    mut effects_queue: ResMut<EffectsQueue>,
 ) {
     while let Some(message) = client.0.receive_message(DefaultChannel::ReliableOrdered) {
         if let NetworkTransmission::ActionDone(action) =
@@ -369,10 +306,58 @@ fn client_receive_in_game_message(
             }
 
             if let Ok(change_log) = try_consume_request(action, &mut logical_world.0) {
-                for item in change_log.read() {
-                    write_message(item.clone(), &mut commands, &networking_mode);
-                }
+                effects_queue
+                    .0
+                    .append(&mut VecDeque::from(change_log.inner()));
             }
         }
     }
+}
+
+#[derive(Debug, Resource, Default)]
+pub struct EffectsQueue(VecDeque<ActionEffect>);
+impl EffectsQueue {
+    pub fn new(log: ChangeLog) -> Self {
+        Self(VecDeque::from(log.inner()))
+    }
+}
+
+#[derive(Debug, Resource)]
+struct EffectToDisplay(ActionEffect);
+#[derive(Debug, Resource)]
+pub struct NextEffectStartsIn(pub Timer);
+
+fn maybe_display_effect(
+    mut commands: Commands,
+    mut timer: ResMut<NextEffectStartsIn>,
+    mut effects_queue: ResMut<EffectsQueue>,
+    delta: Res<Time>,
+) {
+    /// Each consecutive effect will take this many seconds less than the previous turn.
+    const ACCELLERATION_SPEED_SECS: f32 = 0.2;
+    /// default duration at the start of a effect queue.
+    const STARTING_DURATION: f32 = 3.0;
+    const MINIMUM_DURATION: f32 = 0.2;
+
+    if timer.0.is_finished() {
+        if let Some(effect) = effects_queue.0.pop_front() {
+            #[cfg(debug_assertions)]
+            println!("Displaying effect {effect:?}");
+
+            commands.insert_resource(EffectToDisplay(effect));
+
+            let new_duration = (timer.0.duration().as_secs_f32() - ACCELLERATION_SPEED_SECS)
+                .clamp(MINIMUM_DURATION, f32::MAX);
+            timer.0.set_duration(Duration::from_secs_f32(new_duration));
+            timer.0.reset();
+        } else {
+            commands.remove_resource::<EffectToDisplay>();
+            timer
+                .0
+                .set_duration(Duration::from_secs_f32(STARTING_DURATION));
+            return;
+        }
+    }
+
+    timer.0.tick(delta.delta());
 }

@@ -268,12 +268,6 @@ fn indicate_direction(
             Dir3::Y,
         );
 
-        println!(
-            "{:?}, {:?}",
-            *tile,
-            hex_direction_from_click_data(tile_position, target,)
-        );
-
         Ok(())
     } else {
         *visibility = Visibility::Hidden;

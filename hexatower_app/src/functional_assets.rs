@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 use core_game_logic::{
     CreationParameters,
@@ -5,12 +7,15 @@ use core_game_logic::{
     markets::MarketId,
     orders::OrderId,
     players::{ActivePlayer, PlayerData},
+    requests::ChangeLog,
 };
 use thiserror::Error;
 
 use crate::{
     OperatingPlayer,
-    inputs_interface::{ActionInputManager, MultiplayerNetworkingMode, write_message},
+    inputs_interface::{
+        ActionInputManager, EffectsQueue, MultiplayerNetworkingMode, NextEffectStartsIn,
+    },
     main_menu::BoardSetupInstructions,
     vis_pieces::visual_piece_archetypes_storage::{BasePlatesDirectory, VisualPieceArchetype},
 };
@@ -181,9 +186,11 @@ pub fn create_board(
 
     commands.run_schedule(SetUpBoard);
 
-    for item in change_log.read() {
-        write_message(item.clone(), commands, &networking_mode);
-    }
+    commands.insert_resource(EffectsQueue::new(change_log));
+    commands.insert_resource(NextEffectStartsIn(Timer::new(
+        Duration::from_secs_f32(0.1),
+        TimerMode::Once,
+    )));
 
     Ok(())
 }
