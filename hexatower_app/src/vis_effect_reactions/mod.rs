@@ -1,5 +1,3 @@
-use std::f32::consts::TAU;
-
 /// Notes on this module.
 /// 1. Systems should only reference the "effect to display" resource once: when starting the sequence. Other systems (ie. ones that move particles) should not reference that resource because it is liable to change frequently.
 /// 2. Sequences should not reference visual world data that they do not create, because those things may be destroyed by other reactions. (ie. A particle should fly to a logical tile location, not to the location of a visual piece model, because a concurrent reaction could despawn the piece model.)
@@ -37,6 +35,8 @@ impl Plugin for VisEffectReactions {
     }
 }
 
+const EFFECT_HOVER_HEIGHT: f32 = 1.3;
+
 #[derive(Debug, Component)]
 pub struct AnimateTranslation(pub EasingCurve<Vec3>);
 #[derive(Debug, Component)]
@@ -54,11 +54,19 @@ fn animate_translation(
         })
 }
 
-fn update_anim_progress(mut prog: Query<&mut AnimProgress>, time: Res<Time>) {
+fn update_anim_progress(
+    mut prog: Query<(Entity, &mut AnimProgress)>,
+    time: Res<Time>,
+    mut commands: Commands,
+) {
     const ANIM_SPEED: f32 = 0.8;
 
-    prog.iter_mut().for_each(|mut anim_prog| {
+    prog.iter_mut().for_each(|(ent, mut anim_prog)| {
         anim_prog.0 = (anim_prog.0 + time.delta_secs() * ANIM_SPEED).clamp(0.0, 1.0);
+
+        if anim_prog.0 == 1.0 {
+            commands.entity(ent).despawn();
+        }
     });
 }
 
@@ -97,9 +105,12 @@ fn spawn_coins(
         }) {
         if delta_coins.is_negative() {
             TargetingInfo {
-                from_loc: HexVector2d::from(tile_of_player_tower).into(),
+                from_loc: Vec3::from(HexVector2d::from(tile_of_player_tower))
+                    .with_y(EFFECT_HOVER_HEIGHT),
                 to_loc: match from_tile {
-                    Some(recipient) => HexVector2d::from(recipient).into(),
+                    Some(recipient) => {
+                        Vec3::from(HexVector2d::from(recipient)).with_y(EFFECT_HOVER_HEIGHT)
+                    }
                     None => Vec3::from(HexVector2d::from(tile_of_player_tower)).with_y(30.0),
                 },
                 accent_particle: asset_server.load::<WorldAsset>(
@@ -109,10 +120,13 @@ fn spawn_coins(
         } else {
             TargetingInfo {
                 from_loc: match from_tile {
-                    Some(source) => HexVector2d::from(source).into(),
+                    Some(source) => {
+                        Vec3::from(HexVector2d::from(source)).with_y(EFFECT_HOVER_HEIGHT)
+                    }
                     None => Vec3::from(HexVector2d::from(tile_of_player_tower)).with_y(30.0),
                 },
-                to_loc: HexVector2d::from(tile_of_player_tower).into(),
+                to_loc: Vec3::from(HexVector2d::from(tile_of_player_tower))
+                    .with_y(EFFECT_HOVER_HEIGHT),
                 accent_particle: asset_server.load::<WorldAsset>(
                     GltfAssetLabel::Scene(0).from_asset("particles_and_effects/green_plus.glb"),
                 ),
@@ -124,7 +138,7 @@ fn spawn_coins(
             match from_tile {
                 Some(recipient) => TargetingInfo {
                     from_loc: Vec3::from(HexVector2d::from(recipient)).with_y(30.0),
-                    to_loc: HexVector2d::from(recipient).into(),
+                    to_loc: Vec3::from(HexVector2d::from(recipient)).with_y(EFFECT_HOVER_HEIGHT),
                     accent_particle: asset_server.load::<WorldAsset>(
                         GltfAssetLabel::Scene(0)
                             .from_asset("particles_and_effects/question_mark.glb"),
@@ -135,7 +149,7 @@ fn spawn_coins(
         } else {
             match from_tile {
                 Some(source) => TargetingInfo {
-                    from_loc: HexVector2d::from(source).into(),
+                    from_loc: Vec3::from(HexVector2d::from(source)).with_y(EFFECT_HOVER_HEIGHT),
                     to_loc: Vec3::from(HexVector2d::from(source)).with_y(30.0),
                     accent_particle: asset_server.load::<WorldAsset>(
                         GltfAssetLabel::Scene(0)
@@ -152,11 +166,10 @@ fn spawn_coins(
     for _ in 0..delta_coins.abs() {
         let start_pos =
             target_info.from_loc + rng.random::<Vec3>().normalize() * rng.random_range(0.1..1.2);
-        let end_pos =
-            target_info.to_loc + rng.random::<Vec3>().normalize() * rng.random_range(0.1..1.2);
+        let end_pos = target_info.to_loc;
 
         commands.spawn((
-            Transform::from_translation(start_pos).rotate_local_z(rng.random_range(-TAU..TAU)),
+            Transform::from_translation(start_pos).rotate_local_z(rng.random_range(-0.5..0.5)),
             WorldAssetRoot(asset_server.load::<WorldAsset>(
                 GltfAssetLabel::Scene(0).from_asset("particles_and_effects/Coin.glb"),
             )),
@@ -172,15 +185,14 @@ fn spawn_coins(
     for _ in 0..delta_coins.abs() {
         let start_pos =
             target_info.from_loc + rng.random::<Vec3>().normalize() * rng.random_range(0.1..1.2);
-        let end_pos =
-            target_info.to_loc + rng.random::<Vec3>().normalize() * rng.random_range(0.1..1.2);
+        let end_pos = target_info.to_loc;
 
         commands.spawn((
             Transform::from_translation(
                 target_info.from_loc
                     + rng.random::<Vec3>().normalize() * rng.random_range(0.1..1.2),
             )
-            .rotate_local_z(rng.random_range(-TAU..TAU)),
+            .rotate_local_z(rng.random_range(-0.5..0.5)),
             WorldAssetRoot(target_info.accent_particle.clone()),
             AnimateTranslation(EasingCurve::new(
                 start_pos,
