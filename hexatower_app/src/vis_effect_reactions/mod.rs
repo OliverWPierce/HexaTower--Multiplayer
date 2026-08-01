@@ -23,12 +23,13 @@ impl Plugin for VisEffectReactions {
 
         app.add_systems(
             Update,
-            spawn_coins.run_if(resource_exists_and_changed::<EffectToDisplay>),
+            (spawn_coins, player_order_change)
+                .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
 
         app.add_systems(
             Update,
-            (animate_translation)
+            (animate_translation, animate_scale)
                 .after(update_anim_progress)
                 .run_if(in_state(AppState::InGame)),
         );
@@ -40,7 +41,12 @@ const EFFECT_HOVER_HEIGHT: f32 = 1.3;
 #[derive(Debug, Component)]
 pub struct AnimateTranslation(pub EasingCurve<Vec3>);
 #[derive(Debug, Component)]
-pub struct AnimProgress(f32);
+pub struct AnimateScale(pub EasingCurve<Vec3>);
+#[derive(Debug, Component)]
+pub struct AnimProgress {
+    progress: f32,
+    speed_multiplyer: f32,
+}
 
 fn animate_translation(
     mut translations: Query<(&AnimateTranslation, &mut Transform, &AnimProgress)>,
@@ -48,8 +54,18 @@ fn animate_translation(
     translations
         .iter_mut()
         .for_each(|(new_translation, mut current_transform, anim_progress)| {
-            if let Some(new_translation) = new_translation.0.sample(anim_progress.0) {
+            if let Some(new_translation) = new_translation.0.sample(anim_progress.progress) {
                 current_transform.translation = new_translation;
+            }
+        })
+}
+
+fn animate_scale(mut translations: Query<(&AnimateScale, &mut Transform, &AnimProgress)>) {
+    translations
+        .iter_mut()
+        .for_each(|(new_scale, mut current_transform, anim_progress)| {
+            if let Some(new_scale) = new_scale.0.sample(anim_progress.progress) {
+                current_transform.scale = new_scale;
             }
         })
 }
@@ -59,12 +75,13 @@ fn update_anim_progress(
     time: Res<Time>,
     mut commands: Commands,
 ) {
-    const ANIM_SPEED: f32 = 0.8;
+    const GENERAL_SPEED_MULTIPLYER: f32 = 1.0;
 
     prog.iter_mut().for_each(|(ent, mut anim_prog)| {
-        anim_prog.0 = (anim_prog.0 + time.delta_secs() * ANIM_SPEED).clamp(0.0, 1.0);
+        anim_prog.progress =
+            (anim_prog.progress + time.delta_secs() * GENERAL_SPEED_MULTIPLYER).clamp(0.0, 1.0);
 
-        if anim_prog.0 == 1.0 {
+        if anim_prog.progress == 1.0 {
             commands.entity(ent).despawn();
         }
     });
@@ -178,7 +195,10 @@ fn spawn_coins(
                 end_pos,
                 EaseFunction::SmoothStep,
             )),
-            AnimProgress(0.0),
+            AnimProgress {
+                progress: 0.0,
+                speed_multiplyer: 0.8,
+            },
         ));
     }
 
@@ -188,18 +208,219 @@ fn spawn_coins(
         let end_pos = target_info.to_loc;
 
         commands.spawn((
-            Transform::from_translation(
-                target_info.from_loc
-                    + rng.random::<Vec3>().normalize() * rng.random_range(0.1..1.2),
-            )
-            .rotate_local_z(rng.random_range(-0.5..0.5)),
+            Transform::from_translation(start_pos).rotate_local_z(rng.random_range(-0.5..0.5)),
             WorldAssetRoot(target_info.accent_particle.clone()),
             AnimateTranslation(EasingCurve::new(
                 start_pos,
                 end_pos,
                 EaseFunction::SmoothStep,
             )),
-            AnimProgress(0.0),
+            AnimProgress {
+                progress: 0.0,
+                speed_multiplyer: 0.8,
+            },
         ));
+    }
+}
+
+fn player_order_change(
+    effect: Res<EffectToDisplay>,
+    mut commands: Commands,
+    asset_server: ResMut<AssetServer>,
+    logical_world: Res<LogicalWorld>,
+) {
+    const ACCENT_PARTICLE_NUMBER: u8 = 7;
+    const SPEED: f32 = 0.4;
+
+    match effect.0 {
+        ActionEffect::IncreasedRemainingOrdersOfPlayer { receipient, source } => {
+            let Some(owned_pieces) = logical_world.0.get::<OwnsPieces>(
+                *logical_world
+                    .0
+                    .resource::<PlayerDirectory>()
+                    .get(receipient),
+            ) else {
+                return;
+            };
+            let Some(&tile_of_player_tower) = owned_pieces.list().iter().find_map(|&piece| {
+                if logical_world.0.get::<IsWinCondition>(piece).is_some()
+                    && let Some(OccupiesTile(tile)) = logical_world.0.get::<OccupiesTile>(piece)
+                {
+                    logical_world.0.get::<TileId>(*tile)
+                } else {
+                    None
+                }
+            }) else {
+                return;
+            };
+
+            match source {
+                Some(source_tile) => {
+                    commands.spawn((
+                        Transform::from_translation(
+                            Vec3::from(HexVector2d::from(source_tile)).with_y(EFFECT_HOVER_HEIGHT),
+                        ),
+                        AnimProgress {
+                            progress: 0.0,
+                            speed_multiplyer: SPEED,
+                        },
+                        WorldAssetRoot(
+                            asset_server.load(
+                                GltfAssetLabel::Scene(0)
+                                    .from_asset("particles_and_effects/red_button.glb"),
+                            ),
+                        ),
+                        AnimateTranslation(EasingCurve::new(
+                            Vec3::from(HexVector2d::from(source_tile)).with_y(EFFECT_HOVER_HEIGHT),
+                            Vec3::from(HexVector2d::from(tile_of_player_tower))
+                                .with_y(EFFECT_HOVER_HEIGHT),
+                            EaseFunction::SmoothStep,
+                        )),
+                    ));
+
+                    let mut rng = rand::rng();
+
+                    for _ in 0..ACCENT_PARTICLE_NUMBER {
+                        let start_pos = Vec3::from(HexVector2d::from(source_tile))
+                            .with_y(EFFECT_HOVER_HEIGHT)
+                            + rng.random::<Vec3>().normalize() * rng.random_range(0.1..1.2);
+                        let end_pos = Vec3::from(HexVector2d::from(tile_of_player_tower))
+                            .with_y(EFFECT_HOVER_HEIGHT);
+
+                        commands.spawn((
+                            Transform::from_translation(start_pos)
+                                .rotate_local_z(rng.random_range(-0.5..0.5)),
+                            WorldAssetRoot(
+                                asset_server.load(
+                                    GltfAssetLabel::Scene(0)
+                                        .from_asset("particles_and_effects/green_plus.glb"),
+                                ),
+                            ),
+                            AnimateTranslation(EasingCurve::new(
+                                start_pos,
+                                end_pos,
+                                EaseFunction::SmoothStep,
+                            )),
+                            AnimProgress {
+                                progress: 0.0,
+                                speed_multiplyer: SPEED,
+                            },
+                        ));
+                    }
+                }
+                None => {
+                    commands.spawn((
+                        Transform::from_translation(
+                            Vec3::from(HexVector2d::from(tile_of_player_tower))
+                                .with_y(EFFECT_HOVER_HEIGHT),
+                        ),
+                        AnimProgress {
+                            progress: 0.0,
+                            speed_multiplyer: SPEED,
+                        },
+                        WorldAssetRoot(
+                            asset_server.load(
+                                GltfAssetLabel::Scene(0)
+                                    .from_asset("particles_and_effects/red_button.glb"),
+                            ),
+                        ),
+                        AnimateScale(EasingCurve::new(
+                            Vec3::ZERO,
+                            Vec3::ONE,
+                            EaseFunction::ElasticIn,
+                        )),
+                    ));
+
+                    let mut rng = rand::rng();
+
+                    for _ in 0..ACCENT_PARTICLE_NUMBER {
+                        commands.spawn((
+                            Transform::from_translation(
+                                Vec3::from(HexVector2d::from(tile_of_player_tower))
+                                    .with_y(EFFECT_HOVER_HEIGHT)
+                                    + rng.random::<Vec3>().normalize() * rng.random_range(0.1..1.2),
+                            ),
+                            AnimProgress {
+                                progress: rng.random_range(0.0..0.1),
+                                speed_multiplyer: SPEED,
+                            },
+                            WorldAssetRoot(
+                                asset_server.load(
+                                    GltfAssetLabel::Scene(0)
+                                        .from_asset("particles_and_effects/green_plus.glb"),
+                                ),
+                            ),
+                            AnimateScale(EasingCurve::new(
+                                Vec3::ZERO,
+                                Vec3::ONE,
+                                EaseFunction::ElasticIn,
+                            )),
+                        ));
+                    }
+                }
+            }
+        }
+        ActionEffect::ReducedRemaingOrdersOfPlayer(player) => {
+            let Some(owned_pieces) = logical_world
+                .0
+                .get::<OwnsPieces>(*logical_world.0.resource::<PlayerDirectory>().get(player))
+            else {
+                return;
+            };
+            let Some(&tile_of_player_tower) = owned_pieces.list().iter().find_map(|&piece| {
+                if logical_world.0.get::<IsWinCondition>(piece).is_some()
+                    && let Some(OccupiesTile(tile)) = logical_world.0.get::<OccupiesTile>(piece)
+                {
+                    logical_world.0.get::<TileId>(*tile)
+                } else {
+                    None
+                }
+            }) else {
+                return;
+            };
+
+            commands.spawn((
+                Transform::from_translation(
+                    Vec3::from(HexVector2d::from(tile_of_player_tower)).with_y(EFFECT_HOVER_HEIGHT),
+                ),
+                AnimProgress {
+                    progress: 0.0,
+                    speed_multiplyer: SPEED,
+                },
+                WorldAssetRoot(asset_server.load(
+                    GltfAssetLabel::Scene(0).from_asset("particles_and_effects/red_button.glb"),
+                )),
+                AnimateScale(EasingCurve::new(
+                    Vec3::ZERO,
+                    Vec3::ONE,
+                    EaseFunction::ElasticIn,
+                )),
+            ));
+
+            let mut rng = rand::rng();
+
+            for _ in 0..ACCENT_PARTICLE_NUMBER {
+                commands.spawn((
+                    Transform::from_translation(
+                        Vec3::from(HexVector2d::from(tile_of_player_tower))
+                            .with_y(EFFECT_HOVER_HEIGHT)
+                            + rng.random::<Vec3>().normalize() * rng.random_range(0.1..1.2),
+                    ),
+                    AnimProgress {
+                        progress: rng.random_range(0.0..0.1),
+                        speed_multiplyer: SPEED,
+                    },
+                    WorldAssetRoot(asset_server.load(
+                        GltfAssetLabel::Scene(0).from_asset("particles_and_effects/red_minus.glb"),
+                    )),
+                    AnimateScale(EasingCurve::new(
+                        Vec3::ZERO,
+                        Vec3::ONE,
+                        EaseFunction::ElasticIn,
+                    )),
+                ));
+            }
+        }
+        _ => (),
     }
 }
