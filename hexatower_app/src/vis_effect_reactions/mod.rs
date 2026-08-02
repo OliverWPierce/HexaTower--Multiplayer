@@ -1,7 +1,10 @@
 /// Notes on this module.
 /// 1. Systems should only reference the "effect to display" resource once: when starting the sequence. Other systems (ie. ones that move particles) should not reference that resource because it is liable to change frequently.
 /// 2. Sequences should not reference visual world data that they do not create, because those things may be destroyed by other reactions. (ie. A particle should fly to a logical tile location, not to the location of a visual piece model, because a concurrent reaction could despawn the piece model.)
-use bevy::prelude::*;
+use bevy::{
+    ecs::component::{ComponentMutability, Mutable},
+    prelude::*,
+};
 use core_game_logic::{
     pieces::{IsWinCondition, OccupiesTile, OwnsPieces},
     players::PlayerDirectory,
@@ -37,6 +40,7 @@ impl Plugin for VisEffectReactions {
 }
 
 const EFFECT_HOVER_HEIGHT: f32 = 1.3;
+const GENERAL_SPPED_MULTIPLYER: f32 = 1.0;
 
 #[derive(Debug, Component)]
 pub struct AnimateTranslation(pub EasingCurve<Vec3>);
@@ -327,7 +331,7 @@ fn player_order_change(
                         AnimateScale(EasingCurve::new(
                             Vec3::ZERO,
                             Vec3::ONE,
-                            EaseFunction::ElasticIn,
+                            EaseFunction::ExponentialIn,
                         )),
                     ));
 
@@ -353,7 +357,7 @@ fn player_order_change(
                             AnimateScale(EasingCurve::new(
                                 Vec3::ZERO,
                                 Vec3::ONE,
-                                EaseFunction::ElasticIn,
+                                EaseFunction::ExponentialIn,
                             )),
                         ));
                     }
@@ -393,7 +397,7 @@ fn player_order_change(
                 AnimateScale(EasingCurve::new(
                     Vec3::ZERO,
                     Vec3::ONE,
-                    EaseFunction::ElasticIn,
+                    EaseFunction::ExponentialIn,
                 )),
             ));
 
@@ -416,11 +420,91 @@ fn player_order_change(
                     AnimateScale(EasingCurve::new(
                         Vec3::ZERO,
                         Vec3::ONE,
-                        EaseFunction::ElasticIn,
+                        EaseFunction::ExponentialIn,
                     )),
                 ));
             }
         }
         _ => (),
+    }
+}
+#[derive(Debug, Component)]
+struct AnimatedProperty<A> {
+    fxn: Box<[(EasingCurve<A>, f32)]>,
+    prog: f32,
+}
+
+struct AnimatedPropertyInterval<A> {
+    /// The next value the animation will reach.
+    next_value: A,
+    /// How fast it will approach this value after the previous value.
+    speed_multiplyer: f32,
+    /// How it will arrive at that value.
+    mode: EaseFunction,
+}
+
+impl<A: Clone> AnimatedProperty<A> {
+    fn new_seamless(
+        start_value: A,
+        animations: Box<[AnimatedPropertyInterval<A>]>,
+        with_progress: f32,
+    ) -> Self {
+        let mut previous_value = start_value;
+
+        let mut curves = Vec::new();
+
+        for interval in animations {
+            curves.push((
+                EasingCurve::new(previous_value, interval.next_value.clone(), interval.mode),
+                interval.speed_multiplyer,
+            ));
+
+            previous_value = interval.next_value;
+        }
+
+        Self {
+            fxn: curves.into_boxed_slice(),
+            prog: with_progress,
+        }
+    }
+}
+
+impl<A> AnimatedProperty<A>
+where
+    EasingCurve<A>: Curve<A>,
+{
+    fn get_current_value_and_speed(&self) -> Option<(A, f32)> {
+        self.fxn
+            .iter()
+            .enumerate()
+            .find_map(|(index, (curve, speed))| {
+                curve
+                    .sample(self.prog - index as f32 * 1.0)
+                    .map(|new_value| (new_value, *speed))
+            })
+    }
+}
+
+impl<A: Component<Mutability = Mutable>> AnimatedProperty<A>
+where
+    EasingCurve<A>: Curve<A>,
+{
+    fn update(
+        mut query: Query<(Entity, &mut AnimatedProperty<A>, &mut A)>,
+        mut commands: Commands,
+        time: Res<Time>,
+    ) {
+        query
+            .iter_mut()
+            .for_each(|(ent, mut animation, mut value)| {
+                if let Some((new_value, speed_multiplyer)) = animation.get_current_value_and_speed()
+                {
+                    *value = new_value;
+                    animation.prog +=
+                        time.delta_secs() * GENERAL_SPPED_MULTIPLYER * speed_multiplyer;
+                } else {
+                    commands.entity(ent).despawn();
+                }
+            });
     }
 }
