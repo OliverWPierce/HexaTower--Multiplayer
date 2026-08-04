@@ -5,7 +5,7 @@ use bevy::prelude::*;
 
 mod coin_flying;
 
-use crate::{AppState, vis_effect_reactions::coin_flying::CoinFlying};
+use crate::{AppState, inputs_interface::EffectToDisplay};
 
 pub struct VisEffectReactions;
 
@@ -15,8 +15,10 @@ impl Plugin for VisEffectReactions {
             Update,
             (animate_translation, animate_scale).run_if(in_state(AppState::InGame)),
         );
-
-        app.add_plugins(CoinFlying);
+        app.add_systems(
+            Update,
+            coin_flying::spawn_coins.run_if(resource_exists_and_changed::<EffectToDisplay>),
+        );
     }
 }
 

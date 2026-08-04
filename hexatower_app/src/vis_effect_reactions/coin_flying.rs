@@ -5,7 +5,7 @@ use core_game_logic::{
     requests::ActionEffect,
     tile_mapping::{HexVector2d, TileId},
 };
-use rand::{Rng, RngExt, rngs::ThreadRng};
+use rand::RngExt;
 
 use crate::{
     functional_assets::LogicalWorld,
@@ -15,19 +15,7 @@ use crate::{
         EFFECT_HOVER_HEIGHT,
     },
 };
-
-pub struct CoinFlying;
-
-impl Plugin for CoinFlying {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            spawn_coins.run_if(resource_exists_and_changed::<EffectToDisplay>),
-        );
-    }
-}
-
-fn spawn_coins(
+pub fn spawn_coins(
     effect: Res<EffectToDisplay>,
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
