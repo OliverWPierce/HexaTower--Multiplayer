@@ -5,7 +5,7 @@ use core_game_logic::{
     requests::ActionEffect,
     tile_mapping::{HexVector2d, TileId},
 };
-use rand::RngExt;
+use rand::{Rng, RngExt, rngs::ThreadRng};
 
 use crate::{
     functional_assets::LogicalWorld,
@@ -122,134 +122,86 @@ fn spawn_coins(
 
     let mut rng = rand::rng();
 
-    const PHASE_1_DUR: f32 = 0.5;
+    const PHASE_1_DUR: f32 = 0.1;
     const PHASE_2_DUR: f32 = 2.0;
     const PHASE_3_DUR: f32 = 1.5;
     const PHASE_4_DUR: f32 = 0.5;
-    const PHASE_5_DUR: f32 = 0.2;
+    const PHASE_5_DUR: f32 = 0.1;
 
-    const DUR_VARIANCE: f32 = 0.1;
+    const DUR_VARIANCE: f32 = 0.05;
 
-    for _ in 0..delta_coins.abs() {
+    for index in 0..delta_coins.abs() * 2 {
         let offset = rng.random::<Vec3>().normalize().with_y(0.0) * rng.random_range(0.1..1.2);
         let scale = Vec3::splat(rng.random_range(0.8..1.2));
 
         commands.spawn((
-            Transform::from_translation(target_info.from_loc).with_scale(Vec3::ZERO),
-            WorldAssetRoot(asset_server.load::<WorldAsset>(
-                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/Coin.glb"),
-            )),
-            AnimatedTranslation(AnimatedProperty::new_seamless(
-                target_info.from_loc,
-                [
-                    AnimatedPropertyInterval {
-                        next_value: target_info.from_loc + offset,
-                        duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: target_info.to_loc + offset,
-                        duration: PHASE_2_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: target_info.to_loc + offset * 0.5,
-                        duration: PHASE_3_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: target_info.to_loc + offset * 0.5,
-                        duration: PHASE_4_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: target_info.to_loc.with_y(0.0),
-                        duration: PHASE_5_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::QuadraticIn,
-                    },
-                ]
-                .into(),
-                0.0,
-            )),
-            AnimatedScale(AnimatedProperty::new_seamless(
-                Vec3::ZERO,
-                [
-                    AnimatedPropertyInterval {
-                        next_value: scale,
-                        duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: scale,
-                        duration: PHASE_2_DUR
-                            + PHASE_3_DUR
-                            + PHASE_5_DUR
-                            + rng.random_range(0.0..DUR_VARIANCE) * 3.0,
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: Vec3::ZERO,
-                        duration: PHASE_5_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::QuadraticIn,
-                    },
-                ]
-                .into(),
-                0.1,
-            )),
-        ));
-    }
-
-    for _ in 0..delta_coins.abs() {
-        let offset = rng.random::<Vec3>().normalize().with_y(0.0) * rng.random_range(0.1..1.2);
-        let scale = Vec3::splat(rng.random_range(0.8..1.2));
-
-        commands.spawn((
-            Transform::from_translation(target_info.from_loc).with_scale(Vec3::ZERO),
-            WorldAssetRoot(target_info.accent_particle.clone()),
-            AnimatedTranslation(AnimatedProperty::new_seamless(
-                target_info.from_loc,
-                [
-                    AnimatedPropertyInterval {
-                        next_value: target_info.from_loc + offset,
-                        duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: target_info.to_loc + offset,
-                        duration: PHASE_2_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: target_info.to_loc + offset * 0.5,
-                        duration: PHASE_3_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                ]
-                .into(),
-                0.1,
-            )),
-            AnimatedScale(AnimatedProperty::new_seamless(
-                Vec3::ZERO,
-                [
-                    AnimatedPropertyInterval {
-                        next_value: scale,
-                        duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: scale,
-                        duration: PHASE_2_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::SmoothStep,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: Vec3::ZERO,
-                        duration: PHASE_3_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                        mode: EaseFunction::QuadraticIn,
-                    },
-                ]
-                .into(),
-                0.0,
-            )),
+            (
+                Transform::from_translation(target_info.from_loc).with_scale(Vec3::ZERO),
+                AnimatedTranslation(AnimatedProperty::new_seamless(
+                    target_info.from_loc,
+                    [
+                        AnimatedPropertyInterval {
+                            next_value: target_info.from_loc + offset,
+                            duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            mode: EaseFunction::SmoothStep,
+                        },
+                        AnimatedPropertyInterval {
+                            next_value: target_info.to_loc + offset,
+                            duration: PHASE_2_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            mode: EaseFunction::SmoothStep,
+                        },
+                        AnimatedPropertyInterval {
+                            next_value: target_info.to_loc + offset * 0.5,
+                            duration: PHASE_3_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            mode: EaseFunction::SmoothStep,
+                        },
+                        AnimatedPropertyInterval {
+                            next_value: target_info.to_loc + offset * 0.5,
+                            duration: PHASE_4_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            mode: EaseFunction::SmoothStep,
+                        },
+                        AnimatedPropertyInterval {
+                            next_value: target_info.to_loc.with_y(0.0),
+                            duration: PHASE_5_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            mode: EaseFunction::QuadraticIn,
+                        },
+                    ]
+                    .into(),
+                    0.0,
+                )),
+                AnimatedScale(AnimatedProperty::new_seamless(
+                    Vec3::ZERO,
+                    [
+                        AnimatedPropertyInterval {
+                            next_value: scale,
+                            duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            mode: EaseFunction::SmoothStep,
+                        },
+                        AnimatedPropertyInterval {
+                            next_value: scale,
+                            duration: PHASE_2_DUR
+                                + PHASE_3_DUR
+                                + PHASE_5_DUR
+                                + rng.random_range(0.0..DUR_VARIANCE) * 3.0,
+                            mode: EaseFunction::SmoothStep,
+                        },
+                        AnimatedPropertyInterval {
+                            next_value: Vec3::ZERO,
+                            duration: PHASE_5_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            mode: EaseFunction::QuadraticIn,
+                        },
+                    ]
+                    .into(),
+                    0.0,
+                )),
+            ),
+            WorldAssetRoot(if index < delta_coins.abs() {
+                asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("particles_and_effects/Coin.glb"),
+                )
+            } else {
+                target_info.accent_particle.clone()
+            }),
         ));
     }
 }
