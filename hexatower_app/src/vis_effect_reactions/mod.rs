@@ -25,15 +25,15 @@ const GENERAL_SPPED_MULTIPLYER: f32 = 1.0;
 
 #[derive(Debug, Component)]
 pub struct AnimatedProperty<A> {
-    pub fxn: Box<[(EasingCurve<A>, f32)]>,
-    pub prog: f32,
+    pub fxn: Vec<(EasingCurve<A>, f32)>,
+    pub elapsed_in_segment: f32,
 }
 
 pub struct AnimatedPropertyInterval<A> {
     /// The next value the animation will reach.
     pub next_value: A,
     /// How fast it will approach this value after the previous value.
-    pub speed_multiplyer: f32,
+    pub duration: f32,
     /// How it will arrive at that value.
     pub mode: EaseFunction,
 }
@@ -42,7 +42,7 @@ impl<A: Clone> AnimatedProperty<A> {
     pub fn new_seamless(
         start_value: A,
         animations: Box<[AnimatedPropertyInterval<A>]>,
-        with_progress: f32,
+        with_elapsed: f32,
     ) -> Self {
         let mut previous_value = start_value;
 
@@ -51,15 +51,17 @@ impl<A: Clone> AnimatedProperty<A> {
         for interval in animations {
             curves.push((
                 EasingCurve::new(previous_value, interval.next_value.clone(), interval.mode),
-                interval.speed_multiplyer,
+                interval.duration,
             ));
 
             previous_value = interval.next_value;
         }
 
+        curves.reverse();
+
         Self {
-            fxn: curves.into_boxed_slice(),
-            prog: with_progress,
+            fxn: curves,
+            elapsed_in_segment: with_elapsed,
         }
     }
 }
@@ -68,15 +70,17 @@ impl<A> AnimatedProperty<A>
 where
     EasingCurve<A>: Curve<A>,
 {
-    fn get_current_value_and_speed(&self) -> Option<(A, f32)> {
-        self.fxn
-            .iter()
-            .enumerate()
-            .find_map(|(index, (curve, speed))| {
-                curve
-                    .sample(self.prog - index as f32 * 1.0)
-                    .map(|new_value| (new_value, *speed))
-            })
+    fn current_val(&mut self) -> Option<A> {
+        while let Some((curve, duration)) = self.fxn.last() {
+            if let Some(val) = curve.sample(self.elapsed_in_segment / *duration) {
+                return Some(val);
+            }
+
+            self.elapsed_in_segment = (self.elapsed_in_segment - duration).max(0.0);
+            self.fxn.pop();
+        }
+
+        None
     }
 }
 
@@ -91,14 +95,14 @@ fn animate_translation(
     transforms
         .iter_mut()
         .for_each(|(entity, mut transform, mut animation)| {
-            if let Some((new_translation, anim_speed_multiplyer)) =
-                animation.0.get_current_value_and_speed()
-            {
+            if let Some(new_translation) = animation.0.current_val() {
+                println!("Mutating transform.");
                 transform.translation = new_translation;
-                animation.0.prog +=
-                    anim_speed_multiplyer * GENERAL_SPPED_MULTIPLYER * time.delta_secs();
+                animation.0.elapsed_in_segment += GENERAL_SPPED_MULTIPLYER * time.delta_secs();
+            } else {
+                println!("No animation value found");
+                commands.entity(entity).try_remove::<AnimatedTranslation>();
             }
-            commands.entity(entity).remove::<AnimatedTranslation>();
         });
 }
 
@@ -114,13 +118,13 @@ fn animate_scale(
     transforms
         .iter_mut()
         .for_each(|(entity, mut transform, mut animation)| {
-            if let Some((new_scale, anim_speed_multiplyer)) =
-                animation.0.get_current_value_and_speed()
-            {
+            if let Some(new_scale) = animation.0.current_val() {
+                println!("Mutating scale.");
                 transform.scale = new_scale;
-                animation.0.prog +=
-                    anim_speed_multiplyer * GENERAL_SPPED_MULTIPLYER * time.delta_secs();
+                animation.0.elapsed_in_segment += GENERAL_SPPED_MULTIPLYER * time.delta_secs();
+            } else {
+                println!("No scale animation value found: despawning.");
+                commands.entity(entity).try_despawn();
             }
-            commands.entity(entity).despawn();
         });
 }
