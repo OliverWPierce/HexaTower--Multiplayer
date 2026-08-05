@@ -30,8 +30,6 @@ pub fn spawn_coins(
         return;
     };
 
-    println!("Attempting to fly coins!");
-
     struct TargetingInfo {
         from_loc: Vec3,
         to_loc: Vec3,
@@ -134,7 +132,7 @@ pub fn spawn_coins(
                             mode: EaseFunction::SmoothStep,
                         },
                         AnimatedPropertyInterval {
-                            next_value: target_info.to_loc + offset,
+                            next_value: target_info.from_loc + offset,
                             duration: PHASE_2_DUR + rng.random_range(0.0..DUR_VARIANCE),
                             mode: EaseFunction::SmoothStep,
                         },

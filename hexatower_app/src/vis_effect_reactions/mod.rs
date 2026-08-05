@@ -4,6 +4,7 @@
 use bevy::prelude::*;
 
 mod coin_flying;
+mod player_orders;
 
 use crate::{AppState, inputs_interface::EffectToDisplay};
 
@@ -17,7 +18,8 @@ impl Plugin for VisEffectReactions {
         );
         app.add_systems(
             Update,
-            coin_flying::spawn_coins.run_if(resource_exists_and_changed::<EffectToDisplay>),
+            (coin_flying::spawn_coins, player_orders::player_order_change)
+                .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
     }
 }
@@ -98,11 +100,9 @@ fn animate_translation(
         .iter_mut()
         .for_each(|(entity, mut transform, mut animation)| {
             if let Some(new_translation) = animation.0.current_val() {
-                println!("Mutating transform.");
                 transform.translation = new_translation;
                 animation.0.elapsed_in_segment += GENERAL_SPPED_MULTIPLYER * time.delta_secs();
             } else {
-                println!("No animation value found");
                 commands.entity(entity).try_remove::<AnimatedTranslation>();
             }
         });
@@ -121,11 +121,9 @@ fn animate_scale(
         .iter_mut()
         .for_each(|(entity, mut transform, mut animation)| {
             if let Some(new_scale) = animation.0.current_val() {
-                println!("Mutating scale.");
                 transform.scale = new_scale;
                 animation.0.elapsed_in_segment += GENERAL_SPPED_MULTIPLYER * time.delta_secs();
             } else {
-                println!("No scale animation value found: despawning.");
                 commands.entity(entity).try_despawn();
             }
         });
