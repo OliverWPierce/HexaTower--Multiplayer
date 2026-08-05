@@ -108,11 +108,11 @@ pub fn spawn_coins(
 
     let mut rng = rand::rng();
 
-    const PHASE_1_DUR: f32 = 0.1;
-    const PHASE_2_DUR: f32 = 2.0;
-    const PHASE_3_DUR: f32 = 1.5;
+    const PHASE_1_DUR: f32 = 0.05;
+    const PHASE_2_DUR: f32 = 0.5;
+    const PHASE_3_DUR: f32 = 1.4;
     const PHASE_4_DUR: f32 = 0.5;
-    const PHASE_5_DUR: f32 = 0.1;
+    const PHASE_5_DUR: f32 = 0.05;
 
     const DUR_VARIANCE: f32 = 0.05;
 

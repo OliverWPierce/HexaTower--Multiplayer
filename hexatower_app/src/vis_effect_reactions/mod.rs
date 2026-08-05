@@ -2,6 +2,7 @@
 /// 1. Systems should only reference the "effect to display" resource once: when starting the sequence. Other systems (ie. ones that move particles) should not reference that resource because it is liable to change frequently.
 /// 2. Sequences should not reference visual world data that they do not create, because those things may be destroyed by other reactions. (ie. A particle should fly to a logical tile location, not to the location of a visual piece model, because a concurrent reaction could despawn the piece model.)
 use bevy::prelude::*;
+use core_game_logic::tile_mapping::HexVector2d;
 
 mod coin_flying;
 mod player_orders;
@@ -18,7 +19,11 @@ impl Plugin for VisEffectReactions {
         );
         app.add_systems(
             Update,
-            (coin_flying::spawn_coins, player_orders::player_order_change)
+            (
+                coin_flying::spawn_coins,
+                player_orders::player_order_change,
+                tmp_show_effects,
+            )
                 .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
     }
@@ -127,4 +132,185 @@ fn animate_scale(
                 commands.entity(entity).try_despawn();
             }
         });
+}
+
+pub fn spawn_pluse(
+    commands: &mut Commands,
+    location: Vec3,
+    quantity: u8,
+    delay_between: f32,
+    mesh: Handle<WorldAsset>,
+    duration_of_individual_pulse: f32,
+) {
+    for delay_mult in 0..quantity {
+        commands.spawn((
+            Transform::from_translation(location),
+            AnimatedScale(AnimatedProperty::new_seamless(
+                Vec3::ZERO,
+                [
+                    AnimatedPropertyInterval {
+                        next_value: Vec3::ZERO,
+                        duration: delay_between * delay_mult as f32,
+                        mode: EaseFunction::Linear,
+                    },
+                    AnimatedPropertyInterval {
+                        next_value: Vec3::ONE,
+                        duration: duration_of_individual_pulse,
+                        mode: EaseFunction::QuinticIn,
+                    },
+                ]
+                .into(),
+                0.0,
+            )),
+            WorldAssetRoot(mesh.clone()),
+        ));
+    }
+}
+
+fn tmp_show_effects(
+    effect_to_display: Res<EffectToDisplay>,
+    mut commands: Commands,
+    asset_server: ResMut<AssetServer>,
+) {
+    const PULSE_COUNT: u8 = 4;
+    const PULSE_DELAY: f32 = 0.3;
+    const PULSE_DURATION: f32 = 0.9;
+
+    match &effect_to_display.0 {
+        core_game_logic::requests::ActionEffect::ConvertedTileType { tile, .. } => spawn_pluse(
+            &mut commands,
+            Vec3::from(HexVector2d::from(*tile)).with_y(EFFECT_HOVER_HEIGHT),
+            PULSE_COUNT,
+            PULSE_DELAY,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+            ),
+            PULSE_DURATION,
+        ),
+        core_game_logic::requests::ActionEffect::SpawnedNewMarket { tile, .. } => spawn_pluse(
+            &mut commands,
+            Vec3::from(HexVector2d::from(*tile)).with_y(EFFECT_HOVER_HEIGHT),
+            PULSE_COUNT,
+            PULSE_DELAY,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+            ),
+            PULSE_DURATION,
+        ),
+        core_game_logic::requests::ActionEffect::SpawnedPiece { tile, .. } => spawn_pluse(
+            &mut commands,
+            Vec3::from(HexVector2d::from(*tile)).with_y(EFFECT_HOVER_HEIGHT),
+            PULSE_COUNT,
+            PULSE_DELAY,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+            ),
+            PULSE_DURATION,
+        ),
+
+        core_game_logic::requests::ActionEffect::AlteredCoins { from_tile, .. }
+            if let Some(tile) = *from_tile =>
+        {
+            spawn_pluse(
+                &mut commands,
+                Vec3::from(HexVector2d::from(tile)).with_y(EFFECT_HOVER_HEIGHT),
+                PULSE_COUNT,
+                PULSE_DELAY,
+                asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+                ),
+                PULSE_DURATION,
+            );
+        }
+
+        core_game_logic::requests::ActionEffect::IncreasedRemainingOrdersOfPiece {
+            tile_of_piece,
+        } => spawn_pluse(
+            &mut commands,
+            Vec3::from(HexVector2d::from(*tile_of_piece)).with_y(EFFECT_HOVER_HEIGHT),
+            PULSE_COUNT,
+            PULSE_DELAY,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+            ),
+            PULSE_DURATION,
+        ),
+        core_game_logic::requests::ActionEffect::ReducedRemainingOrdersOfPiece {
+            tile_of_piece,
+        } => spawn_pluse(
+            &mut commands,
+            Vec3::from(HexVector2d::from(*tile_of_piece)).with_y(EFFECT_HOVER_HEIGHT),
+            PULSE_COUNT,
+            PULSE_DELAY,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+            ),
+            PULSE_DURATION,
+        ),
+
+        core_game_logic::requests::ActionEffect::DamagedPiece { on_tile, .. } => spawn_pluse(
+            &mut commands,
+            Vec3::from(HexVector2d::from(*on_tile)).with_y(EFFECT_HOVER_HEIGHT),
+            PULSE_COUNT,
+            PULSE_DELAY,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+            ),
+            PULSE_DURATION,
+        ),
+        core_game_logic::requests::ActionEffect::HealedPiece { on_tile, .. } => spawn_pluse(
+            &mut commands,
+            Vec3::from(HexVector2d::from(*on_tile)).with_y(EFFECT_HOVER_HEIGHT),
+            PULSE_COUNT,
+            PULSE_DELAY,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+            ),
+            PULSE_DURATION,
+        ),
+        core_game_logic::requests::ActionEffect::PieceKilled { on_tile } => spawn_pluse(
+            &mut commands,
+            Vec3::from(HexVector2d::from(*on_tile)).with_y(EFFECT_HOVER_HEIGHT),
+            PULSE_COUNT,
+            PULSE_DELAY,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+            ),
+            PULSE_DURATION,
+        ),
+
+        core_game_logic::requests::ActionEffect::PieceRotated { on_tile, .. } => spawn_pluse(
+            &mut commands,
+            Vec3::from(HexVector2d::from(*on_tile)).with_y(EFFECT_HOVER_HEIGHT),
+            PULSE_COUNT,
+            PULSE_DELAY,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+            ),
+            PULSE_DURATION,
+        ),
+        core_game_logic::requests::ActionEffect::PieceMoved { from_tile, to_tile } => {
+            spawn_pluse(
+                &mut commands,
+                Vec3::from(HexVector2d::from(*from_tile)).with_y(EFFECT_HOVER_HEIGHT),
+                PULSE_COUNT,
+                PULSE_DELAY,
+                asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+                ),
+                PULSE_DURATION,
+            );
+            spawn_pluse(
+                &mut commands,
+                Vec3::from(HexVector2d::from(*to_tile)).with_y(EFFECT_HOVER_HEIGHT),
+                PULSE_COUNT,
+                PULSE_DELAY,
+                asset_server.load::<WorldAsset>(
+                    GltfAssetLabel::Scene(0).from_asset("particles_and_effects/purple_ring.glb"),
+                ),
+                PULSE_DURATION,
+            );
+        }
+        _ => (),
+    }
 }

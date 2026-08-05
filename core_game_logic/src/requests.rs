@@ -316,15 +316,15 @@ pub fn try_consume_request(
 
                     let mut log = ChangeLog::default();
 
-                    log.write(ActionEffect::AddedCardToInventory {
-                        player: request_to_process.acting_player,
-                        card,
-                    });
-
                     log.write(ActionEffect::AlteredCoins {
                         player: request_to_process.acting_player,
                         delta_coins: -(price.0 as i32),
-                        from_tile: None,
+                        from_tile: Some(market_tile),
+                    });
+
+                    log.write(ActionEffect::AddedCardToInventory {
+                        player: request_to_process.acting_player,
+                        card,
                     });
 
                     log
