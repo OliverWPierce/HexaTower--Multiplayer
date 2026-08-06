@@ -113,9 +113,9 @@ fn animate_translation(
         });
 }
 
-/// Note: when this animation is finished, the entity will despawn.
+/// Note: if the bool is true, when this animation is finished, the entity will despawn.
 #[derive(Debug, Component)]
-pub struct AnimatedScale(pub AnimatedProperty<Vec3>);
+pub struct AnimatedScale(pub AnimatedProperty<Vec3>, pub bool);
 
 fn animate_scale(
     mut transforms: Query<(Entity, &mut Transform, &mut AnimatedScale)>,
@@ -128,8 +128,10 @@ fn animate_scale(
             if let Some(new_scale) = animation.0.current_val() {
                 transform.scale = new_scale;
                 animation.0.elapsed_in_segment += GENERAL_SPPED_MULTIPLYER * time.delta_secs();
-            } else {
+            } else if animation.1 {
                 commands.entity(entity).try_despawn();
+            } else {
+                commands.entity(entity).try_remove::<AnimatedScale>();
             }
         });
 }
@@ -145,23 +147,26 @@ pub fn spawn_pluse(
     for delay_mult in 0..quantity {
         commands.spawn((
             Transform::from_translation(location),
-            AnimatedScale(AnimatedProperty::new_seamless(
-                Vec3::ZERO,
-                [
-                    AnimatedPropertyInterval {
-                        next_value: Vec3::ZERO,
-                        duration: delay_between * delay_mult as f32,
-                        mode: EaseFunction::Linear,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: Vec3::ONE,
-                        duration: duration_of_individual_pulse,
-                        mode: EaseFunction::QuinticIn,
-                    },
-                ]
-                .into(),
-                0.0,
-            )),
+            AnimatedScale(
+                AnimatedProperty::new_seamless(
+                    Vec3::ZERO,
+                    [
+                        AnimatedPropertyInterval {
+                            next_value: Vec3::ZERO,
+                            duration: delay_between * delay_mult as f32,
+                            mode: EaseFunction::Linear,
+                        },
+                        AnimatedPropertyInterval {
+                            next_value: Vec3::ONE,
+                            duration: duration_of_individual_pulse,
+                            mode: EaseFunction::QuinticIn,
+                        },
+                    ]
+                    .into(),
+                    0.0,
+                ),
+                true,
+            ),
             WorldAssetRoot(mesh.clone()),
         ));
     }

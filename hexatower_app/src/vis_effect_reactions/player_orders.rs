@@ -101,31 +101,34 @@ pub fn player_order_change(
                             .into(),
                             0.0,
                         )),
-                        AnimatedScale(AnimatedProperty::new_seamless(
-                            Vec3::ZERO,
-                            [
-                                AnimatedPropertyInterval {
-                                    next_value: Vec3::ONE * 5.0,
-                                    duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                                    mode: EaseFunction::SmoothStep,
-                                },
-                                AnimatedPropertyInterval {
-                                    next_value: Vec3::ONE * 5.0,
-                                    duration: PHASE_2_DUR
-                                        + PHASE_3_DUR
-                                        + PHASE_5_DUR
-                                        + rng.random_range(0.0..DUR_VARIANCE) * 3.0,
-                                    mode: EaseFunction::SmoothStep,
-                                },
-                                AnimatedPropertyInterval {
-                                    next_value: Vec3::ZERO,
-                                    duration: PHASE_5_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                                    mode: EaseFunction::QuadraticIn,
-                                },
-                            ]
-                            .into(),
-                            0.0,
-                        )),
+                        AnimatedScale(
+                            AnimatedProperty::new_seamless(
+                                Vec3::ZERO,
+                                [
+                                    AnimatedPropertyInterval {
+                                        next_value: Vec3::ONE * 5.0,
+                                        duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                                        mode: EaseFunction::SmoothStep,
+                                    },
+                                    AnimatedPropertyInterval {
+                                        next_value: Vec3::ONE * 5.0,
+                                        duration: PHASE_2_DUR
+                                            + PHASE_3_DUR
+                                            + PHASE_5_DUR
+                                            + rng.random_range(0.0..DUR_VARIANCE) * 3.0,
+                                        mode: EaseFunction::SmoothStep,
+                                    },
+                                    AnimatedPropertyInterval {
+                                        next_value: Vec3::ZERO,
+                                        duration: PHASE_5_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                                        mode: EaseFunction::QuadraticIn,
+                                    },
+                                ]
+                                .into(),
+                                0.0,
+                            ),
+                            true,
+                        ),
                     ),
                     WorldAssetRoot(asset_server.load::<WorldAsset>(
                         GltfAssetLabel::Scene(0).from_asset("particles_and_effects/green_plus.glb"),
@@ -172,31 +175,36 @@ pub fn player_order_change(
                                 .into(),
                                 0.0,
                             )),
-                            AnimatedScale(AnimatedProperty::new_seamless(
-                                Vec3::ZERO,
-                                [
-                                    AnimatedPropertyInterval {
-                                        next_value: scale,
-                                        duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                                        mode: EaseFunction::SmoothStep,
-                                    },
-                                    AnimatedPropertyInterval {
-                                        next_value: scale,
-                                        duration: PHASE_2_DUR
-                                            + PHASE_3_DUR
-                                            + PHASE_5_DUR
-                                            + rng.random_range(0.0..DUR_VARIANCE) * 3.0,
-                                        mode: EaseFunction::SmoothStep,
-                                    },
-                                    AnimatedPropertyInterval {
-                                        next_value: Vec3::ZERO,
-                                        duration: PHASE_5_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                                        mode: EaseFunction::QuadraticIn,
-                                    },
-                                ]
-                                .into(),
-                                0.0,
-                            )),
+                            AnimatedScale(
+                                AnimatedProperty::new_seamless(
+                                    Vec3::ZERO,
+                                    [
+                                        AnimatedPropertyInterval {
+                                            next_value: scale,
+                                            duration: PHASE_1_DUR
+                                                + rng.random_range(0.0..DUR_VARIANCE),
+                                            mode: EaseFunction::SmoothStep,
+                                        },
+                                        AnimatedPropertyInterval {
+                                            next_value: scale,
+                                            duration: PHASE_2_DUR
+                                                + PHASE_3_DUR
+                                                + PHASE_5_DUR
+                                                + rng.random_range(0.0..DUR_VARIANCE) * 3.0,
+                                            mode: EaseFunction::SmoothStep,
+                                        },
+                                        AnimatedPropertyInterval {
+                                            next_value: Vec3::ZERO,
+                                            duration: PHASE_5_DUR
+                                                + rng.random_range(0.0..DUR_VARIANCE),
+                                            mode: EaseFunction::QuadraticIn,
+                                        },
+                                    ]
+                                    .into(),
+                                    0.0,
+                                ),
+                                true,
+                            ),
                         ),
                         WorldAssetRoot(
                             asset_server.load::<WorldAsset>(
@@ -219,28 +227,31 @@ pub fn player_order_change(
                         Vec3::from(HexVector2d::from(tile_of_player_tower))
                             .with_y(EFFECT_HOVER_HEIGHT + 0.1),
                     ),
-                    AnimatedScale(AnimatedProperty::new_seamless(
-                        Vec3::ZERO,
-                        [
-                            AnimatedPropertyInterval {
-                                next_value: Vec3::ONE * 5.0,
-                                duration: TIME_TO_APPEAR,
-                                mode: EaseFunction::QuinticOut,
-                            },
-                            AnimatedPropertyInterval {
-                                next_value: Vec3::ONE * 5.0,
-                                duration: BUTTON_HOVER_TIME,
-                                mode: EaseFunction::Linear,
-                            },
-                            AnimatedPropertyInterval {
-                                next_value: Vec3::ZERO,
-                                duration: TIME_TO_DISAPPEAR,
-                                mode: EaseFunction::QuinticIn,
-                            },
-                        ]
-                        .into(),
-                        0.0,
-                    )),
+                    AnimatedScale(
+                        AnimatedProperty::new_seamless(
+                            Vec3::ZERO,
+                            [
+                                AnimatedPropertyInterval {
+                                    next_value: Vec3::ONE * 5.0,
+                                    duration: TIME_TO_APPEAR,
+                                    mode: EaseFunction::QuinticOut,
+                                },
+                                AnimatedPropertyInterval {
+                                    next_value: Vec3::ONE * 5.0,
+                                    duration: BUTTON_HOVER_TIME,
+                                    mode: EaseFunction::Linear,
+                                },
+                                AnimatedPropertyInterval {
+                                    next_value: Vec3::ZERO,
+                                    duration: TIME_TO_DISAPPEAR,
+                                    mode: EaseFunction::QuinticIn,
+                                },
+                            ]
+                            .into(),
+                            0.0,
+                        ),
+                        true,
+                    ),
                 ));
 
                 let mut rng = rand::rng();
@@ -262,28 +273,31 @@ pub fn player_order_change(
                             ),
                         ),
                         Transform::from_translation(basis_pos),
-                        AnimatedScale(AnimatedProperty::new_seamless(
-                            Vec3::ZERO,
-                            [
-                                AnimatedPropertyInterval {
-                                    next_value: scale,
-                                    duration: TIME_TO_APPEAR + rng.random_range(0.0..0.1),
-                                    mode: EaseFunction::QuinticOut,
-                                },
-                                AnimatedPropertyInterval {
-                                    next_value: scale,
-                                    duration: BUTTON_HOVER_TIME + rng.random_range(0.0..0.1),
-                                    mode: EaseFunction::Linear,
-                                },
-                                AnimatedPropertyInterval {
-                                    next_value: Vec3::ZERO,
-                                    duration: TIME_TO_DISAPPEAR + rng.random_range(0.0..0.1),
-                                    mode: EaseFunction::QuinticIn,
-                                },
-                            ]
-                            .into(),
-                            0.0,
-                        )),
+                        AnimatedScale(
+                            AnimatedProperty::new_seamless(
+                                Vec3::ZERO,
+                                [
+                                    AnimatedPropertyInterval {
+                                        next_value: scale,
+                                        duration: TIME_TO_APPEAR + rng.random_range(0.0..0.1),
+                                        mode: EaseFunction::QuinticOut,
+                                    },
+                                    AnimatedPropertyInterval {
+                                        next_value: scale,
+                                        duration: BUTTON_HOVER_TIME + rng.random_range(0.0..0.1),
+                                        mode: EaseFunction::Linear,
+                                    },
+                                    AnimatedPropertyInterval {
+                                        next_value: Vec3::ZERO,
+                                        duration: TIME_TO_DISAPPEAR + rng.random_range(0.0..0.1),
+                                        mode: EaseFunction::QuinticIn,
+                                    },
+                                ]
+                                .into(),
+                                0.0,
+                            ),
+                            true,
+                        ),
                         AnimatedTranslation(AnimatedProperty::new_seamless(
                             Vec3::ZERO,
                             [
@@ -342,28 +356,31 @@ pub fn player_order_change(
                     Vec3::from(HexVector2d::from(tile_of_player_tower))
                         .with_y(EFFECT_HOVER_HEIGHT + 0.1),
                 ),
-                AnimatedScale(AnimatedProperty::new_seamless(
-                    Vec3::ZERO,
-                    [
-                        AnimatedPropertyInterval {
-                            next_value: Vec3::ONE * 5.0,
-                            duration: TIME_TO_APPEAR,
-                            mode: EaseFunction::QuinticOut,
-                        },
-                        AnimatedPropertyInterval {
-                            next_value: Vec3::ONE * 5.0,
-                            duration: BUTTON_HOVER_TIME,
-                            mode: EaseFunction::Linear,
-                        },
-                        AnimatedPropertyInterval {
-                            next_value: Vec3::ZERO,
-                            duration: TIME_TO_DISAPPEAR,
-                            mode: EaseFunction::QuinticIn,
-                        },
-                    ]
-                    .into(),
-                    0.0,
-                )),
+                AnimatedScale(
+                    AnimatedProperty::new_seamless(
+                        Vec3::ZERO,
+                        [
+                            AnimatedPropertyInterval {
+                                next_value: Vec3::ONE * 5.0,
+                                duration: TIME_TO_APPEAR,
+                                mode: EaseFunction::QuinticOut,
+                            },
+                            AnimatedPropertyInterval {
+                                next_value: Vec3::ONE * 5.0,
+                                duration: BUTTON_HOVER_TIME,
+                                mode: EaseFunction::Linear,
+                            },
+                            AnimatedPropertyInterval {
+                                next_value: Vec3::ZERO,
+                                duration: TIME_TO_DISAPPEAR,
+                                mode: EaseFunction::QuinticIn,
+                            },
+                        ]
+                        .into(),
+                        0.0,
+                    ),
+                    true,
+                ),
             ));
 
             let mut rng = rand::rng();
@@ -382,28 +399,31 @@ pub fn player_order_change(
                         GltfAssetLabel::Scene(0).from_asset("particles_and_effects/red_minus.glb"),
                     )),
                     Transform::from_translation(basis_pos),
-                    AnimatedScale(AnimatedProperty::new_seamless(
-                        Vec3::ZERO,
-                        [
-                            AnimatedPropertyInterval {
-                                next_value: scale,
-                                duration: TIME_TO_APPEAR + rng.random_range(0.0..0.1),
-                                mode: EaseFunction::QuinticOut,
-                            },
-                            AnimatedPropertyInterval {
-                                next_value: scale,
-                                duration: BUTTON_HOVER_TIME + rng.random_range(0.0..0.1),
-                                mode: EaseFunction::Linear,
-                            },
-                            AnimatedPropertyInterval {
-                                next_value: Vec3::ZERO,
-                                duration: TIME_TO_DISAPPEAR + rng.random_range(0.0..0.1),
-                                mode: EaseFunction::QuinticIn,
-                            },
-                        ]
-                        .into(),
-                        0.0,
-                    )),
+                    AnimatedScale(
+                        AnimatedProperty::new_seamless(
+                            Vec3::ZERO,
+                            [
+                                AnimatedPropertyInterval {
+                                    next_value: scale,
+                                    duration: TIME_TO_APPEAR + rng.random_range(0.0..0.1),
+                                    mode: EaseFunction::QuinticOut,
+                                },
+                                AnimatedPropertyInterval {
+                                    next_value: scale,
+                                    duration: BUTTON_HOVER_TIME + rng.random_range(0.0..0.1),
+                                    mode: EaseFunction::Linear,
+                                },
+                                AnimatedPropertyInterval {
+                                    next_value: Vec3::ZERO,
+                                    duration: TIME_TO_DISAPPEAR + rng.random_range(0.0..0.1),
+                                    mode: EaseFunction::QuinticIn,
+                                },
+                            ]
+                            .into(),
+                            0.0,
+                        ),
+                        true,
+                    ),
                     AnimatedTranslation(AnimatedProperty::new_seamless(
                         Vec3::ZERO,
                         [

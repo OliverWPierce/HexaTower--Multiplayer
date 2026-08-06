@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{math::VectorSpace, prelude::*};
 use core_game_logic::{
     requests::ActionEffect,
     tile_mapping::{HexVector2d, TileId},
@@ -6,6 +6,9 @@ use core_game_logic::{
 
 use crate::{
     inputs_interface::EffectToDisplay,
+    vis_effect_reactions::{
+        AnimatedProperty, AnimatedPropertyInterval, AnimatedScale, AnimatedTranslation,
+    },
     vis_pieces::visual_piece_archetypes_storage::{
         BasePlatesDirectory, VisualPieceArchetypeDirectory,
     },
@@ -21,6 +24,7 @@ impl Plugin for VisPiecesPlugin {
                 spawn_visuals,
                 update_backend_rotation_changes,
                 start_piece_move,
+                despawn_piece,
             )
                 .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
@@ -84,6 +88,8 @@ fn spawn_visuals(
         return Ok(());
     };
     let horizontal_location: Vec2 = core_game_logic::tile_mapping::HexVector2d::from(tile).into();
+
+    const SCALE_IN_DUR: f32 = 1.0;
     commands.spawn((
         VisOccupies(tile),
         Transform::from_translation(Vec3 {
@@ -91,8 +97,22 @@ fn spawn_visuals(
             y: 0.0,
             z: horizontal_location.y,
         })
-        .looking_to(Vec3::from(HexVector2d::from(facing_direction)), Vec3::Y),
+        .looking_to(Vec3::from(HexVector2d::from(facing_direction)), Vec3::Y)
+        .with_scale(Vec3::ZERO),
         WorldAssetRoot(base_plates.get(player).clone()),
+        AnimatedScale(
+            AnimatedProperty::new_seamless(
+                Vec3::ZERO,
+                [AnimatedPropertyInterval {
+                    next_value: Vec3::ONE,
+                    duration: SCALE_IN_DUR,
+                    mode: EaseFunction::BackOut,
+                }]
+                .into(),
+                0.0,
+            ),
+            false,
+        ),
         children![
             WorldAssetRoot(piece_details.get_visual_details(archetype)?.model.clone()),
             Transform::from_translation(Vec3 {
@@ -130,19 +150,67 @@ fn update_backend_rotation_changes(
 
 fn start_piece_move(
     effect: Res<EffectToDisplay>,
-    mut pieces: Query<(&mut Transform, &mut VisOccupies)>,
+    mut pieces: Query<(Entity, &mut VisOccupies)>,
+    mut commands: Commands,
 ) -> Result<(), BevyError> {
     let ActionEffect::PieceMoved { from_tile, to_tile } = effect.0 else {
         return Ok(());
     };
 
-    let (mut transform, mut piece_occupies) = pieces
+    const MOVE_SPEED: f32 = 0.3;
+
+    let (ent, mut piece_occupies) = pieces
         .iter_mut()
         .find(|(.., tile)| tile.0 == from_tile)
         .ok_or("No visual piece occupies the tile a logical piece has moved from.")?;
 
+    commands
+        .entity(ent)
+        .insert(AnimatedTranslation(AnimatedProperty::new_seamless(
+            Vec3::from(HexVector2d::from(from_tile)),
+            [AnimatedPropertyInterval {
+                next_value: Vec3::from(HexVector2d::from(to_tile)),
+                duration: MOVE_SPEED
+                    * Vec3::from(HexVector2d::from(from_tile))
+                        .distance(Vec3::from(HexVector2d::from(to_tile))),
+                mode: EaseFunction::SmoothStep,
+            }]
+            .into(),
+            0.0,
+        )));
     piece_occupies.0 = to_tile;
-    transform.translation = HexVector2d::from(to_tile).into();
 
     Ok(())
+}
+
+fn despawn_piece(
+    mut commands: Commands,
+    effect: Res<EffectToDisplay>,
+    pieces: Query<(Entity, &VisOccupies)>,
+) {
+    let ActionEffect::PieceKilled { on_tile } = effect.0 else {
+        return;
+    };
+    let Some((piece, ..)) = pieces
+        .iter()
+        .find(|(_, VisOccupies(piece_is_on_tile))| *piece_is_on_tile == on_tile)
+    else {
+        return;
+    };
+
+    const SCALE_OUT_ANIM_DUR: f32 = 1.0;
+
+    commands.entity(piece).insert(AnimatedScale(
+        AnimatedProperty::new_seamless(
+            Vec3::ONE,
+            [AnimatedPropertyInterval {
+                next_value: Vec3::ZERO,
+                duration: SCALE_OUT_ANIM_DUR,
+                mode: EaseFunction::BackIn,
+            }]
+            .into(),
+            0.0,
+        ),
+        true,
+    ));
 }

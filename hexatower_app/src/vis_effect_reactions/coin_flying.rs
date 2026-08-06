@@ -159,31 +159,34 @@ pub fn spawn_coins(
                     .into(),
                     0.0,
                 )),
-                AnimatedScale(AnimatedProperty::new_seamless(
-                    Vec3::ZERO,
-                    [
-                        AnimatedPropertyInterval {
-                            next_value: scale,
-                            duration: SCALE_IN_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                            mode: EaseFunction::SmoothStep,
-                        },
-                        AnimatedPropertyInterval {
-                            next_value: scale,
-                            duration: HOLD_ABOVE_SOURCE_DUR
-                                + flight_time
-                                + ENTER_TARGET_DUR
-                                + rng.random_range(0.0..DUR_VARIANCE) * 3.0,
-                            mode: EaseFunction::SmoothStep,
-                        },
-                        AnimatedPropertyInterval {
-                            next_value: Vec3::ZERO,
-                            duration: ENTER_TARGET_DUR + rng.random_range(0.0..DUR_VARIANCE),
-                            mode: EaseFunction::QuadraticIn,
-                        },
-                    ]
-                    .into(),
-                    0.0,
-                )),
+                AnimatedScale(
+                    AnimatedProperty::new_seamless(
+                        Vec3::ZERO,
+                        [
+                            AnimatedPropertyInterval {
+                                next_value: scale,
+                                duration: SCALE_IN_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                                mode: EaseFunction::SmoothStep,
+                            },
+                            AnimatedPropertyInterval {
+                                next_value: scale,
+                                duration: HOLD_ABOVE_SOURCE_DUR
+                                    + flight_time
+                                    + ENTER_TARGET_DUR
+                                    + rng.random_range(0.0..DUR_VARIANCE) * 3.0,
+                                mode: EaseFunction::SmoothStep,
+                            },
+                            AnimatedPropertyInterval {
+                                next_value: Vec3::ZERO,
+                                duration: ENTER_TARGET_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                                mode: EaseFunction::QuadraticIn,
+                            },
+                        ]
+                        .into(),
+                        0.0,
+                    ),
+                    true,
+                ),
             ),
             WorldAssetRoot(if index < delta_coins.abs() {
                 asset_server.load::<WorldAsset>(
