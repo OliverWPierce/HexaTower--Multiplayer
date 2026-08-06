@@ -1,3 +1,5 @@
+use std::f32::consts::TAU;
+
 use bevy::prelude::*;
 use core_game_logic::{
     pieces::{IsWinCondition, OccupiesTile, OwnsPieces},
@@ -132,7 +134,7 @@ pub fn player_order_change(
 
                 for _ in 0..ACCENT_PARTICLE_NUMBER {
                     let offset =
-                        rng.random::<Vec3>().normalize().with_y(0.0) * rng.random_range(0.1..1.2);
+                        Vec3::X.rotate_y(rng.random_range(0.0..TAU)) * rng.random_range(0.8..1.2);
                     let scale = Vec3::splat(rng.random_range(0.8..1.2));
 
                     commands.spawn((
@@ -205,9 +207,9 @@ pub fn player_order_change(
                     ));
                 }
             } else {
-                const TIME_TO_APPEAR: f32 = 0.1;
+                const TIME_TO_APPEAR: f32 = 0.3;
                 const BUTTON_HOVER_TIME: f32 = 1.0;
-                const TIME_TO_DISAPPEAR: f32 = 0.1;
+                const TIME_TO_DISAPPEAR: f32 = 0.3;
                 // spawn the central 3d icon.
                 commands.spawn((
                     WorldAssetRoot(asset_server.load(
@@ -249,7 +251,7 @@ pub fn player_order_change(
                         .with_y(EFFECT_HOVER_HEIGHT);
 
                     let offset =
-                        rng.random::<Vec3>().normalize().with_y(0.0) * rng.random_range(0.8..1.2);
+                        Vec3::X.rotate_y(rng.random_range(0.0..TAU)) * rng.random_range(0.8..1.2);
                     let scale = Vec3::splat(rng.random_range(0.8..1.2));
 
                     commands.spawn((
@@ -327,9 +329,9 @@ pub fn player_order_change(
                 return;
             };
 
-            const TIME_TO_APPEAR: f32 = 0.1;
+            const TIME_TO_APPEAR: f32 = 0.3;
             const BUTTON_HOVER_TIME: f32 = 1.0;
-            const TIME_TO_DISAPPEAR: f32 = 0.1;
+            const TIME_TO_DISAPPEAR: f32 = 0.3;
 
             // spawn the central 3d icon.
             commands.spawn((
@@ -372,7 +374,7 @@ pub fn player_order_change(
                     Vec3::from(HexVector2d::from(tile_of_player_tower)).with_y(EFFECT_HOVER_HEIGHT);
 
                 let offset =
-                    rng.random::<Vec3>().normalize().with_y(0.0) * rng.random_range(0.8..1.2);
+                    Vec3::X.rotate_y(rng.random_range(0.0..TAU)) * rng.random_range(0.8..1.2);
                 let scale = Vec3::splat(rng.random_range(0.8..1.2));
 
                 commands.spawn((

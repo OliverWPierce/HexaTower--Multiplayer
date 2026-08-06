@@ -334,9 +334,9 @@ fn maybe_display_effect(
     delta: Res<Time>,
 ) {
     /// Each consecutive effect will take this many seconds less than the previous turn.
-    const ACCELLERATION_SPEED_SECS: f32 = 0.2;
+    const ACCELLERATION_SPEED_SECS: f32 = 0.0;
     /// default duration at the start of a effect queue.
-    const STARTING_DURATION: f32 = 3.0;
+    const STARTING_DURATION: f32 = 1.2;
     const MINIMUM_DURATION: f32 = 0.2;
 
     if timer.0.is_finished() {

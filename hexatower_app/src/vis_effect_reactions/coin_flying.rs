@@ -1,3 +1,5 @@
+use std::f32::consts::TAU;
+
 use bevy::prelude::*;
 use core_game_logic::{
     pieces::{IsWinCondition, OccupiesTile, OwnsPieces},
@@ -108,16 +110,18 @@ pub fn spawn_coins(
 
     let mut rng = rand::rng();
 
-    const PHASE_1_DUR: f32 = 0.05;
-    const PHASE_2_DUR: f32 = 0.5;
-    const PHASE_3_DUR: f32 = 1.4;
-    const PHASE_4_DUR: f32 = 0.5;
-    const PHASE_5_DUR: f32 = 0.05;
+    const SCALE_IN_DUR: f32 = 0.05;
+    const HOLD_ABOVE_SOURCE_DUR: f32 = 0.5;
+    const FLIGHT_TIME_SCALE: f32 = 0.3;
+    const HOLD_ABOVE_TARGET_DUR: f32 = 0.5;
+    const ENTER_TARGET_DUR: f32 = 0.05;
 
     const DUR_VARIANCE: f32 = 0.05;
 
+    let flight_time = FLIGHT_TIME_SCALE * target_info.from_loc.distance(target_info.to_loc);
+
     for index in 0..delta_coins.abs() * 2 {
-        let offset = rng.random::<Vec3>().normalize().with_y(0.0) * rng.random_range(0.1..1.2);
+        let offset = Vec3::X.rotate_y(rng.random_range(0.0..TAU)) * rng.random_range(0.1..1.2);
         let scale = Vec3::splat(rng.random_range(0.8..1.2));
 
         commands.spawn((
@@ -128,27 +132,27 @@ pub fn spawn_coins(
                     [
                         AnimatedPropertyInterval {
                             next_value: target_info.from_loc + offset,
-                            duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            duration: SCALE_IN_DUR + rng.random_range(0.0..DUR_VARIANCE),
                             mode: EaseFunction::SmoothStep,
                         },
                         AnimatedPropertyInterval {
                             next_value: target_info.from_loc + offset,
-                            duration: PHASE_2_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            duration: HOLD_ABOVE_SOURCE_DUR + rng.random_range(0.0..DUR_VARIANCE),
                             mode: EaseFunction::SmoothStep,
                         },
                         AnimatedPropertyInterval {
                             next_value: target_info.to_loc + offset * 0.5,
-                            duration: PHASE_3_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            duration: flight_time + rng.random_range(0.0..DUR_VARIANCE),
                             mode: EaseFunction::SmoothStep,
                         },
                         AnimatedPropertyInterval {
                             next_value: target_info.to_loc + offset * 0.5,
-                            duration: PHASE_4_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            duration: HOLD_ABOVE_TARGET_DUR + rng.random_range(0.0..DUR_VARIANCE),
                             mode: EaseFunction::SmoothStep,
                         },
                         AnimatedPropertyInterval {
                             next_value: target_info.to_loc.with_y(0.0),
-                            duration: PHASE_5_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            duration: ENTER_TARGET_DUR + rng.random_range(0.0..DUR_VARIANCE),
                             mode: EaseFunction::QuadraticIn,
                         },
                     ]
@@ -160,20 +164,20 @@ pub fn spawn_coins(
                     [
                         AnimatedPropertyInterval {
                             next_value: scale,
-                            duration: PHASE_1_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            duration: SCALE_IN_DUR + rng.random_range(0.0..DUR_VARIANCE),
                             mode: EaseFunction::SmoothStep,
                         },
                         AnimatedPropertyInterval {
                             next_value: scale,
-                            duration: PHASE_2_DUR
-                                + PHASE_3_DUR
-                                + PHASE_5_DUR
+                            duration: HOLD_ABOVE_SOURCE_DUR
+                                + flight_time
+                                + ENTER_TARGET_DUR
                                 + rng.random_range(0.0..DUR_VARIANCE) * 3.0,
                             mode: EaseFunction::SmoothStep,
                         },
                         AnimatedPropertyInterval {
                             next_value: Vec3::ZERO,
-                            duration: PHASE_5_DUR + rng.random_range(0.0..DUR_VARIANCE),
+                            duration: ENTER_TARGET_DUR + rng.random_range(0.0..DUR_VARIANCE),
                             mode: EaseFunction::QuadraticIn,
                         },
                     ]
