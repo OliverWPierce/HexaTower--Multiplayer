@@ -1,7 +1,12 @@
 use bevy::prelude::*;
 use core_game_logic::{requests::ActionEffect, tile_mapping::HexVector2d};
 
-use crate::{AppState, functional_assets::VisMarketDirectory, inputs_interface::EffectToDisplay};
+use crate::{
+    AppState,
+    functional_assets::VisMarketDirectory,
+    inputs_interface::EffectToDisplay,
+    vis_effect_reactions::{AnimatedProperty, AnimatedPropertyInterval, AnimatedScale},
+};
 
 pub struct VisMarketsPlugin;
 
@@ -39,10 +44,25 @@ fn add_markets(
         return Ok(());
     };
 
+    const SCALE_IN_DUR: f32 = 1.0;
+
     commands.spawn((
         Transform::from_translation(Vec3::from(HexVector2d::from(tile))),
         MarketModel,
         WorldAssetRoot(visual_details.get_market(market)?.model.clone()),
+        AnimatedScale(
+            AnimatedProperty::new_seamless(
+                Vec3::ZERO,
+                [AnimatedPropertyInterval {
+                    next_value: Vec3::ONE,
+                    duration: SCALE_IN_DUR,
+                    mode: EaseFunction::BackOut,
+                }]
+                .into(),
+                0.0,
+            ),
+            false,
+        ),
     ));
 
     Ok(())
