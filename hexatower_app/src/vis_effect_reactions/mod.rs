@@ -19,7 +19,11 @@ impl Plugin for VisEffectReactions {
         );
         app.add_systems(
             Update,
-            (coin_flying::spawn_coins, player_orders::player_order_change)
+            (
+                coin_flying::spawn_coins,
+                player_orders::player_order_change,
+                item_purchased::purchase_item,
+            )
                 .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
     }

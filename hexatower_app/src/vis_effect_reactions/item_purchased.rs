@@ -15,8 +15,8 @@ pub fn purchase_item(
 ) {
     let ActionEffect::AddedCardToInventory {
         player,
-        card,
         source: Some(tile),
+        ..
     } = action_effect.0
     else {
         return;

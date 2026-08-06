@@ -47,7 +47,7 @@ fn add_markets(
     const SCALE_IN_DUR: f32 = 1.0;
 
     commands.spawn((
-        Transform::from_translation(Vec3::from(HexVector2d::from(tile))),
+        Transform::from_translation(Vec3::from(HexVector2d::from(tile))).with_scale(Vec3::ZERO),
         MarketModel,
         WorldAssetRoot(visual_details.get_market(market)?.model.clone()),
         AnimatedScale(
