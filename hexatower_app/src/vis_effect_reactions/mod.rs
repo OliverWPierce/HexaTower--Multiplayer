@@ -5,6 +5,7 @@ use bevy::prelude::*;
 
 mod coin_flying;
 mod item_purchased;
+mod piece_orders;
 mod player_orders;
 
 use crate::{AppState, inputs_interface::EffectToDisplay};
@@ -23,6 +24,7 @@ impl Plugin for VisEffectReactions {
                 coin_flying::spawn_coins,
                 player_orders::player_order_change,
                 item_purchased::purchase_item,
+                piece_orders::piece_orders,
             )
                 .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
