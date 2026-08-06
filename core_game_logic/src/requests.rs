@@ -36,6 +36,7 @@ pub enum ActionEffect {
     AddedCardToInventory {
         player: PlayerId,
         card: CardId,
+        source: Option<TileId>,
     },
     AlteredCoins {
         player: PlayerId,
@@ -325,6 +326,7 @@ pub fn try_consume_request(
                     log.write(ActionEffect::AddedCardToInventory {
                         player: request_to_process.acting_player,
                         card,
+                        source: Some(market_tile),
                     });
 
                     log

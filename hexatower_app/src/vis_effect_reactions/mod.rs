@@ -2,9 +2,9 @@
 /// 1. Systems should only reference the "effect to display" resource once: when starting the sequence. Other systems (ie. ones that move particles) should not reference that resource because it is liable to change frequently.
 /// 2. Sequences should not reference visual world data that they do not create, because those things may be destroyed by other reactions. (ie. A particle should fly to a logical tile location, not to the location of a visual piece model, because a concurrent reaction could despawn the piece model.)
 use bevy::prelude::*;
-use core_game_logic::tile_mapping::HexVector2d;
 
 mod coin_flying;
+mod item_purchased;
 mod player_orders;
 
 use crate::{AppState, inputs_interface::EffectToDisplay};
@@ -19,11 +19,7 @@ impl Plugin for VisEffectReactions {
         );
         app.add_systems(
             Update,
-            (
-                coin_flying::spawn_coins,
-                player_orders::player_order_change,
-                tmp_show_effects,
-            )
+            (coin_flying::spawn_coins, player_orders::player_order_change)
                 .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
     }
