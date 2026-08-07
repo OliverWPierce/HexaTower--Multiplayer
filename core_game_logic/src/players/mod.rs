@@ -165,9 +165,9 @@ pub fn apply_start_turn_effects(world: &mut World, player: PlayerId) -> ChangeLo
         .get_mut::<PlayerOrdersRemaining>(player_ent)
         .unwrap()
         .remaining += orders_to_give;
-    // we add instead of simply setting so that it is easy to allow other players to "gift" an order later on in development, if playtesting finds that beneficial. This also avoids visual bugs.
+    // we add instead of simply setting so that it is easy to allow other players to "gift" an order later on in development, if playtesting finds that beneficial.
 
-    ChangeLog::default()
+    log
 }
 
 /// Note that the player may have no pieces at this stage!
