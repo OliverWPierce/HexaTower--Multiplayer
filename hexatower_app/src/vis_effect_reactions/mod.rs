@@ -1,14 +1,22 @@
+use std::ops::Range;
+
 /// Notes on this module.
 /// 1. Systems should only reference the "effect to display" resource once: when starting the sequence. Other systems (ie. ones that move particles) should not reference that resource because it is liable to change frequently.
 /// 2. Sequences should not reference visual world data that they do not create, because those things may be destroyed by other reactions. (ie. A particle should fly to a logical tile location, not to the location of a visual piece model, because a concurrent reaction could despawn the piece model.)
 use bevy::prelude::*;
+use core_game_logic::{
+    pieces::{IsWinCondition, OccupiesTile, OwnsPieces},
+    players::{PlayerDirectory, PlayerId},
+    tile_mapping::TileId,
+};
+use rand::rngs::ThreadRng;
 
 mod coin_flying;
 mod item_purchased;
 mod piece_orders;
 mod player_orders;
 
-use crate::{AppState, inputs_interface::EffectToDisplay};
+use crate::{AppState, functional_assets::LogicalWorld, inputs_interface::EffectToDisplay};
 
 pub struct VisEffectReactions;
 
@@ -171,5 +179,133 @@ pub fn spawn_pluse(
             ),
             WorldAssetRoot(mesh.clone()),
         ));
+    }
+}
+pub fn tower_of_player(logical_world: &LogicalWorld, player: PlayerId) -> Option<TileId> {
+    let owned_pieces = logical_world
+        .0
+        .get::<OwnsPieces>(*logical_world.0.resource::<PlayerDirectory>().get(player))?;
+    owned_pieces
+        .list()
+        .iter()
+        .find_map(|&piece| {
+            if logical_world.0.get::<IsWinCondition>(piece).is_some()
+                && let Some(OccupiesTile(tile)) = logical_world.0.get::<OccupiesTile>(piece)
+            {
+                logical_world.0.get::<TileId>(*tile)
+            } else {
+                None
+            }
+        })
+        .copied()
+}
+
+pub trait FlyToAnim<B: Bundle> {
+    fn anim_bundle(
+        from: Vec3,
+        to: Vec3,
+        pos_offset: Range<f32>,
+        scale_range: Range<f32>,
+        max_time_offset: f32,
+        rng: &mut ThreadRng,
+    ) -> B;
+}
+
+mod flight_animation_presets {
+    use std::f32::consts::TAU;
+
+    use bevy::{
+        math::{Vec3, VectorSpace, curve::EaseFunction},
+        transform::components::Transform,
+    };
+    use rand::RngExt;
+
+    use crate::vis_effect_reactions::{
+        AnimatedProperty, AnimatedPropertyInterval, AnimatedScale, AnimatedTranslation, FlyToAnim,
+    };
+
+    pub struct SpawnInPlaceThenFly;
+
+    impl FlyToAnim<(Transform, AnimatedTranslation, AnimatedScale)> for SpawnInPlaceThenFly {
+        fn anim_bundle(
+            from: bevy::math::Vec3,
+            to: bevy::math::Vec3,
+            pos_offset: std::ops::Range<f32>,
+            scale_range: std::ops::Range<f32>,
+            max_time_offset: f32,
+            rng: &mut rand::prelude::ThreadRng,
+        ) -> (Transform, AnimatedTranslation, AnimatedScale) {
+            const OFFSET_SHRINK: f32 = 0.5;
+            const SCALE_IN_DUR: f32 = 0.3;
+            const AWAIT_DUR: f32 = 0.3;
+            const FLIGHT_TIME_MULTIPLYER: f32 = 0.2;
+
+            let pos_offset = if !pos_offset.is_empty() {
+                Vec3::X.rotate_y(rng.random_range(0.0..TAU)) * rng.random_range(pos_offset)
+            } else {
+                Vec3::ZERO
+            };
+            let flight_time = FLIGHT_TIME_MULTIPLYER * from.distance(to);
+            let biggest_scale = if !scale_range.is_empty() {
+                Vec3::splat(rng.random_range(scale_range))
+            } else {
+                Vec3::ONE
+            };
+
+            (
+                Transform::from_translation(from + pos_offset).with_scale(Vec3::ZERO),
+                AnimatedTranslation(AnimatedProperty::new_seamless(
+                    from + pos_offset,
+                    [
+                        // hold the current positon.
+                        AnimatedPropertyInterval {
+                            next_value: from + pos_offset,
+                            duration: SCALE_IN_DUR
+                                + AWAIT_DUR
+                                + rng.random_range(0.0..max_time_offset),
+                            mode: EaseFunction::Linear,
+                        },
+                        // fly to the target
+                        AnimatedPropertyInterval {
+                            next_value: to + pos_offset * OFFSET_SHRINK,
+                            duration: flight_time,
+                            mode: EaseFunction::SmoothStep,
+                        },
+                    ]
+                    .into(),
+                    0.0,
+                )),
+                AnimatedScale(
+                    AnimatedProperty::new_seamless(
+                        Vec3::ZERO,
+                        [
+                            // scale in
+                            AnimatedPropertyInterval {
+                                next_value: biggest_scale,
+                                duration: SCALE_IN_DUR + rng.random_range(0.0..max_time_offset),
+                                mode: EaseFunction::Linear,
+                            },
+                            // wait until after it's arrived at target and waited.
+                            AnimatedPropertyInterval {
+                                next_value: biggest_scale,
+                                duration: flight_time
+                                    + AWAIT_DUR
+                                    + rng.random_range(0.0..max_time_offset),
+                                mode: EaseFunction::Linear,
+                            },
+                            // scale out
+                            AnimatedPropertyInterval {
+                                next_value: Vec3::ZERO,
+                                duration: SCALE_IN_DUR + rng.random_range(0.0..max_time_offset),
+                                mode: EaseFunction::Linear,
+                            },
+                        ]
+                        .into(),
+                        0.0,
+                    ),
+                    true,
+                ),
+            )
+        }
     }
 }

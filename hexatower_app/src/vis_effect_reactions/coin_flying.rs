@@ -38,18 +38,9 @@ pub fn spawn_coins(
         accent_particle: Handle<WorldAsset>,
     }
 
-    let target_info = if let Some(owned_pieces) = logical_world
-        .0
-        .get::<OwnsPieces>(*logical_world.0.resource::<PlayerDirectory>().get(player))
-        && let Some(&tile_of_player_tower) = owned_pieces.list().iter().find_map(|&piece| {
-            if logical_world.0.get::<IsWinCondition>(piece).is_some()
-                && let Some(OccupiesTile(tile)) = logical_world.0.get::<OccupiesTile>(piece)
-            {
-                logical_world.0.get::<TileId>(*tile)
-            } else {
-                None
-            }
-        }) {
+    let target_info = if let Some(tile_of_player_tower) =
+        super::tower_of_player(&logical_world, player)
+    {
         if delta_coins.is_negative() {
             TargetingInfo {
                 from_loc: Vec3::from(HexVector2d::from(tile_of_player_tower))
