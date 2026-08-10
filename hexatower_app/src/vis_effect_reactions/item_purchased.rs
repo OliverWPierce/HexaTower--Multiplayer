@@ -4,10 +4,7 @@ use core_game_logic::{requests::ActionEffect, tile_mapping::HexVector2d};
 use crate::{
     functional_assets::LogicalWorld,
     inputs_interface::EffectToDisplay,
-    vis_effect_reactions::{
-        EFFECT_HOVER_HEIGHT, FlyToAnim, flight_animation_presets::SpawnInPlaceThenFly,
-        tower_of_player,
-    },
+    vis_effect_reactions::{EFFECT_HOVER_HEIGHT, SpawnInPlaceThenFly, tower_of_player},
 };
 
 pub fn purchase_item(

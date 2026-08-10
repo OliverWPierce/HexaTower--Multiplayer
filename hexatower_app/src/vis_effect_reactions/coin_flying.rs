@@ -4,9 +4,7 @@ use core_game_logic::{requests::ActionEffect, tile_mapping::HexVector2d};
 use crate::{
     functional_assets::LogicalWorld,
     inputs_interface::EffectToDisplay,
-    vis_effect_reactions::{
-        EFFECT_HOVER_HEIGHT, FlyToAnim, flight_animation_presets::SpawnInPlaceThenFly,
-    },
+    vis_effect_reactions::{EFFECT_HOVER_HEIGHT, SpawnInPlaceThenFly},
 };
 pub fn spawn_coins(
     effect: Res<EffectToDisplay>,

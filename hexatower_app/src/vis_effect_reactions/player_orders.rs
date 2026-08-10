@@ -8,8 +8,8 @@ use crate::{
     functional_assets::LogicalWorld,
     inputs_interface::EffectToDisplay,
     vis_effect_reactions::{
-        AnimatedProperty, AnimatedPropertyInterval, AnimatedScale, EFFECT_HOVER_HEIGHT, FlyToAnim,
-        flight_animation_presets::SpawnInPlaceThenFly, tower_of_player,
+        AnimatedProperty, AnimatedPropertyInterval, AnimatedScale, EFFECT_HOVER_HEIGHT,
+        SpawnInPlaceThenFly, tower_of_player,
     },
 };
 
