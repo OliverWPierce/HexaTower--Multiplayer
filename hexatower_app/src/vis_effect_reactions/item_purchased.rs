@@ -2,14 +2,17 @@ use bevy::prelude::*;
 use core_game_logic::{requests::ActionEffect, tile_mapping::HexVector2d};
 
 use crate::{
+    functional_assets::LogicalWorld,
     inputs_interface::EffectToDisplay,
     vis_effect_reactions::{
-        AnimatedProperty, AnimatedPropertyInterval, AnimatedScale, EFFECT_HOVER_HEIGHT,
+        EFFECT_HOVER_HEIGHT, FlyToAnim, flight_animation_presets::SpawnInPlaceThenFly,
+        tower_of_player,
     },
 };
 
 pub fn purchase_item(
     action_effect: Res<EffectToDisplay>,
+    logical_world: Res<LogicalWorld>,
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
 ) {
@@ -22,40 +25,42 @@ pub fn purchase_item(
         return;
     };
 
-    const APPEAR_DURATION: f32 = 1.0;
-    const IN_OUT_SPEED: f32 = 0.5;
-
-    let basis_loc = Vec3::from(HexVector2d::from(tile)).with_y(EFFECT_HOVER_HEIGHT);
+    let start_pos = Vec3::from(HexVector2d::from(tile)).with_y(EFFECT_HOVER_HEIGHT);
+    let end_pos = {
+        if let Some(tower) = tower_of_player(&logical_world, player) {
+            Vec3::from(HexVector2d::from(tower)).with_y(EFFECT_HOVER_HEIGHT)
+        } else {
+            Vec3::from(HexVector2d::from(tile)).with_y(EFFECT_HOVER_HEIGHT + 100.0)
+        }
+    };
+    let mut rng = rand::rng();
 
     commands.spawn((
+        SpawnInPlaceThenFly::anim_bundle(start_pos, end_pos, -0.1..0.1, 1.0..1.0, 0.1, &mut rng),
         WorldAssetRoot(asset_server.load::<WorldAsset>(
             GltfAssetLabel::Scene(0).from_asset("particles_and_effects/marbled_box.glb"),
         )),
-        Transform::from_translation(basis_loc).with_scale(Vec3::ZERO),
-        AnimatedScale(
-            AnimatedProperty::new_seamless(
-                Vec3::ZERO,
-                [
-                    AnimatedPropertyInterval {
-                        next_value: Vec3::ONE,
-                        duration: IN_OUT_SPEED,
-                        mode: EaseFunction::BackOut,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: Vec3::ONE,
-                        duration: APPEAR_DURATION,
-                        mode: EaseFunction::Linear,
-                    },
-                    AnimatedPropertyInterval {
-                        next_value: Vec3::ZERO,
-                        duration: IN_OUT_SPEED,
-                        mode: EaseFunction::BackIn,
-                    },
-                ]
-                .into(),
-                0.0,
-            ),
-            true,
-        ),
     ));
+
+    const ACCENT_PARTICLE_COUNT: u8 = 30;
+
+    commands.spawn_batch(
+        (0..ACCENT_PARTICLE_COUNT)
+            .map(|_| {
+                (
+                    SpawnInPlaceThenFly::anim_bundle(
+                        start_pos,
+                        end_pos,
+                        0.5..0.8,
+                        0.8..1.2,
+                        0.1,
+                        &mut rng,
+                    ),
+                    WorldAssetRoot(asset_server.load::<WorldAsset>(
+                        GltfAssetLabel::Scene(0).from_asset("particles_and_effects/green_plu.glb"),
+                    )),
+                )
+            })
+            .collect::<Box<[_]>>(),
+    );
 }

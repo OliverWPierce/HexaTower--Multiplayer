@@ -3,7 +3,7 @@ use std::ops::Range;
 /// Notes on this module.
 /// 1. Systems should only reference the "effect to display" resource once: when starting the sequence. Other systems (ie. ones that move particles) should not reference that resource because it is liable to change frequently.
 /// 2. Sequences should not reference visual world data that they do not create, because those things may be destroyed by other reactions. (ie. A particle should fly to a logical tile location, not to the location of a visual piece model, because a concurrent reaction could despawn the piece model.)
-use bevy::prelude::*;
+use bevy::{ecs::bundle::NoBundleEffect, prelude::*};
 use core_game_logic::{
     pieces::{IsWinCondition, OccupiesTile, OwnsPieces},
     players::{PlayerDirectory, PlayerId},
@@ -200,7 +200,7 @@ pub fn tower_of_player(logical_world: &LogicalWorld, player: PlayerId) -> Option
         .copied()
 }
 
-pub trait FlyToAnim<B: Bundle> {
+pub trait FlyToAnim {
     fn anim_bundle(
         from: Vec3,
         to: Vec3,
@@ -208,14 +208,15 @@ pub trait FlyToAnim<B: Bundle> {
         scale_range: Range<f32>,
         max_time_offset: f32,
         rng: &mut ThreadRng,
-    ) -> B;
+    ) -> impl Bundle<Effect: NoBundleEffect> + use<Self>;
 }
 
 mod flight_animation_presets {
     use std::f32::consts::TAU;
 
     use bevy::{
-        math::{Vec3, VectorSpace, curve::EaseFunction},
+        ecs::bundle::Bundle,
+        math::{Vec3, curve::EaseFunction},
         transform::components::Transform,
     };
     use rand::RngExt;
@@ -226,7 +227,7 @@ mod flight_animation_presets {
 
     pub struct SpawnInPlaceThenFly;
 
-    impl FlyToAnim<(Transform, AnimatedTranslation, AnimatedScale)> for SpawnInPlaceThenFly {
+    impl FlyToAnim for SpawnInPlaceThenFly {
         fn anim_bundle(
             from: bevy::math::Vec3,
             to: bevy::math::Vec3,
@@ -234,7 +235,7 @@ mod flight_animation_presets {
             scale_range: std::ops::Range<f32>,
             max_time_offset: f32,
             rng: &mut rand::prelude::ThreadRng,
-        ) -> (Transform, AnimatedTranslation, AnimatedScale) {
+        ) -> impl Bundle<Effect: bevy::ecs::bundle::NoBundleEffect> + use<> {
             const OFFSET_SHRINK: f32 = 0.5;
             const SCALE_IN_DUR: f32 = 0.3;
             const AWAIT_DUR: f32 = 0.3;
@@ -283,7 +284,7 @@ mod flight_animation_presets {
                             AnimatedPropertyInterval {
                                 next_value: biggest_scale,
                                 duration: SCALE_IN_DUR + rng.random_range(0.0..max_time_offset),
-                                mode: EaseFunction::Linear,
+                                mode: EaseFunction::BackOut,
                             },
                             // wait until after it's arrived at target and waited.
                             AnimatedPropertyInterval {
@@ -297,7 +298,7 @@ mod flight_animation_presets {
                             AnimatedPropertyInterval {
                                 next_value: Vec3::ZERO,
                                 duration: SCALE_IN_DUR + rng.random_range(0.0..max_time_offset),
-                                mode: EaseFunction::Linear,
+                                mode: EaseFunction::BackIn,
                             },
                         ]
                         .into(),
