@@ -4,7 +4,9 @@ use core_game_logic::{requests::ActionEffect, tile_mapping::HexVector2d};
 use crate::{
     functional_assets::LogicalWorld,
     inputs_interface::EffectToDisplay,
-    vis_effect_reactions::{EFFECT_HOVER_HEIGHT, SpawnInPlaceThenFly, tower_of_player},
+    vis_effect_reactions::{
+        EFFECT_HOVER_HEIGHT, anim_bundle_spawn_in_place_then_fly, tower_of_player,
+    },
 };
 
 pub fn purchase_item(
@@ -33,7 +35,14 @@ pub fn purchase_item(
     let mut rng = rand::rng();
 
     commands.spawn((
-        SpawnInPlaceThenFly::anim_bundle(start_pos, end_pos, -0.1..0.1, 1.0..1.0, 0.1, &mut rng),
+        anim_bundle_spawn_in_place_then_fly(
+            start_pos,
+            end_pos,
+            -0.1..=0.1,
+            1.0..=1.0,
+            0.1,
+            &mut rng,
+        ),
         WorldAssetRoot(asset_server.load::<WorldAsset>(
             GltfAssetLabel::Scene(0).from_asset("particles_and_effects/marbled_box.glb"),
         )),
@@ -45,11 +54,11 @@ pub fn purchase_item(
         (0..ACCENT_PARTICLE_COUNT)
             .map(|_| {
                 (
-                    SpawnInPlaceThenFly::anim_bundle(
+                    anim_bundle_spawn_in_place_then_fly(
                         start_pos,
                         end_pos,
-                        0.5..0.8,
-                        0.8..1.2,
+                        0.5..=0.8,
+                        0.8..=1.2,
                         0.1,
                         &mut rng,
                     ),

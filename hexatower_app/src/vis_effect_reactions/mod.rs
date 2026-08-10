@@ -1,15 +1,15 @@
-use std::ops::Range;
+use std::{ops::Range, range::RangeInclusive};
 
 /// Notes on this module.
 /// 1. Systems should only reference the "effect to display" resource once: when starting the sequence. Other systems (ie. ones that move particles) should not reference that resource because it is liable to change frequently.
 /// 2. Sequences should not reference visual world data that they do not create, because those things may be destroyed by other reactions. (ie. A particle should fly to a logical tile location, not to the location of a visual piece model, because a concurrent reaction could despawn the piece model.)
-use bevy::{ecs::bundle::NoBundleEffect, prelude::*};
+use bevy::{ecs::bundle::NoBundleEffect, math::f32, prelude::*};
 use core_game_logic::{
     pieces::{IsWinCondition, OccupiesTile, OwnsPieces},
     players::{PlayerDirectory, PlayerId},
     tile_mapping::TileId,
 };
-use rand::rngs::ThreadRng;
+use rand::{Rng, rngs::ThreadRng};
 
 mod coin_flying;
 mod item_purchased;
@@ -209,85 +209,119 @@ use bevy::{
 };
 use rand::RngExt;
 
-pub struct SpawnInPlaceThenFly;
+pub fn anim_bundle_spawn_in_place_then_fly(
+    from: bevy::math::Vec3,
+    to: bevy::math::Vec3,
+    pos_offset: std::ops::RangeInclusive<f32>,
+    scale_range: std::ops::RangeInclusive<f32>,
+    max_time_offset: f32,
+    rng: &mut rand::prelude::ThreadRng,
+) -> impl Bundle<Effect: bevy::ecs::bundle::NoBundleEffect> + use<> {
+    const OFFSET_SHRINK: f32 = 0.5;
+    const SCALE_IN_DUR: f32 = 0.3;
+    const AWAIT_DUR: f32 = 0.3;
+    const FLIGHT_TIME_MULTIPLYER: f32 = 0.2;
 
-impl SpawnInPlaceThenFly {
-    pub fn anim_bundle(
-        from: bevy::math::Vec3,
-        to: bevy::math::Vec3,
-        pos_offset: std::ops::Range<f32>,
-        scale_range: std::ops::Range<f32>,
-        max_time_offset: f32,
-        rng: &mut rand::prelude::ThreadRng,
-    ) -> impl Bundle<Effect: bevy::ecs::bundle::NoBundleEffect> + use<> {
-        const OFFSET_SHRINK: f32 = 0.5;
-        const SCALE_IN_DUR: f32 = 0.3;
-        const AWAIT_DUR: f32 = 0.3;
-        const FLIGHT_TIME_MULTIPLYER: f32 = 0.2;
+    let pos_offset = Vec3::X.rotate_y(rng.random_range(0.0..TAU)) * rng.random_range(pos_offset);
 
-        let pos_offset = if !pos_offset.is_empty() {
-            Vec3::X.rotate_y(rng.random_range(0.0..TAU)) * rng.random_range(pos_offset)
-        } else {
-            Vec3::ZERO
-        };
-        let flight_time = FLIGHT_TIME_MULTIPLYER * from.distance(to);
-        let biggest_scale = if !scale_range.is_empty() {
-            Vec3::splat(rng.random_range(scale_range))
-        } else {
-            Vec3::ONE
-        };
+    let flight_time = FLIGHT_TIME_MULTIPLYER * from.distance(to);
+    let biggest_scale = Vec3::splat(rng.random_range(scale_range));
 
-        (
-            Transform::from_translation(from + pos_offset).with_scale(Vec3::ZERO),
-            AnimatedTranslation(AnimatedProperty::new_seamless(
-                from + pos_offset,
+    (
+        Transform::from_translation(from + pos_offset).with_scale(Vec3::ZERO),
+        AnimatedTranslation(AnimatedProperty::new_seamless(
+            from + pos_offset,
+            [
+                // hold the current positon.
+                AnimatedPropertyInterval {
+                    next_value: from + pos_offset,
+                    duration: SCALE_IN_DUR + AWAIT_DUR + rng.random_range(0.0..=max_time_offset),
+                    mode: EaseFunction::Linear,
+                },
+                // fly to the target
+                AnimatedPropertyInterval {
+                    next_value: to + pos_offset * OFFSET_SHRINK,
+                    duration: flight_time,
+                    mode: EaseFunction::SmoothStep,
+                },
+            ]
+            .into(),
+            0.0,
+        )),
+        AnimatedScale(
+            AnimatedProperty::new_seamless(
+                Vec3::ZERO,
                 [
-                    // hold the current positon.
+                    // scale in
                     AnimatedPropertyInterval {
-                        next_value: from + pos_offset,
-                        duration: SCALE_IN_DUR + AWAIT_DUR + rng.random_range(0.0..max_time_offset),
+                        next_value: biggest_scale,
+                        duration: SCALE_IN_DUR + rng.random_range(0.0..=max_time_offset),
+                        mode: EaseFunction::BackOut,
+                    },
+                    // wait until after it's arrived at target and waited.
+                    AnimatedPropertyInterval {
+                        next_value: biggest_scale,
+                        duration: flight_time + AWAIT_DUR + rng.random_range(0.0..=max_time_offset),
                         mode: EaseFunction::Linear,
                     },
-                    // fly to the target
+                    // scale out
                     AnimatedPropertyInterval {
-                        next_value: to + pos_offset * OFFSET_SHRINK,
-                        duration: flight_time,
-                        mode: EaseFunction::SmoothStep,
+                        next_value: Vec3::ZERO,
+                        duration: SCALE_IN_DUR + rng.random_range(0.0..=max_time_offset),
+                        mode: EaseFunction::BackIn,
                     },
                 ]
                 .into(),
                 0.0,
-            )),
-            AnimatedScale(
-                AnimatedProperty::new_seamless(
-                    Vec3::ZERO,
-                    [
-                        // scale in
-                        AnimatedPropertyInterval {
-                            next_value: biggest_scale,
-                            duration: SCALE_IN_DUR + rng.random_range(0.0..max_time_offset),
-                            mode: EaseFunction::BackOut,
-                        },
-                        // wait until after it's arrived at target and waited.
-                        AnimatedPropertyInterval {
-                            next_value: biggest_scale,
-                            duration: flight_time
-                                + AWAIT_DUR
-                                + rng.random_range(0.0..max_time_offset),
-                            mode: EaseFunction::Linear,
-                        },
-                        // scale out
-                        AnimatedPropertyInterval {
-                            next_value: Vec3::ZERO,
-                            duration: SCALE_IN_DUR + rng.random_range(0.0..max_time_offset),
-                            mode: EaseFunction::BackIn,
-                        },
-                    ]
-                    .into(),
-                    0.0,
-                ),
-                true,
             ),
+            true,
+        ),
+    )
+}
+
+pub fn anim_bundle_spawn_await_disappear(
+    basis_loc: Vec3,
+    rng: &mut ThreadRng,
+    dur_variance: f32,
+    pos_offset: std::ops::RangeInclusive<f32>,
+) -> impl Bundle<Effect: NoBundleEffect> + use<> {
+    const APPEAR_DURATION: f32 = 1.0;
+    const IN_OUT_SPEED: f32 = 0.5;
+    (
+        Transform::from_translation(
+            basis_loc
+                + Vec3::X.rotate_y(rng.random_range(0.0..TAU))
+                    * if pos_offset.is_empty() {
+                        0.0
+                    } else {
+                        rng.random_range(pos_offset)
+                    },
         )
-    }
+        .with_scale(Vec3::ZERO),
+        AnimatedScale(
+            AnimatedProperty::new_seamless(
+                Vec3::ZERO,
+                [
+                    AnimatedPropertyInterval {
+                        next_value: Vec3::ONE,
+                        duration: IN_OUT_SPEED + rng.random_range(0.0..=dur_variance),
+                        mode: EaseFunction::BackOut,
+                    },
+                    AnimatedPropertyInterval {
+                        next_value: Vec3::ONE,
+                        duration: APPEAR_DURATION + rng.random_range(0.0..=dur_variance),
+                        mode: EaseFunction::Linear,
+                    },
+                    AnimatedPropertyInterval {
+                        next_value: Vec3::ZERO,
+                        duration: IN_OUT_SPEED + rng.random_range(0.0..=dur_variance),
+                        mode: EaseFunction::BackIn,
+                    },
+                ]
+                .into(),
+                0.0,
+            ),
+            true,
+        ),
+    )
 }

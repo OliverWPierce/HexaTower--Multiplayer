@@ -4,7 +4,7 @@ use core_game_logic::{requests::ActionEffect, tile_mapping::HexVector2d};
 use crate::{
     functional_assets::LogicalWorld,
     inputs_interface::EffectToDisplay,
-    vis_effect_reactions::{EFFECT_HOVER_HEIGHT, SpawnInPlaceThenFly},
+    vis_effect_reactions::{EFFECT_HOVER_HEIGHT, anim_bundle_spawn_in_place_then_fly},
 };
 pub fn spawn_coins(
     effect: Res<EffectToDisplay>,
@@ -94,11 +94,11 @@ pub fn spawn_coins(
         (0..delta_coins.abs())
             .map(|_| {
                 (
-                    SpawnInPlaceThenFly::anim_bundle(
+                    anim_bundle_spawn_in_place_then_fly(
                         target_info.from_loc,
                         target_info.to_loc,
-                        0.5..0.8,
-                        0.8..1.2,
+                        0.5..=0.8,
+                        0.8..=1.2,
                         0.1,
                         &mut rng,
                     ),
@@ -114,11 +114,11 @@ pub fn spawn_coins(
         (0..delta_coins.abs())
             .map(|_| {
                 (
-                    SpawnInPlaceThenFly::anim_bundle(
+                    anim_bundle_spawn_in_place_then_fly(
                         target_info.from_loc,
                         target_info.to_loc,
-                        0.5..0.8,
-                        0.8..1.2,
+                        0.5..=0.8,
+                        0.8..=1.2,
                         0.1,
                         &mut rng,
                     ),
