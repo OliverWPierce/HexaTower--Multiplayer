@@ -1,5 +1,3 @@
-use std::{ops::Range, range::RangeInclusive};
-
 /// Notes on this module.
 /// 1. Systems should only reference the "effect to display" resource once: when starting the sequence. Other systems (ie. ones that move particles) should not reference that resource because it is liable to change frequently.
 /// 2. Sequences should not reference visual world data that they do not create, because those things may be destroyed by other reactions. (ie. A particle should fly to a logical tile location, not to the location of a visual piece model, because a concurrent reaction could despawn the piece model.)
@@ -9,10 +7,11 @@ use core_game_logic::{
     players::{PlayerDirectory, PlayerId},
     tile_mapping::TileId,
 };
-use rand::{Rng, rngs::ThreadRng};
+use rand::rngs::ThreadRng;
 
 mod coin_flying;
 mod item_purchased;
+mod piece_damage;
 mod piece_orders;
 mod player_orders;
 
@@ -33,6 +32,7 @@ impl Plugin for VisEffectReactions {
                 player_orders::player_order_change,
                 item_purchased::purchase_item,
                 piece_orders::piece_orders,
+                piece_damage::piece_damage_or_heal,
             )
                 .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
