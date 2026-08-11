@@ -633,7 +633,7 @@ fn render_parameters_screen(
     }
 }
 
-trait ClickThroughSelector: Resource<Mutability = Mutable> + Default {
+pub trait ClickThroughSelector: Resource<Mutability = Mutable> + Default {
     fn next_option(&mut self);
 
     fn previous_option(&mut self);
@@ -684,7 +684,7 @@ impl ClickThroughSelector for PresetBoardSizes {
     }
 }
 
-fn display_clickthrough_selectors<C: ClickThroughSelector>(commands: &mut Commands) -> Entity {
+pub fn display_clickthrough_selectors<C: ClickThroughSelector>(commands: &mut Commands) -> Entity {
     commands.insert_resource(C::default());
 
     const CENTER_FONTSIZE: FontSize = FontSize::Vh(3.0);

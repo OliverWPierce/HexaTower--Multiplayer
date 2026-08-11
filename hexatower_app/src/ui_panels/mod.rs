@@ -7,12 +7,13 @@ use crate::{
     inputs_interface::{ActionInputManager, TryEndTurn},
     ui_panels::{
         lower_panel::VisualMarketUIPlugin, mid_panel::VisualOrdersPlugin,
-        upper_panel::VisualInventoryPlugin,
+        upper_bar::UpperBarPlugin, upper_panel::VisualInventoryPlugin,
     },
 };
 
 mod lower_panel;
 mod mid_panel;
+mod upper_bar;
 mod upper_panel;
 
 pub use mid_panel::OrderAtPieceIndex;
@@ -36,6 +37,7 @@ impl Plugin for UiPanelsPlugin {
         app.add_plugins(VisualInventoryPlugin);
         app.add_plugins(VisualOrdersPlugin);
         app.add_plugins(VisualMarketUIPlugin);
+        app.add_plugins(UpperBarPlugin);
     }
 }
 
@@ -131,6 +133,37 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
         ));
     }
 
+    commands.spawn((
+        Node {
+            width: Val::Percent(100.0 - 2.0 * SIDE_PANELS_WIDTH_AS_A_PERCENT),
+            height: Val::Percent(100.0),
+            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::SpaceBetween,
+            ..default()
+        },
+        ChildOf(overall_parent),
+        children![
+            (
+                Node {
+                    width: Val::Percent(100.0),
+                    justify_content: JustifyContent::SpaceBetween,
+                    ..default()
+                },
+                MidPanelUpper
+            ),
+            (
+                Node {
+                    width: Val::Percent(100.0),
+                    justify_content: JustifyContent::SpaceBetween,
+                    ..default()
+                },
+                MidPanelLower
+            )
+        ],
+    ));
+
     commands
         .spawn((
             Node {
@@ -178,6 +211,11 @@ struct InventoryPanel;
 struct OrdersPanel;
 #[derive(Debug, Component)]
 struct MarketPanel;
+
+#[derive(Debug, Component)]
+pub struct MidPanelUpper;
+#[derive(Debug, Component)]
+pub struct MidPanelLower;
 
 pub struct HeaderParameters {
     pub border_color: Color,
