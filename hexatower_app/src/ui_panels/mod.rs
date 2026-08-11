@@ -1,14 +1,16 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
-use core_game_logic::forensic_action_descriptions::LinkedGamplayElement;
+use core_game_logic::forensic_action_descriptions::{LinkedGamplayElement, TextSnippet};
 
 use crate::{
-    AppState,
-    functional_assets::SetUpBoard,
+    AppState, OperatingPlayer,
+    functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
     inputs_interface::{ActionInputManager, TryEndTurn},
     ui_panels::{
-        lower_panel::VisualMarketUIPlugin, mid_panel::VisualOrdersPlugin,
-        upper_bar::UpperBarPlugin, upper_panel::VisualInventoryPlugin,
+        display_themes::DEFAULT_COLOR_THEME, lower_panel::VisualMarketUIPlugin,
+        mid_panel::VisualOrdersPlugin, upper_bar::UpperBarPlugin,
+        upper_panel::VisualInventoryPlugin,
     },
+    vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
 
 mod lower_panel;
@@ -716,4 +718,105 @@ mod execution_button {
 
         Ok(())
     }
+}
+
+fn add_description(
+    as_child_of_node: Entity,
+    snippets: &[TextSnippet],
+    commands: &mut Commands,
+    font_size: FontSize,
+    visual_cards: &VisCardDirectory,
+    vis_markets: &VisMarketDirectory,
+    vis_pieces: &VisualPieceArchetypeDirectory,
+    operating_player: &OperatingPlayer,
+    player_names: &PlayerNames,
+) -> Result<(), BevyError> {
+    for snippet in snippets {
+        match snippet {
+            TextSnippet::PlainText { text, color } => {
+                if let Some(color) = color {
+                    commands.spawn((ChildOf(as_child_of_node), TextFont::from_font_size(font_size), TextSpan::new(text), TextColor(match color {
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Money => DEFAULT_COLOR_THEME.money_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Damage => DEFAULT_COLOR_THEME.negative_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Health => DEFAULT_COLOR_THEME.positive_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::GeneralHighlight => DEFAULT_COLOR_THEME.highlight_color,
+                    core_game_logic::forensic_action_descriptions::ColorIndicators::Unimportant => DEFAULT_COLOR_THEME.unimportant_color,
+                })));
+                } else {
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextFont::from_font_size(font_size),
+                        TextSpan::new(text),
+                    ));
+                }
+            }
+            TextSnippet::Link(linked_gamplay_element) => match linked_gamplay_element {
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Card(
+                    card_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(visual_cards.get_card(*card_id)?.name.clone()),
+                        TextFont::from_font_size(font_size),
+                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Piece(
+                    archetype_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(vis_pieces.get_visual_details(*archetype_id)?.name.clone()),
+                        TextFont::from_font_size(font_size),
+                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Market(
+                    market_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(vis_markets.get_market(*market_id)?.name.clone()),
+                        TextFont::from_font_size(font_size),
+                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Tile(
+                    tile_type,
+                ) => {
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextColor(display_themes::color_for_tile_type_under_default_theme(
+                            tile_type,
+                        )),
+                        TextSpan::new(display_themes::name_for_tile_type_under_default_theme(
+                            tile_type,
+                        )),
+                        TextFont::from_font_size(font_size),
+                        TextLinkToGameplayElement(LinkedGamplayElement::Tile(tile_type.clone())),
+                    ));
+                }
+                core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Player(
+                    player_id,
+                ) => {
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
+                        TextSpan::new(if operating_player.0 == *player_id {
+                            "You"
+                        } else {
+                            player_names.get(*player_id)
+                        }),
+                        TextFont::from_font_size(font_size),
+                    ));
+                }
+            },
+        }
+    }
+
+    Ok(())
 }
