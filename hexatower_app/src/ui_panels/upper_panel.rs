@@ -477,8 +477,6 @@ fn manage_inventory_panel(
     vis_markets: Res<VisMarketDirectory>,
     vis_pieces: Res<VisualPieceArchetypeDirectory>,
 ) -> Result<(), BevyError> {
-    debug!("managing");
-
     if let Some(FrontendAction::UseCard { index, cache }) = loaded_action.loaded_action() {
         let card = log_world
             .0

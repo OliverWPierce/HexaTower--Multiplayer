@@ -137,13 +137,15 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
         Node {
             width: Val::Percent(100.0 - 2.0 * SIDE_PANELS_WIDTH_AS_A_PERCENT),
             height: Val::Percent(100.0),
-            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+            border: UiRect::top(UNIVERSAL_BORDER_WIDTH).with_bottom(UNIVERSAL_BORDER_WIDTH),
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
             justify_content: JustifyContent::SpaceBetween,
             ..default()
         },
         ChildOf(overall_parent),
+        BorderColor::all(UNIVERSAL_BORDER),
+        Pickable::IGNORE,
         children![
             (
                 Node {
