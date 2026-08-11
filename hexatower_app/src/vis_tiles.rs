@@ -8,7 +8,7 @@
 use bevy::{color::palettes::tailwind::AMBER_700, prelude::*};
 use core_game_logic::{
     pieces::FacingHexDirection,
-    requests::ActionProcessCache,
+    requests::{ActionEffect, ActionProcessCache},
     tile_based_actions::{self, SelectedTile},
     tile_mapping::*,
     tiles::TileType,
@@ -17,7 +17,7 @@ use core_game_logic::{
 use crate::{
     AppState,
     functional_assets::{LogicalWorld, SetUpBoard},
-    inputs_interface::ActionInputManager,
+    inputs_interface::{ActionInputManager, EffectToDisplay},
     vis_pieces::VisOccupies,
 };
 
@@ -29,9 +29,9 @@ impl Plugin for VisTilesPlugin {
         // switch this to a custom schedule later.
         app.add_systems(
             Update,
-            (swap_tile_mesh, roate_active_tile_visual).run_if(in_state(AppState::InGame)),
+            (swap_tile_mesh, roate_active_tile_visual)
+                .run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
-        app.add_message::<TileTypeConverted>();
 
         app.add_systems(
             Update,
@@ -138,35 +138,29 @@ fn spawn_tiles_and_initialize_inficators(
     commands.insert_resource(VisualTileDirectory(vis_tiles.into_boxed_slice()));
 }
 
-#[derive(Debug, Message)]
-pub struct TileTypeConverted {
-    pub tile: TileId,
-    pub new_type: TileType,
-}
-
 fn swap_tile_mesh(
-    mut change_information: MessageReader<TileTypeConverted>,
+    effect: Res<EffectToDisplay>,
     parents_of_vis_tiles: Res<VisualTileDirectory>,
     mut commands: Commands,
     models: Res<TileModels>,
-) -> Result<(), BevyError> {
-    for event in change_information.read() {
-        let parent = parents_of_vis_tiles
-            .0
-            .get(event.tile.id() as usize)
-            .ok_or("No visual tile for this id")?;
+) {
+    let ActionEffect::ConvertedTileType { tile, new_type } = &effect.0 else {
+        return;
+    };
 
-        commands.entity(*parent).despawn_children();
-        commands.spawn((
-            WorldAssetRoot(match event.new_type {
-                TileType::Basic => models.basic.clone(),
-                TileType::Ex1 => models.ex1.clone(),
-            }),
-            ChildOf(*parent),
-        ));
-    }
+    let parent = parents_of_vis_tiles
+        .0
+        .get(tile.id() as usize)
+        .expect("All TileIds from backend should be valid");
 
-    Ok(())
+    commands.entity(*parent).despawn_children();
+    commands.spawn((
+        WorldAssetRoot(match new_type {
+            TileType::Basic => models.basic.clone(),
+            TileType::Ex1 => models.ex1.clone(),
+        }),
+        ChildOf(*parent),
+    ));
 }
 
 fn set_active_tile(
@@ -266,12 +260,6 @@ fn indicate_direction(
                 target,
             ))),
             Dir3::Y,
-        );
-
-        println!(
-            "{:?}, {:?}",
-            *tile,
-            hex_direction_from_click_data(tile_position, target,)
         );
 
         Ok(())

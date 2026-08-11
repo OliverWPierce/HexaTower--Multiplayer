@@ -8,7 +8,8 @@ use core_game_logic::players::PlayerId;
 
 use crate::{
     functional_assets::SetUpBoard, inputs_interface::InputInterfacePlugin,
-    main_menu::MainMenuAndLobbyPluggin, ui_panels::UiPanelsPlugin, vis_markets::VisMarketsPlugin,
+    main_menu::MainMenuAndLobbyPluggin, ui_panels::UiPanelsPlugin,
+    vis_effect_reactions::VisEffectReactions, vis_markets::VisMarketsPlugin,
     vis_pieces::VisPiecesPlugin, vis_tiles::VisTilesPlugin,
 };
 
@@ -18,6 +19,7 @@ mod functional_assets;
 mod inputs_interface;
 mod main_menu;
 mod ui_panels;
+mod vis_effect_reactions;
 mod vis_markets;
 mod vis_pieces;
 mod vis_tiles;
@@ -33,6 +35,7 @@ fn main() {
             VisPiecesPlugin,
             VisMarketsPlugin,
             ObjPlugin,
+            VisEffectReactions,
             MainMenuAndLobbyPluggin,
             RenetClientPlugin,
             RenetServerPlugin,

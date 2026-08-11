@@ -87,7 +87,7 @@ impl TileActionFunctionality for SpawnPieces {
 
             log.write(ActionEffect::SpawnedPiece {
                 tile: selection.id,
-                player: self.owner,
+                owner: self.owner,
                 archetype: self.archetype,
                 facing_direction: selection.direction,
             });

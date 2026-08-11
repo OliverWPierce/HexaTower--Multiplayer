@@ -1018,13 +1018,7 @@ fn render_client_connection_status_during_pregame(
                     state.set(AppState::InGame);
                     commands.entity(background_node.entity()).despawn();
                     commands.entity(cam_tmp.entity()).despawn();
-                    create_board(
-                        &mut commands,
-                        &mut asset_server,
-                        instructions,
-                        *networking_mode,
-                    )
-                    .unwrap()
+                    create_board(&mut commands, &mut asset_server, instructions).unwrap()
                 }
                 NetworkTransmission::ActionDone(..) => unreachable!(),
                 NetworkTransmission::InitialConnectionMessage { .. } => {
