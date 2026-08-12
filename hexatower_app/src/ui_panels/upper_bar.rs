@@ -1,9 +1,15 @@
 use bevy::{color::palettes::tailwind, prelude::*};
+use core_game_logic::forensic_action_descriptions::ForensicDescribe;
 
 use crate::{
-    functional_assets::SetUpBoard,
-    inputs_interface::{EffectsQueue, NextEffectStartsIn},
-    ui_panels::{MidPanelUpper, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER, spawn_basic_ui_layout},
+    AppState, OperatingPlayer,
+    functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
+    inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn},
+    ui_panels::{
+        MidPanelUpper, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER, add_description,
+        spawn_basic_ui_layout,
+    },
+    vis_pieces::{self, visual_piece_archetypes_storage::VisualPieceArchetypeDirectory},
 };
 
 pub struct UpperBarPlugin;
@@ -14,12 +20,17 @@ impl Plugin for UpperBarPlugin {
 
         app.add_systems(
             Update,
-            animate_progress_bar.run_if(resource_exists::<NextEffectStartsIn>),
+            animate_progress_bar.run_if(resource_exists_and_changed::<NextEffectStartsIn>),
         );
 
         app.add_systems(
             Update,
-            animate_remaining_effects_counter.run_if(resource_changed_or_removed::<EffectsQueue>),
+            animate_remaining_effects_counter.run_if(resource_exists_and_changed::<EffectsQueue>),
+        );
+
+        app.add_systems(
+            Update,
+            describe_effects.run_if(resource_changed_or_removed::<EffectToDisplay>),
         );
     }
 }
@@ -171,4 +182,33 @@ fn animate_remaining_effects_counter(
     queue: Res<EffectsQueue>,
 ) {
     text.0 = format!("{}", { queue.len() });
+}
+
+fn describe_effects(
+    parent: Single<Entity, With<EffectDescription>>,
+    effect: Option<Res<EffectToDisplay>>,
+    mut commands: Commands,
+    visual_cards: Res<VisCardDirectory>,
+    vis_markets: Res<VisMarketDirectory>,
+    vis_pieces: Res<VisualPieceArchetypeDirectory>,
+    operating_player: Res<OperatingPlayer>,
+    player_names: Res<PlayerNames>,
+) -> Result<(), BevyError> {
+    commands.entity(parent.entity()).despawn_children();
+
+    if let Some(effect) = effect {
+        add_description(
+            parent.entity(),
+            &effect.0.forensic_description(),
+            &mut commands,
+            FontSize::Vh(1.2),
+            &visual_cards,
+            &vis_markets,
+            &vis_pieces,
+            &operating_player,
+            &player_names,
+        )?;
+    }
+
+    Ok(())
 }

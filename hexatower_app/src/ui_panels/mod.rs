@@ -278,8 +278,8 @@ mod display_themes {
         unimportant_color: Color::Srgba(GRAY_300),
     };
 
-    pub const DESCRIPTION_FONT_SIZE: FontSize = FontSize::Vh(2.25);
-    pub const TOOLTIP_FONT_SIZE: FontSize = FontSize::Vh(2.0);
+    pub const DESCRIPTION_FONT_SIZE: FontSize = FontSize::Vh(1.5);
+    pub const TOOLTIP_FONT_SIZE: FontSize = FontSize::Vh(1.25);
 
     pub fn color_for_tile_type_under_default_theme(tile_type: &TileType) -> Color {
         match tile_type {

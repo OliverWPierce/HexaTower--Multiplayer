@@ -179,12 +179,11 @@ pub fn create_board(
         ]
         .into(),
     ));
-
     commands.run_schedule(SetUpBoard);
 
     commands.insert_resource(EffectsQueue::new(change_log));
     commands.insert_resource(NextEffectStartsIn(Timer::new(
-        Duration::from_secs_f32(0.1),
+        Duration::from_secs_f32(0.0),
         TimerMode::Once,
     )));
 

@@ -4,7 +4,9 @@ use thiserror::Error;
 
 use crate::{
     cards::{CardDirectory, CardId},
-    forensic_action_descriptions::ForensicDescribe,
+    forensic_action_descriptions::{
+        ColorIndicators, ForensicDescribe, LinkedGamplayElement, TextSnippet,
+    },
     markets::{MarketDirectory, MarketId, SlotInMarket},
     orders::OrderDirectory,
     pieces::{FacingHexDirection, OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
@@ -83,6 +85,162 @@ pub enum ActionEffect {
         to_tile: TileId,
     },
     PlayerDied(PlayerId),
+}
+
+impl ForensicDescribe for ActionEffect {
+    fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
+        match self {
+            ActionEffect::ConvertedTileType { tile, new_type } => [
+                TextSnippet::new_basic_text(format!("Converted tile {:?}", tile.id())),
+                TextSnippet::Link(LinkedGamplayElement::Tile(new_type.clone())),
+                TextSnippet::new_basic_text("."),
+            ]
+            .into(),
+            ActionEffect::SpawnedNewMarket { tile, market } => [
+                TextSnippet::new_basic_text("Constructed "),
+                TextSnippet::Link(LinkedGamplayElement::Market(*market)),
+                TextSnippet::new_basic_text(format!("market on tile {:?}.", tile.id())),
+            ]
+            .into(),
+            ActionEffect::SpawnedPiece {
+                tile,
+                owner,
+                archetype,
+                ..
+            } => [
+                TextSnippet::Link(LinkedGamplayElement::Player(*owner)),
+                TextSnippet::new_basic_text(" deployed "),
+                TextSnippet::Link(LinkedGamplayElement::Piece(*archetype)),
+                TextSnippet::new_basic_text(format!("onto tile {:?}.", tile.id())),
+            ]
+            .into(),
+            ActionEffect::AddedCardToInventory { player, card, .. } => [
+                TextSnippet::Link(LinkedGamplayElement::Player(*player)),
+                TextSnippet::new_basic_text(" aquired "),
+                TextSnippet::Link(LinkedGamplayElement::Card(*card)),
+            ]
+            .into(),
+            ActionEffect::AlteredCoins {
+                player,
+                delta_coins,
+                ..
+            } => [
+                TextSnippet::Link(LinkedGamplayElement::Player(*player)),
+                TextSnippet::new_basic_text(if delta_coins.signum() >= 0 {
+                    "aquired"
+                } else {
+                    "yielded"
+                }),
+                TextSnippet::PlainText {
+                    text: format!("{} coins", delta_coins.abs()),
+                    color: Some(crate::forensic_action_descriptions::ColorIndicators::Money),
+                },
+            ]
+            .into(),
+            ActionEffect::EndedTurn(player_id) => [
+                TextSnippet::Link(LinkedGamplayElement::Player(*player_id)),
+                TextSnippet::new_basic_text(" yeilded their turn."),
+            ]
+            .into(),
+            ActionEffect::BeganTurn(player_id) => [
+                TextSnippet::Link(LinkedGamplayElement::Player(*player_id)),
+                TextSnippet::new_basic_text(" inaugurated their turn"),
+            ]
+            .into(),
+            ActionEffect::RemovedCardFromInventory { player, .. } => [
+                TextSnippet::Link(LinkedGamplayElement::Player(*player)),
+                TextSnippet::new_basic_text(" discarded an item."),
+            ]
+            .into(),
+            ActionEffect::IncreasedRemainingOrdersOfPiece { tile_of_piece } => {
+                [TextSnippet::new_basic_text(format!(
+                    "Piece on tile {:?} gained an order.",
+                    tile_of_piece.id()
+                ))]
+                .into()
+            }
+            ActionEffect::ReducedRemainingOrdersOfPiece { tile_of_piece } => {
+                [TextSnippet::new_basic_text(format!(
+                    "Piece on tile {:?} dropped an order.",
+                    tile_of_piece.id()
+                ))]
+                .into()
+            }
+            ActionEffect::ReducedRemaingOrdersOfPlayer(player_id) => [
+                TextSnippet::Link(LinkedGamplayElement::Player(*player_id)),
+                TextSnippet::new_basic_text(" dropped an order."),
+            ]
+            .into(),
+            ActionEffect::IncreasedRemainingOrdersOfPlayer { receipient, .. } => [
+                TextSnippet::Link(LinkedGamplayElement::Player(*receipient)),
+                TextSnippet::new_basic_text(" aquired an order"),
+            ]
+            .into(),
+            ActionEffect::DamagedPiece {
+                on_tile,
+                hp_removed,
+            } => [
+                TextSnippet::new_basic_text(format!("Piece on tile {} took ", on_tile.id())),
+                TextSnippet::PlainText {
+                    text: format!("{} damage", *hp_removed),
+                    color: Some(crate::forensic_action_descriptions::ColorIndicators::Damage),
+                },
+                TextSnippet::new_basic_text("."),
+            ]
+            .into(),
+            ActionEffect::HealedPiece { on_tile, hp_added } => [
+                TextSnippet::new_basic_text(format!("Piece on tile {} received ", on_tile.id())),
+                TextSnippet::PlainText {
+                    text: format!("{} hp.", *hp_added),
+                    color: Some(crate::forensic_action_descriptions::ColorIndicators::Health),
+                },
+                TextSnippet::new_basic_text("."),
+            ]
+            .into(),
+            ActionEffect::PieceKilled { on_tile } => [
+                TextSnippet::new_basic_text(format!("Piece on tile {} ", on_tile.id())),
+                TextSnippet::PlainText {
+                    text: "died".into(),
+                    color: Some(crate::forensic_action_descriptions::ColorIndicators::Damage),
+                },
+                TextSnippet::new_basic_text("."),
+            ]
+            .into(),
+            ActionEffect::GameOver { winner } => {
+                if let Some(winner) = winner {
+                    [
+                        TextSnippet::new_basic_text(" Game over:"),
+                        TextSnippet::Link(LinkedGamplayElement::Player(*winner)),
+                        TextSnippet::new_basic_text(" wins!"),
+                    ]
+                    .into()
+                } else {
+                    [TextSnippet::new_basic_text("Game over: DRAW")].into()
+                }
+            }
+            ActionEffect::PieceRotated { on_tile, .. } => [TextSnippet::new_basic_text(format!(
+                "Piece on tile {} rotated.",
+                on_tile.id()
+            ))]
+            .into(),
+            ActionEffect::PieceMoved { from_tile, to_tile } => {
+                [TextSnippet::new_basic_text(format!(
+                    "Piece moved from tile {} to tile {}.",
+                    from_tile.id(),
+                    to_tile.id(),
+                ))]
+                .into()
+            }
+            ActionEffect::PlayerDied(player_id) => [
+                TextSnippet::Link(LinkedGamplayElement::Player(*player_id)),
+                TextSnippet::PlainText {
+                    text: "died.".into(),
+                    color: Some(ColorIndicators::Damage),
+                },
+            ]
+            .into(),
+        }
+    }
 }
 
 #[derive(Default, Debug)]
