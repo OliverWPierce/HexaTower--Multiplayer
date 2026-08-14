@@ -28,7 +28,7 @@ pub enum TextSnippet {
 }
 
 impl TextSnippet {
-    pub fn new_basic_text(text: &str) -> Self {
+    pub fn new_basic_text(text: impl Into<String>) -> Self {
         Self::PlainText {
             text: text.into(),
             color: None,

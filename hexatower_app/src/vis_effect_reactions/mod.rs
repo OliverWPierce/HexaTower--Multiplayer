@@ -34,7 +34,7 @@ impl Plugin for VisEffectReactions {
                 piece_orders::piece_orders,
                 piece_damage::piece_damage_or_heal,
             )
-                .run_if(resource_exists_and_changed::<EffectToDisplay>),
+                .distributive_run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
     }
 }

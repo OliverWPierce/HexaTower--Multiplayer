@@ -320,6 +320,10 @@ impl EffectsQueue {
     pub fn new(log: ChangeLog) -> Self {
         Self(VecDeque::from(log.inner()))
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 #[derive(Debug, Resource)]
