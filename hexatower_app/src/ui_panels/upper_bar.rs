@@ -2,14 +2,14 @@ use bevy::{color::palettes::tailwind, prelude::*};
 use core_game_logic::forensic_action_descriptions::ForensicDescribe;
 
 use crate::{
-    AppState, OperatingPlayer,
+    OperatingPlayer,
     functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
     inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn},
     ui_panels::{
         MidPanelUpper, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER, add_description,
         spawn_basic_ui_layout,
     },
-    vis_pieces::{self, visual_piece_archetypes_storage::VisualPieceArchetypeDirectory},
+    vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
 
 pub struct UpperBarPlugin;
@@ -106,8 +106,7 @@ fn effects(mut commands: Commands, parent: Single<Entity, With<MidPanelUpper>>) 
                     align_content: AlignContent::Center,
                     ..default()
                 },
-                Text::default(),
-                EffectDescription,
+                children![(Text::default(), EffectDescription)]
             ),
             (
                 Node {
@@ -137,8 +136,7 @@ fn effects(mut commands: Commands, parent: Single<Entity, With<MidPanelUpper>>) 
         BackgroundColor(UNIVERSAL_BACKGROUND),
         BorderColor::all(UNIVERSAL_BORDER),
         ChildOf(container_for_description_block_and_count),
-        Text::new("0"),
-        RemainingEffectsCounter,
+        children![(Text::new("0"), RemainingEffectsCounter)],
     ));
 
     // speed clickthrough
