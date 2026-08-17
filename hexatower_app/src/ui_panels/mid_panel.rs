@@ -2,7 +2,9 @@ use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     orders::{OrderDirectory, OrderFunction},
-    pieces::{OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
+    pieces::{
+        MonetaryValue, OccupiedByPiece, Orders, OrdersReceivable, OwnsPieces, PieceOwnedByPlayer,
+    },
     players::{PlayerDirectory, PlayerId, PlayerOrdersRemaining},
     tiles::TileDirectory,
 };
@@ -49,6 +51,7 @@ fn render_piece_overview(
     logical_world: &LogicalWorld,
     visual_order_data: &VisOrderDirectory,
     operating_player: &OperatingPlayer,
+    player_names: &PlayerNames,
     commands: &mut Commands,
 ) -> Result<(), BevyError> {
     commands
@@ -160,102 +163,80 @@ fn render_piece_overview(
     }
 
     {
-        let piece_owner = logical_world
-            .0
-            .get::<PieceOwnedByPlayer>(logical_entity_of_active_piece);
-
-        let piece_orders = logical_world
-            .0
-            .get::<OrdersReceivable>(logical_entity_of_active_piece)
-            .ok_or(
-                "all piece's should contain information about how many orders they can receive",
-            )?;
-
-        let big_container_bar = commands
+        let container_for_health_and_value = commands
             .spawn((
-                ChildOf(overarching_order_panel),
                 Node {
+                    height: LEFT_SIDE_HEADER_PARAMS.height,
                     width: LEFT_SIDE_HEADER_PARAMS.width,
-                    height: Val::Px(24.0),
-                    border: UiRect::all(Val::Px(2.0)),
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
                     justify_content: JustifyContent::SpaceBetween,
-                    padding: UiRect::left(Val::Px(4.0)).with_right(Val::Px(4.0)),
                     ..default()
                 },
-                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
-                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+                ChildOf(overarching_order_panel),
             ))
             .id();
 
-        // the piece's orders.
-        commands.spawn((
-            ChildOf(big_container_bar),
-            Node {
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            children![
-                (Text::new("Piece orders: "), TextFont::from_font_size(16.0),),
-                (
-                    Text::new(format!("{}", piece_orders.currently)),
-                    TextFont::from_font_size(16.0),
-                    TextColor(match piece_orders.currently {
-                        0 => ROSE_600.into(),
-                        1 => ROSE_300.into(),
-                        2 => AMBER_300.into(),
-                        3 => EMERALD_300.into(),
-                        _ => TEAL_300.into(),
-                    })
-                ),
-                (
-                    Text::new(format!("/{}", piece_orders.per_round)),
-                    TextFont::from_font_size(16.0),
-                ),
-            ],
-        ));
-        if let Some(owner) = piece_owner {
-            let owner_id = *logical_world
-                .0
-                .get::<PlayerId>(owner.0)
-                .ok_or("A player did not have a player Id")?;
+        const TEXT_SIZE_FOR_MID_BAR: FontSize = FontSize::Vh(2.0);
 
-            if owner_id == operating_player.0 {
-                commands.spawn((
-                    ChildOf(big_container_bar),
-                    Node {
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    children![(
-                        Text::new(String::from("Commander: You")),
-                        TextFont::from_font_size(16.0),
-                    ),],
-                ));
-            } else {
-                commands.spawn((
-                    ChildOf(big_container_bar),
-                    Node {
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    children![(
-                        Text::new(format!("Commander: {:?}", owner_id)),
-                        TextFont::from_font_size(16.0),
-                    )],
-                ));
-            }
-        } else {
+        if let Some(PieceOwnedByPlayer(player)) = logical_world
+            .0
+            .get::<PieceOwnedByPlayer>(logical_entity_of_active_piece)
+        {
+            // commander's name.
             commands.spawn((
-                ChildOf(big_container_bar),
                 Node {
-                    height: Val::Percent(100.0),
+                    width: Val::Percent(68.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
                     ..default()
                 },
+                ChildOf(container_for_health_and_value),
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
                 children![(
-                    Text::new(String::from("For Sale")),
-                    TextFont::from_font_size(16.0),
+                    Text::from(format!(
+                        "Commander: {}",
+                        player_names
+                            .get(
+                                *(logical_world
+                                    .0
+                                    .get::<PlayerId>(*player)
+                                    .ok_or("all player entities should have an Id.")?),
+                            )
+                            .clone()
+                    )),
+                    TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR)
                 )],
             ));
+
+            // piece value dispay
+            commands.spawn((
+                Node {
+                    width: Val::Percent(30.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                    ..default()
+                },
+                ChildOf(container_for_health_and_value),
+                BackgroundColor(YELLOW_500.into()),
+                BorderColor::all(YELLOW_700),
+                children![(
+                    Text::from(format!(
+                        "Equity: {}",
+                        logical_world
+                            .0
+                            .get::<MonetaryValue>(logical_entity_of_active_piece)
+                            .ok_or("all pieces should have info about their monetary value.")?
+                            .0
+                    )),
+                    TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR),
+                    TextColor(YELLOW_200.into())
+                )],
+            ));
+        } else {
+            todo!()
         }
     }
 
@@ -308,6 +289,7 @@ fn manage_orders_panel(
                 &logical_world,
                 &visual_order_data,
                 &operating_player,
+                &player_names,
                 &mut commands,
             )
         }
