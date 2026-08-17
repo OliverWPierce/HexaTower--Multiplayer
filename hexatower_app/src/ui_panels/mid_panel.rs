@@ -45,7 +45,7 @@ struct Header;
 
 const ORDER_LIBRARY_LABEL: &str = "Piece Capabilities";
 
-fn render_orders_of_active_piece(
+fn render_piece_overview(
     overarching_order_panel: Entity,
     logical_entity_of_active_piece: Entity,
     logical_world: &LogicalWorld,
@@ -186,6 +186,7 @@ fn render_orders_of_active_piece(
             ))
             .id();
 
+        // the piece's orders.
         commands.spawn((
             ChildOf(big_container_bar),
             Node {
@@ -351,7 +352,7 @@ fn manage_orders_panel(
                 &player_names,
             )
         } else {
-            render_orders_of_active_piece(
+            render_piece_overview(
                 overarching_order_panel.entity(),
                 active_piece_log_entity.piece(),
                 &logical_world,

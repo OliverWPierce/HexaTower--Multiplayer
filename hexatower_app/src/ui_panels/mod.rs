@@ -1,6 +1,3 @@
-use bevy::{color::palettes::tailwind::*, prelude::*};
-use core_game_logic::forensic_action_descriptions::{LinkedGamplayElement, TextSnippet};
-
 use crate::{
     AppState, OperatingPlayer,
     functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
@@ -12,6 +9,8 @@ use crate::{
     },
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
+use bevy::{color::palettes::tailwind::*, prelude::*};
+use core_game_logic::forensic_action_descriptions::TextSnippet;
 
 mod lower_panel;
 mod mid_panel;
@@ -135,6 +134,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
         ));
     }
 
+    // middle panel, invisible so as not to cover the board. Its children are where useful UI is spawned.
     commands.spawn((
         Node {
             width: Val::Percent(100.0 - 2.0 * SIDE_PANELS_WIDTH_AS_A_PERCENT),
@@ -168,6 +168,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
         ],
     ));
 
+    // the far right panel...
     commands
         .spawn((
             Node {
@@ -185,7 +186,6 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
             children![(
                 Node {
                     width: SUB_PANEL_WIDTHS,
-                    height: Val::Px(65.0),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
@@ -253,8 +253,6 @@ fn unload_action_button(
             .expect("This function cannot error when given an input of None.")
     }
 }
-#[derive(Debug, Component)]
-pub struct TextLinkToGameplayElement(pub LinkedGamplayElement);
 
 mod display_themes {
     use bevy::{
@@ -759,7 +757,6 @@ fn add_description(
                         TextColor(DEFAULT_COLOR_THEME.highlight_color),
                         TextSpan::new(visual_cards.get_card(*card_id)?.name.clone()),
                         TextFont::from_font_size(font_size),
-                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
                     ));
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Piece(
@@ -770,7 +767,6 @@ fn add_description(
                         TextColor(DEFAULT_COLOR_THEME.highlight_color),
                         TextSpan::new(vis_pieces.get_visual_details(*archetype_id)?.name.clone()),
                         TextFont::from_font_size(font_size),
-                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
                     ));
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Market(
@@ -781,23 +777,32 @@ fn add_description(
                         TextColor(DEFAULT_COLOR_THEME.highlight_color),
                         TextSpan::new(vis_markets.get_market(*market_id)?.name.clone()),
                         TextFont::from_font_size(font_size),
-                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
                     ));
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Tile(
                     tile_type,
                 ) => {
-                    commands.spawn((
-                        ChildOf(as_child_of_node),
-                        TextColor(display_themes::color_for_tile_type_under_default_theme(
-                            tile_type,
-                        )),
-                        TextSpan::new(display_themes::name_for_tile_type_under_default_theme(
-                            tile_type,
-                        )),
-                        TextFont::from_font_size(font_size),
-                        TextLinkToGameplayElement(LinkedGamplayElement::Tile(tile_type.clone())),
-                    ));
+                    let tile_type = tile_type.clone();
+
+                    commands
+                        .spawn((
+                            ChildOf(as_child_of_node),
+                            TextColor(display_themes::color_for_tile_type_under_default_theme(
+                                &tile_type,
+                            )),
+                            TextSpan::new(display_themes::name_for_tile_type_under_default_theme(
+                                &tile_type,
+                            )),
+                            TextFont::from_font_size(font_size),
+                        ))
+                        .observe(move |mut trigger: On<Pointer<Over>>| {
+                            trigger.propagate(false);
+                            println!("Hovered a link for a {:?} tile.", tile_type);
+                        })
+                        .observe(|mut trigger: On<Pointer<Out>>| {
+                            trigger.propagate(false);
+                            println!("Unhovered a tile type link.")
+                        });
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Player(
                     player_id,
@@ -805,7 +810,6 @@ fn add_description(
                     commands.spawn((
                         ChildOf(as_child_of_node),
                         TextColor(DEFAULT_COLOR_THEME.highlight_color),
-                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
                         TextSpan::new(if operating_player.0 == *player_id {
                             "You"
                         } else {
