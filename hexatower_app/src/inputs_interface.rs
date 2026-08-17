@@ -86,8 +86,6 @@ mod loaded_action_invariance {
     };
     use thiserror::Error;
 
-    use crate::ui_panels::OrderAtPieceIndex;
-
     #[derive(Debug, Resource, Default)]
     pub struct ActionInputManager {
         active_tile: Option<TileId>,
@@ -107,7 +105,7 @@ mod loaded_action_invariance {
             cache: ActionProcessCache,
         },
         UseOrder {
-            index_of_order_on_active_piece: OrderAtPieceIndex,
+            index_of_order_on_active_piece: u8,
             cache: ActionProcessCache,
         },
         PurchaseCard {
@@ -210,7 +208,7 @@ fn try_execute_loaded_action(
                 },  }
             },
             FrontendAction::UseOrder { index_of_order_on_active_piece, cache } => {
-                RequestType::UseOrder { tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, index_of_order: index_of_order_on_active_piece.0, input: match cache {
+                RequestType::UseOrder { tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, index_of_order: *index_of_order_on_active_piece, input: match cache {
                     ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
                     ActionProcessCache::Ex1 => todo!(),
                 }, }

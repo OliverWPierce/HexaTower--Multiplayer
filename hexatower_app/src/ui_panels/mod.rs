@@ -17,8 +17,6 @@ mod mid_panel;
 mod upper_bar;
 mod upper_panel;
 
-pub use mid_panel::OrderAtPieceIndex;
-
 pub struct UiPanelsPlugin;
 
 impl Plugin for UiPanelsPlugin {

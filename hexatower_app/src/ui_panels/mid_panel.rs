@@ -35,8 +35,6 @@ impl Plugin for VisualOrdersPlugin {
                 .run_if(in_state(AppState::InGame))
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
-
-        app.add_observer(load_order.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -64,7 +62,7 @@ fn render_piece_overview(
             .expect("All pieces should have an orders component")
             .0
     };
-
+    // the header
     commands.spawn((
         Node {
             height: LEFT_SIDE_HEADER_PARAMS.height,
@@ -105,11 +103,66 @@ fn render_piece_overview(
         ))
         .id();
 
-    for (index, maybe_order) in orders_to_display.iter().enumerate() {
-        if let Some(order) = maybe_order {
-            let visual_details = visual_order_data.get_order(*order)?;
+    // for (index, maybe_order) in orders_to_display.iter().enumerate() {
+    //     if let Some(order) = maybe_order {
+    //         let visual_details = visual_order_data.get_order(*order)?;
 
-            commands.spawn((
+    // commands.spawn((
+    //     Node {
+    //         aspect_ratio: Some(1.0),
+    //         height: Val::Percent(30.0),
+    //         border_radius: BorderRadius::all(Val::Percent(100.0)),
+    //         border: UiRect::all(Val::Px(3.0)),
+    //         ..default()
+    //     },
+    //     hoverable_elements::create_hoverable_ui_bundle(
+    //         BorderColor::all(SLATE_950),
+    //         BackgroundColor(Color::Srgba(ZINC_800)),
+    //         BorderColor::all(SLATE_400),
+    //         BackgroundColor(Color::Srgba(ZINC_700)),
+    //     ),
+    //     ChildOf(container_for_order_icons),
+    //     OrderAtPieceIndex(index as u8),
+    //     children![(
+    //         ImageNode {
+    //             image: visual_details.image.clone(),
+    //             image_mode: NodeImageMode::Stretch,
+    //             ..default()
+    //         },
+    //         Node {
+    //             width: Val::Percent(100.0),
+    //             height: Val::Percent(100.0),
+    //             ..default()
+    //         }
+    //     )],
+    // ));
+    //     } else {
+    //         commands.spawn((
+    //             Node {
+    //                 aspect_ratio: Some(1.0),
+    //                 height: Val::Percent(30.0),
+    //                 border_radius: BorderRadius::all(Val::Percent(100.0)),
+    //                 border: UiRect::all(Val::Px(3.0)),
+    //                 ..default()
+    //             },
+    //             hoverable_elements::create_hoverable_ui_bundle(
+    //                 BorderColor::all(SLATE_950),
+    //                 BackgroundColor(Color::Srgba(ZINC_950)),
+    //                 BorderColor::all(SLATE_400),
+    //                 BackgroundColor(Color::Srgba(ZINC_900)),
+    //             ),
+    //             ChildOf(container_for_order_icons),
+    //         ));
+    //     }
+    // }
+
+    for (index, order) in orders_to_display
+        .iter()
+        .enumerate()
+        .filter_map(|(index, order)| order.map(|id| (index, id)))
+    {
+        commands
+            .spawn((
                 Node {
                     aspect_ratio: Some(1.0),
                     height: Val::Percent(30.0),
@@ -124,10 +177,9 @@ fn render_piece_overview(
                     BackgroundColor(Color::Srgba(ZINC_700)),
                 ),
                 ChildOf(container_for_order_icons),
-                OrderAtPieceIndex(index as u8),
                 children![(
                     ImageNode {
-                        image: visual_details.image.clone(),
+                        image: visual_order_data.get_order(order)?.image.clone(),
                         image_mode: NodeImageMode::Stretch,
                         ..default()
                     },
@@ -137,25 +189,31 @@ fn render_piece_overview(
                         ..default()
                     }
                 )],
-            ));
-        } else {
-            commands.spawn((
-                Node {
-                    aspect_ratio: Some(1.0),
-                    height: Val::Percent(30.0),
-                    border_radius: BorderRadius::all(Val::Percent(100.0)),
-                    border: UiRect::all(Val::Px(3.0)),
-                    ..default()
+            ))
+            .observe(
+                move |mut trigger: On<Pointer<Click>>,
+                      mut action_manager: ResMut<ActionInputManager>,
+                      logical_world: Res<LogicalWorld>|
+                      -> Result<(), BevyError> {
+                    trigger.propagate(false);
+
+                    let should_be_tile_of_piece = action_manager
+                        .active_tile()
+                        .ok_or("Cannot load an order while there is no active tile")?;
+
+                    action_manager.try_load_action(Some(FrontendAction::UseOrder {
+                        index_of_order_on_active_piece: index as u8,
+                        cache: logical_world
+                            .0
+                            .resource::<OrderDirectory>()
+                            .get_order(order)?
+                            .functionality
+                            .action_cache(should_be_tile_of_piece, &logical_world.0)?,
+                    }))?; // this result should never err, because we already checked for an active tile. However, I'm not slapping an "unwrap" on it because I may change the fail conditions of try_load_action later.
+
+                    Ok(())
                 },
-                hoverable_elements::create_hoverable_ui_bundle(
-                    BorderColor::all(SLATE_950),
-                    BackgroundColor(Color::Srgba(ZINC_950)),
-                    BorderColor::all(SLATE_400),
-                    BackgroundColor(Color::Srgba(ZINC_900)),
-                ),
-                ChildOf(container_for_order_icons),
-            ));
-        }
+            );
     }
 
     {
@@ -261,57 +319,6 @@ fn render_piece_overview(
     Ok(())
 }
 
-#[derive(Debug, Component, Clone, Copy)]
-pub struct OrderAtPieceIndex(pub u8);
-
-fn load_order(
-    click: On<Pointer<Click>>,
-    orders: Query<&OrderAtPieceIndex>,
-    logical_world: Res<LogicalWorld>,
-    mut input_manager: ResMut<ActionInputManager>,
-) -> Result<(), BevyError> {
-    let Ok(&order_index) = orders.get(click.entity) else {
-        return Ok(());
-    };
-
-    let Some(active_piece) = input_manager.active_tile() else {
-        warn!("Player clicked an icon to load an order, but there was no active tile");
-        return Ok(());
-    };
-
-    input_manager.try_load_action(Some(FrontendAction::UseOrder {
-        index_of_order_on_active_piece: order_index,
-        cache: logical_world
-            .0
-            .resource::<OrderDirectory>()
-            .get_order(
-                logical_world
-                    .0
-                    .get::<Orders>(
-                        logical_world
-                            .0
-                            .get::<OccupiedByPiece>(
-                                logical_world
-                                    .0
-                                    .resource::<TileDirectory>()
-                                    .get_entity(active_piece),
-                            )
-                            .ok_or("Tile was unnoccupied")?
-                            .piece(),
-                    )
-                    .expect("all pieces should store data about the orders they use")
-                    .0
-                    .get(order_index.0 as usize)
-                    .unwrap()
-                    .ok_or("No order found at this index for this piece")?,
-            )?
-            .functionality
-            .action_cache(active_piece, &logical_world.0)?,
-    }))?;
-
-    Ok(())
-}
-
 fn manage_orders_panel(
     overarching_order_panel: Single<Entity, With<OrdersPanel>>,
     input_manager: Res<ActionInputManager>,
@@ -342,7 +349,7 @@ fn manage_orders_panel(
                 &logical_world,
                 overarching_order_panel.entity(),
                 active_piece_log_entity.piece(),
-                index_of_order_on_active_piece,
+                *index_of_order_on_active_piece,
                 &visual_order_data,
                 &operating_player,
                 cache.forensic_description(),
@@ -386,7 +393,7 @@ fn render_order_execution_process(
     logical_world: &LogicalWorld,
     parent_panel: Entity,
     logical_piece: Entity,
-    order_index: &OrderAtPieceIndex,
+    order_index: u8,
     visual_order_data: &VisOrderDirectory,
     operating_player: &OperatingPlayer,
     description: Box<[TextSnippet]>,
@@ -401,7 +408,7 @@ fn render_order_execution_process(
             .get::<Orders>(logical_piece)
             .expect("all pieces should have an order")
             .0
-            .get(order_index.0 as usize)
+            .get(order_index as usize)
             .ok_or("Order index is out of bounds")?
             .ok_or("No order in this slot")?;
         visual_order_data.get_order(order)?
