@@ -1,7 +1,7 @@
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
-    orders::OrderDirectory,
+    orders::{OrderDirectory, OrderFunction},
     pieces::{OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
     players::{PlayerDirectory, PlayerId, PlayerOrdersRemaining},
     tiles::TileDirectory,
@@ -103,59 +103,6 @@ fn render_piece_overview(
         ))
         .id();
 
-    // for (index, maybe_order) in orders_to_display.iter().enumerate() {
-    //     if let Some(order) = maybe_order {
-    //         let visual_details = visual_order_data.get_order(*order)?;
-
-    // commands.spawn((
-    //     Node {
-    //         aspect_ratio: Some(1.0),
-    //         height: Val::Percent(30.0),
-    //         border_radius: BorderRadius::all(Val::Percent(100.0)),
-    //         border: UiRect::all(Val::Px(3.0)),
-    //         ..default()
-    //     },
-    //     hoverable_elements::create_hoverable_ui_bundle(
-    //         BorderColor::all(SLATE_950),
-    //         BackgroundColor(Color::Srgba(ZINC_800)),
-    //         BorderColor::all(SLATE_400),
-    //         BackgroundColor(Color::Srgba(ZINC_700)),
-    //     ),
-    //     ChildOf(container_for_order_icons),
-    //     OrderAtPieceIndex(index as u8),
-    //     children![(
-    //         ImageNode {
-    //             image: visual_details.image.clone(),
-    //             image_mode: NodeImageMode::Stretch,
-    //             ..default()
-    //         },
-    //         Node {
-    //             width: Val::Percent(100.0),
-    //             height: Val::Percent(100.0),
-    //             ..default()
-    //         }
-    //     )],
-    // ));
-    //     } else {
-    //         commands.spawn((
-    //             Node {
-    //                 aspect_ratio: Some(1.0),
-    //                 height: Val::Percent(30.0),
-    //                 border_radius: BorderRadius::all(Val::Percent(100.0)),
-    //                 border: UiRect::all(Val::Px(3.0)),
-    //                 ..default()
-    //             },
-    //             hoverable_elements::create_hoverable_ui_bundle(
-    //                 BorderColor::all(SLATE_950),
-    //                 BackgroundColor(Color::Srgba(ZINC_950)),
-    //                 BorderColor::all(SLATE_400),
-    //                 BackgroundColor(Color::Srgba(ZINC_900)),
-    //             ),
-    //             ChildOf(container_for_order_icons),
-    //         ));
-    //     }
-    // }
-
     for (index, order) in orders_to_display
         .iter()
         .enumerate()
@@ -197,19 +144,15 @@ fn render_piece_overview(
                       -> Result<(), BevyError> {
                     trigger.propagate(false);
 
-                    let should_be_tile_of_piece = action_manager
-                        .active_tile()
-                        .ok_or("Cannot load an order while there is no active tile")?;
-
-                    action_manager.try_load_action(Some(FrontendAction::UseOrder {
-                        index_of_order_on_active_piece: index as u8,
-                        cache: logical_world
+                    action_manager.try_load_order(
+                        index as u8,
+                        &logical_world
                             .0
                             .resource::<OrderDirectory>()
                             .get_order(order)?
-                            .functionality
-                            .action_cache(should_be_tile_of_piece, &logical_world.0)?,
-                    }))?; // this result should never err, because we already checked for an active tile. However, I'm not slapping an "unwrap" on it because I may change the fail conditions of try_load_action later.
+                            .functionality,
+                        &logical_world,
+                    )?;
 
                     Ok(())
                 },

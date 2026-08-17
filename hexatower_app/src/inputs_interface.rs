@@ -81,10 +81,12 @@ fn end_turn(
 mod loaded_action_invariance {
     use bevy::prelude::Resource;
     use core_game_logic::{
-        markets::SlotInMarket, players::InventoryIndex, requests::ActionProcessCache,
-        tile_mapping::TileId,
+        markets::SlotInMarket, orders::OrderFunction, players::InventoryIndex,
+        requests::ActionProcessCache, tile_mapping::TileId,
     };
     use thiserror::Error;
+
+    use crate::functional_assets::LogicalWorld;
 
     #[derive(Debug, Resource, Default)]
     pub struct ActionInputManager {
@@ -94,8 +96,8 @@ mod loaded_action_invariance {
 
     #[derive(Debug, Error)]
     pub enum LoadActionError {
-        #[error("The action {0:?} requires a tile to be active.")]
-        ActiveTileMissing(FrontendAction),
+        #[error("The action requires a tile to be active.")]
+        ActiveTileMissing,
     }
 
     #[derive(Debug)]
@@ -151,7 +153,7 @@ mod loaded_action_invariance {
                     }
                     _ => {
                         if self.active_tile.is_none() {
-                            return Err(LoadActionError::ActiveTileMissing(action));
+                            return Err(LoadActionError::ActiveTileMissing);
                         }
 
                         self.loaded_action = Some(action);
@@ -160,6 +162,24 @@ mod loaded_action_invariance {
             } else {
                 self.loaded_action = None;
             }
+
+            Ok(())
+        }
+
+        pub fn try_load_order(
+            &mut self,
+            index_in_piece: u8,
+            functionality: &OrderFunction,
+            logical_world: &LogicalWorld,
+        ) -> anyhow::Result<()> {
+            if self.active_tile().is_none() {
+                Err(LoadActionError::ActiveTileMissing)?;
+            }
+
+            self.loaded_action = Some(FrontendAction::UseOrder {
+                index_of_order_on_active_piece: index_in_piece,
+                cache: functionality.action_cache(self.active_tile.unwrap(), &logical_world.0)?,
+            });
 
             Ok(())
         }
