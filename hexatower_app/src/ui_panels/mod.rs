@@ -1,7 +1,7 @@
 use crate::{
-    AppState, OperatingPlayer,
+    AppState, InGame3dCam, OperatingPlayer,
     functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
-    inputs_interface::{ActionInputManager, TryEndTurn},
+    inputs_interface::ActionInputManager,
     ui_panels::{
         display_themes::DEFAULT_COLOR_THEME, lower_panel::VisualMarketUIPlugin,
         mid_panel::VisualOrdersPlugin, upper_bar::UpperBarPlugin,
@@ -9,7 +9,7 @@ use crate::{
     },
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
-use bevy::{color::palettes::tailwind::*, prelude::*};
+use bevy::{camera::Viewport, color::palettes::tailwind::*, prelude::*, window::WindowResized};
 use core_game_logic::forensic_action_descriptions::TextSnippet;
 
 mod lower_panel;
@@ -33,6 +33,12 @@ impl Plugin for UiPanelsPlugin {
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 
+        app.add_systems(OnEnter(AppState::InGame), initial_resize_event);
+        app.add_systems(
+            Update,
+            resize_3d_viewport.run_if(in_state(AppState::InGame)),
+        );
+
         app.add_plugins(VisualInventoryPlugin);
         app.add_plugins(VisualOrdersPlugin);
         app.add_plugins(VisualMarketUIPlugin);
@@ -43,9 +49,9 @@ impl Plugin for UiPanelsPlugin {
 pub const UNIVERSAL_BACKGROUND: Color = Color::Srgba(ZINC_800);
 pub const UNIVERSAL_BORDER: Color = Color::Srgba(ZINC_900);
 pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
+pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0;
 
 pub fn spawn_basic_ui_layout(mut commands: Commands) {
-    pub const SIDE_PANELS_WIDTH_AS_A_PERCENT: f32 = 25.0;
     const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
 
     let overall_parent = commands
@@ -71,7 +77,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
 
         commands.spawn((
             Node {
-                width: Val::Percent(SIDE_PANELS_WIDTH_AS_A_PERCENT),
+                width: Val::Percent(WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT),
                 height: Val::Percent(100.0),
                 border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                 flex_direction: FlexDirection::Column,
@@ -135,7 +141,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
     // middle panel, invisible so as not to cover the board. Its children are where useful UI is spawned.
     commands.spawn((
         Node {
-            width: Val::Percent(100.0 - 2.0 * SIDE_PANELS_WIDTH_AS_A_PERCENT),
+            width: Val::Percent(100.0 - WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT),
             height: Val::Percent(100.0),
             border: UiRect::top(UNIVERSAL_BORDER_WIDTH).with_bottom(UNIVERSAL_BORDER_WIDTH),
             flex_direction: FlexDirection::Column,
@@ -165,47 +171,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
             )
         ],
     ));
-
-    // the far right panel...
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(SIDE_PANELS_WIDTH_AS_A_PERCENT),
-                height: Val::Percent(100.0),
-                border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceAround,
-                ..default()
-            },
-            BorderColor::all(UNIVERSAL_BORDER),
-            BackgroundColor(UNIVERSAL_BACKGROUND),
-            ChildOf(overall_parent),
-            children![(
-                Node {
-                    width: SUB_PANEL_WIDTHS,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-                    ..Default::default()
-                },
-                BorderColor::all(SLATE_900),
-                BackgroundColor(SLATE_600.into()),
-                EndTurnButton,
-                children![(
-                    Text::new("End Turn"),
-                    TextFont {
-                        font_size: FontSize::Px(24.0),
-                        ..default()
-                    },
-                )]
-            )],
-        ))
-        .observe(|_: On<Pointer<Click>>, mut commands: Commands| commands.trigger(TryEndTurn));
 }
-
-#[derive(Debug, Component)]
-pub struct EndTurnButton;
 
 #[derive(Debug, Component)]
 struct InventoryPanel;
@@ -821,4 +787,43 @@ fn add_description(
     }
 
     Ok(())
+}
+
+fn resize_3d_viewport(
+    windows: Query<&Window>,
+    mut resize_events: MessageReader<WindowResized>,
+    mut cam_3d: Single<&mut Camera, With<InGame3dCam>>,
+) {
+    for resize_event in resize_events.read() {
+        let window = windows.get(resize_event.window).unwrap();
+
+        cam_3d.viewport = Some(Viewport {
+            physical_position: UVec2 {
+                x: window.physical_width() * (WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT as u32)
+                    / 100,
+                y: 0,
+            },
+            physical_size: UVec2 {
+                x: window.physical_width()
+                    * ((100.0 - WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT) as u32)
+                    / 100,
+                y: window.physical_height(),
+            },
+            ..default()
+        });
+    }
+}
+
+// this system just emits an event with the same window info as it starts with to get the "resize_3d_viewport" function to run without the player needing to resize the window.
+fn initial_resize_event(
+    mut writer: MessageWriter<WindowResized>,
+    windows: Query<(&Window, Entity)>,
+) {
+    for (window, window_entity) in windows {
+        writer.write(WindowResized {
+            window: window_entity,
+            width: window.width(),
+            height: window.height(),
+        });
+    }
 }

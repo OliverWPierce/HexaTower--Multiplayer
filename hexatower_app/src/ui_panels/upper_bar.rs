@@ -4,7 +4,7 @@ use core_game_logic::forensic_action_descriptions::ForensicDescribe;
 use crate::{
     OperatingPlayer,
     functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
-    inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn},
+    inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn, TryEndTurn},
     ui_panels::{
         MidPanelUpper, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER, add_description,
         spawn_basic_ui_layout,
@@ -140,17 +140,20 @@ fn effects(mut commands: Commands, parent: Single<Entity, With<MidPanelUpper>>) 
     ));
 
     // speed clickthrough
-    commands.spawn((
-        Node {
-            width: Val::Percent(60.0),
-            height: Val::Vh(3.0),
-            border: UiRect::all(BORDER_WITDH),
-            ..default()
-        },
-        BackgroundColor(UNIVERSAL_BACKGROUND),
-        BorderColor::all(UNIVERSAL_BORDER),
-        ChildOf(overall_panel),
-    ));
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(60.0),
+                height: Val::Vh(3.0),
+                border: UiRect::all(BORDER_WITDH),
+                ..default()
+            },
+            BackgroundColor(UNIVERSAL_BACKGROUND),
+            BorderColor::all(UNIVERSAL_BORDER),
+            Text::new("TMP End Turn."),
+            ChildOf(overall_panel),
+        ))
+        .observe(|_: On<Pointer<Click>>, mut commands: Commands| commands.trigger(TryEndTurn));
 }
 
 #[derive(Debug, Component)]
