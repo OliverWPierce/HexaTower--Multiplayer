@@ -1,12 +1,8 @@
 # Hexatower
 
-This repository contains code for Hexatower: a chess inspired, turn-based, multiplayer, strategy game. I intend to release it on Steam later this year.
+This repository contains code for Hexatower: a chess inspired, turn-based, multiplayer, strategy game. I intend to release it on Steam later this year. The multiplayer is built using a zero trust peer-to-peer listen-server architecture.
 
 I'm making this repository public primarily for resume purposes. If you're interested in poking around the code, I've described two of my favorite parts below.
-
-Copyright (c) [2026] [Oliver Pierce]. All rights reserved.
-
-This repository and its content are made available solely for portfolio review and demonstration purposes. No permission is granted to copy, distribute, modify, or use this code in any project (commercial, academic, or personal) without explicit written permission.
 
 ## Hexagonal Coordinate System
 
@@ -23,7 +19,7 @@ Look at the trait "ClickThroughSelector" and the generic function "display_click
 
 This trait enables me to easily setup UI elements for some game settings. It is practically free for performance and speeds up development time. Essentially, I define a new setting, choosing a previous and next value for each state of the setting. Then, I simply call "display_clickthrough_selector" for that setting, and a UI element which controls the setting appears. 
 
-This function was challenging to create because I had to use phantom data to communicate with Bevy's systems. This also made it really fun to create.
+This function was challenging to create because I had to use [PhantomData](https://doc.rust-lang.org/std/marker/struct.PhantomData.html) (a zero-size struct which acts like it owns another type) to communicate with Bevy's systems. This also made it really fun to design.
 
 ## Interesting Files Related to Player Action Validation
 
