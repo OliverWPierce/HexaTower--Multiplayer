@@ -15,7 +15,7 @@ use bevy_renet::{RenetClient, RenetServer};
 use core_game_logic::players::PlayerData;
 use serde::{Deserialize, Serialize};
 
-use crate::{DebugEntityExistance, VERSION_NUMBER};
+use crate::VERSION_NUMBER;
 
 use crate::functional_assets::create_board;
 use crate::inputs_interface::{HOST_CLIENT_ID, NetworkTransmission};
@@ -80,14 +80,7 @@ const HEADER_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_TEXT_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_HEIGHT: Val = Val::Vh(10.0);
 fn render_main_menu(mut commands: Commands) {
-    commands.spawn((
-        Camera2d,
-        Camera {
-            order: 1,
-            ..default()
-        },
-        IsDefaultUiCamera,
-    ));
+    commands.spawn(Camera2d);
 
     let source_node = commands
         .spawn((
@@ -101,8 +94,6 @@ fn render_main_menu(mut commands: Commands) {
             },
             BackgroundColor(UNIVERSAL_BACKGROUND),
             MenusBackgroundNode,
-            DespawnOnExit(AppState::PreGame),
-            DebugEntityExistance("Background Node for main menu exists."),
         ))
         .id();
 
@@ -803,14 +794,11 @@ fn render_pregame_if_server(
 ) {
     commands.entity(background_node.entity()).despawn_children();
 
-    commands
-        .spawn((
-            ChildOf(background_node.entity()),
-            Text::new("Fully Connected Players"),
-            TextFont::from_font_size(HEADER_SIZE),
-            DebugEntityExistance("Pre-game Text exists"),
-        ))
-        .observe(|_: On<Pointer<Over>>| println!("This text still exists logically."));
+    commands.spawn((
+        ChildOf(background_node.entity()),
+        Text::new("Fully Connected Players"),
+        TextFont::from_font_size(HEADER_SIZE),
+    ));
 
     let player_name_displaybox = commands
         .spawn((
@@ -1047,6 +1035,3 @@ pub struct BoardSetupInstructions {
     pub player_names: Box<[String]>,
     pub you_are_player: Option<u8>,
 }
-
-#[derive(Debug, Component)]
-struct MainMenuesEntity;

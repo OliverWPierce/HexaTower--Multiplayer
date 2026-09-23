@@ -1,5 +1,5 @@
 use crate::{
-    AppState, DebugEntityExistance, InGame3dCam, OperatingPlayer,
+    AppState, InGame3dCam, OperatingPlayer,
     functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
     inputs_interface::ActionInputManager,
     ui_panels::{
@@ -51,7 +51,7 @@ pub const UNIVERSAL_BORDER: Color = Color::Srgba(ZINC_900);
 pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
 pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0;
 
-pub fn spawn_basic_ui_layout(mut commands: Commands, target_cam: Single<Entity, With<Camera2d>>) {
+pub fn spawn_basic_ui_layout(mut commands: Commands) {
     const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
 
     let overall_parent = commands
@@ -66,7 +66,6 @@ pub fn spawn_basic_ui_layout(mut commands: Commands, target_cam: Single<Entity, 
                 should_block_lower: false,
                 is_hoverable: false,
             },
-            UiTargetCamera(target_cam.entity()),
         ))
         .id();
 
@@ -704,67 +703,45 @@ fn add_description(
                     core_game_logic::forensic_action_descriptions::ColorIndicators::Health => DEFAULT_COLOR_THEME.positive_color,
                     core_game_logic::forensic_action_descriptions::ColorIndicators::GeneralHighlight => DEFAULT_COLOR_THEME.highlight_color,
                     core_game_logic::forensic_action_descriptions::ColorIndicators::Unimportant => DEFAULT_COLOR_THEME.unimportant_color,
-                }), DebugEntityExistance("A highlighted description exists."))).observe(|_: On<Pointer<Over>>| println!("This text still exists logically."));
+                })));
                 } else {
-                    commands
-                        .spawn((
-                            ChildOf(as_child_of_node),
-                            TextFont::from_font_size(font_size),
-                            TextSpan::new(text),
-                            DebugEntityExistance("A standard description exists."),
-                        ))
-                        .observe(|_: On<Pointer<Over>>| {
-                            println!("This text still exists logically.")
-                        });
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextFont::from_font_size(font_size),
+                        TextSpan::new(text),
+                    ));
                 }
             }
             TextSnippet::Link(linked_gamplay_element) => match linked_gamplay_element {
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Card(
                     card_id,
                 ) => {
-                    commands
-                        .spawn((
-                            ChildOf(as_child_of_node),
-                            TextColor(DEFAULT_COLOR_THEME.highlight_color),
-                            TextSpan::new(visual_cards.get_card(*card_id)?.name.clone()),
-                            TextFont::from_font_size(font_size),
-                            DebugEntityExistance("A Link exists."),
-                        ))
-                        .observe(|_: On<Pointer<Over>>| {
-                            println!("This text still exists logically.")
-                        });
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(visual_cards.get_card(*card_id)?.name.clone()),
+                        TextFont::from_font_size(font_size),
+                    ));
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Piece(
                     archetype_id,
                 ) => {
-                    commands
-                        .spawn((
-                            ChildOf(as_child_of_node),
-                            TextColor(DEFAULT_COLOR_THEME.highlight_color),
-                            TextSpan::new(
-                                vis_pieces.get_visual_details(*archetype_id)?.name.clone(),
-                            ),
-                            TextFont::from_font_size(font_size),
-                            DebugEntityExistance("A Link exists."),
-                        ))
-                        .observe(|_: On<Pointer<Over>>| {
-                            println!("This text still exists logically.")
-                        });
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(vis_pieces.get_visual_details(*archetype_id)?.name.clone()),
+                        TextFont::from_font_size(font_size),
+                    ));
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Market(
                     market_id,
                 ) => {
-                    commands
-                        .spawn((
-                            ChildOf(as_child_of_node),
-                            TextColor(DEFAULT_COLOR_THEME.highlight_color),
-                            TextSpan::new(vis_markets.get_market(*market_id)?.name.clone()),
-                            TextFont::from_font_size(font_size),
-                            DebugEntityExistance("A Link exists."),
-                        ))
-                        .observe(|_: On<Pointer<Over>>| {
-                            println!("This text still exists logically.")
-                        });
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(vis_markets.get_market(*market_id)?.name.clone()),
+                        TextFont::from_font_size(font_size),
+                    ));
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Tile(
                     tile_type,
@@ -781,7 +758,6 @@ fn add_description(
                                 &tile_type,
                             )),
                             TextFont::from_font_size(font_size),
-                            DebugEntityExistance("A Link exists."),
                         ))
                         .observe(move |mut trigger: On<Pointer<Over>>| {
                             trigger.propagate(false);
@@ -795,21 +771,16 @@ fn add_description(
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Player(
                     player_id,
                 ) => {
-                    commands
-                        .spawn((
-                            ChildOf(as_child_of_node),
-                            TextColor(DEFAULT_COLOR_THEME.highlight_color),
-                            TextSpan::new(if operating_player.0 == *player_id {
-                                "You"
-                            } else {
-                                player_names.get(*player_id)
-                            }),
-                            TextFont::from_font_size(font_size),
-                            DebugEntityExistance("A Link exists."),
-                        ))
-                        .observe(|_: On<Pointer<Over>>| {
-                            println!("This text still exists logically.")
-                        });
+                    commands.spawn((
+                        ChildOf(as_child_of_node),
+                        TextColor(DEFAULT_COLOR_THEME.highlight_color),
+                        TextSpan::new(if operating_player.0 == *player_id {
+                            "You"
+                        } else {
+                            player_names.get(*player_id)
+                        }),
+                        TextFont::from_font_size(font_size),
+                    ));
                 }
             },
         }
