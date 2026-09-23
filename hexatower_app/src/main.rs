@@ -7,13 +7,9 @@ use bevy_renet::{
 use core_game_logic::players::PlayerId;
 
 use crate::{
-    inputs_interface::InputInterfacePlugin,
-    main_menu::MainMenuAndLobbyPluggin,
-    ui_panels::{InGame2dCam, UiPanelsPlugin},
-    vis_effect_reactions::VisEffectReactions,
-    vis_markets::VisMarketsPlugin,
-    vis_pieces::VisPiecesPlugin,
-    vis_tiles::VisTilesPlugin,
+    inputs_interface::InputInterfacePlugin, main_menu::MainMenuAndLobbyPluggin,
+    ui_panels::UiPanelsPlugin, vis_effect_reactions::VisEffectReactions,
+    vis_markets::VisMarketsPlugin, vis_pieces::VisPiecesPlugin, vis_tiles::VisTilesPlugin,
 };
 
 const VERSION_NUMBER: u64 = 0;
@@ -87,7 +83,6 @@ pub fn spawn_cam_3d(mut commands: Commands) {
             ..default()
         },
         IsDefaultUiCamera,
-        InGame2dCam,
     ));
 }
 

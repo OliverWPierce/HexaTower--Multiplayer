@@ -80,7 +80,7 @@ const HEADER_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_TEXT_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_HEIGHT: Val = Val::Vh(10.0);
 fn render_main_menu(mut commands: Commands) {
-    commands.spawn((Camera2d, DespawnOnEnter(AppState::InGame)));
+    commands.spawn(Camera2d);
 
     let source_node = commands
         .spawn((
