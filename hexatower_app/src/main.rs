@@ -44,6 +44,7 @@ fn main() {
         .init_state::<AppState>()
         .add_systems(OnEnter(AppState::InGame), (spawn_cam_3d, lights))
         .add_systems(Update, move_3d_cam.run_if(in_state(AppState::InGame)))
+        .add_systems(Update, debug_entity_existances)
         .run();
 }
 
@@ -74,20 +75,34 @@ pub fn spawn_cam_3d(mut commands: Commands) {
         Camera3d::default(),
         Bloom::NATURAL,
         InGame3dCam,
-    ));
-
-    commands.spawn((
-        Camera2d,
         Camera {
-            order: 1,
+            order: 0,
             ..default()
         },
-        IsDefaultUiCamera,
     ));
+
+    // commands.spawn((
+    //     Camera2d,
+    // Camera {
+    //     order: 1,
+    //     clear_color: ClearColorConfig::None,
+    //     ..default()
+    // },
+    //     IsDefaultUiCamera,
+    // ));
 }
 
 #[derive(Debug, Component)]
 pub struct InGame3dCam;
+
+#[derive(Debug, Component)]
+pub struct DebugEntityExistance(&'static str);
+
+pub fn debug_entity_existances(query: Query<&DebugEntityExistance>) {
+    query
+        .iter()
+        .for_each(|DebugEntityExistance(entity_name)| println!("{}", entity_name));
+}
 
 fn lights(mut commands: Commands) {
     commands.spawn((
