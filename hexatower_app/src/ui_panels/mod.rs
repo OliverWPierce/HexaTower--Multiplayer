@@ -49,7 +49,7 @@ impl Plugin for UiPanelsPlugin {
 pub const UNIVERSAL_BACKGROUND: Color = Color::Srgba(ZINC_800);
 pub const UNIVERSAL_BORDER: Color = Color::Srgba(ZINC_900);
 pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
-pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0;
+pub const WIDTH_OF_LEFT_UI: f32 = 50.0;
 
 pub fn spawn_basic_ui_layout(mut commands: Commands) {
     const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
@@ -77,7 +77,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
 
         commands.spawn((
             Node {
-                width: Val::Percent(WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT),
+                width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                 flex_direction: FlexDirection::Column,
@@ -137,40 +137,6 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
             ],
         ));
     }
-
-    // middle panel, invisible so as not to cover the board. Its children are where useful UI is spawned.
-    commands.spawn((
-        Node {
-            width: Val::Percent(100.0 - WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT),
-            height: Val::Percent(100.0),
-            border: UiRect::top(UNIVERSAL_BORDER_WIDTH).with_bottom(UNIVERSAL_BORDER_WIDTH),
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::SpaceBetween,
-            ..default()
-        },
-        ChildOf(overall_parent),
-        BorderColor::all(UNIVERSAL_BORDER),
-        Pickable::IGNORE,
-        children![
-            (
-                Node {
-                    width: Val::Percent(100.0),
-                    justify_content: JustifyContent::SpaceBetween,
-                    ..default()
-                },
-                MidPanelUpper
-            ),
-            (
-                Node {
-                    width: Val::Percent(100.0),
-                    justify_content: JustifyContent::SpaceBetween,
-                    ..default()
-                },
-                MidPanelLower
-            )
-        ],
-    ));
 }
 
 #[derive(Debug, Component)]
@@ -789,24 +755,34 @@ fn add_description(
     Ok(())
 }
 
+#[derive(Debug, Component)]
+pub struct InGame2dCam;
+
 fn resize_3d_viewport(
     windows: Query<&Window>,
     mut resize_events: MessageReader<WindowResized>,
-    mut cam_3d: Single<&mut Camera, With<InGame3dCam>>,
+    mut cam_3d: Single<&mut Camera, (With<InGame3dCam>, Without<InGame2dCam>)>,
+    mut cam_2d: Single<&mut Camera, (With<InGame2dCam>, Without<InGame3dCam>)>,
 ) {
     for resize_event in resize_events.read() {
         let window = windows.get(resize_event.window).unwrap();
 
         cam_3d.viewport = Some(Viewport {
             physical_position: UVec2 {
-                x: window.physical_width() * (WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT as u32)
-                    / 100,
+                x: window.physical_width() * (WIDTH_OF_LEFT_UI as u32) / 100,
                 y: 0,
             },
             physical_size: UVec2 {
-                x: window.physical_width()
-                    * ((100.0 - WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT) as u32)
-                    / 100,
+                x: window.physical_width() * ((100.0 - WIDTH_OF_LEFT_UI) as u32) / 100,
+                y: window.physical_height(),
+            },
+            ..default()
+        });
+
+        cam_2d.viewport = Some(Viewport {
+            physical_position: UVec2 { x: 0, y: 0 },
+            physical_size: UVec2 {
+                x: window.physical_width() * ((100.0 - WIDTH_OF_LEFT_UI) as u32) / 100,
                 y: window.physical_height(),
             },
             ..default()
