@@ -74,15 +74,11 @@ pub fn spawn_cam_3d(mut commands: Commands) {
         Camera3d::default(),
         Bloom::NATURAL,
         InGame3dCam,
-    ));
-
-    commands.spawn((
-        Camera2d,
         Camera {
-            order: 1,
+            order: 0,
+            clear_color: ClearColorConfig::Custom(Color::WHITE),
             ..default()
         },
-        IsDefaultUiCamera,
     ));
 }
 

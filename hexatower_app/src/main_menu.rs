@@ -72,6 +72,12 @@ impl Plugin for MainMenuAndLobbyPluggin {
                 in_state(AppState::PreGame).and_then(resource_exists_and_changed::<RenetServer>),
             ),
         );
+
+        //tmp for testing...
+        app.add_systems(
+            Update,
+            tmp_test_spawn_node.run_if(in_state(AppState::InGame)),
+        );
     }
 }
 
@@ -80,7 +86,17 @@ const HEADER_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_TEXT_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_HEIGHT: Val = Val::Vh(10.0);
 fn render_main_menu(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    commands
+        .spawn((
+            Camera2d,
+            Camera {
+                order: 1,
+                clear_color: ClearColorConfig::Custom(Color::BLACK),
+                ..default()
+            },
+            IsDefaultUiCamera,
+        ))
+        .observe(|on: On<Despawn>| panic!("Main menu camera deleted...."));
 
     let source_node = commands
         .spawn((
@@ -1034,4 +1050,26 @@ pub struct BoardSetupInstructions {
     pub board_size: PresetBoardSizes,
     pub player_names: Box<[String]>,
     pub you_are_player: Option<u8>,
+}
+
+fn tmp_test_spawn_node(
+    input: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
+    cam2d: Single<Entity, With<Camera2d>>,
+) {
+    if input.just_pressed(KeyCode::KeyA) {
+        commands
+            .spawn((
+                Node {
+                    width: Val::Percent(70.0),
+                    height: Val::Percent(50.0),
+                    ..default()
+                },
+                BackgroundColor(Color::WHITE),
+                UiTargetCamera(cam2d.entity()),
+            ))
+            .observe(|_: On<Despawn>| panic!("Testing UI deleted...."));
+
+        println!("Tried to spawn UI!")
+    }
 }

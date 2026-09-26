@@ -51,7 +51,7 @@ pub const UNIVERSAL_BORDER: Color = Color::Srgba(ZINC_900);
 pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
 pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0;
 
-pub fn spawn_basic_ui_layout(mut commands: Commands) {
+pub fn spawn_basic_ui_layout(mut commands: Commands, cam_2d: Single<Entity, With<Camera2d>>) {
     const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
 
     let overall_parent = commands
@@ -66,6 +66,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                 should_block_lower: false,
                 is_hoverable: false,
             },
+            UiTargetCamera(cam_2d.entity()),
         ))
         .id();
 
@@ -799,14 +800,11 @@ fn resize_3d_viewport(
 
         cam_3d.viewport = Some(Viewport {
             physical_position: UVec2 {
-                x: window.physical_width() * (WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT as u32)
-                    / 100,
+                x: window.physical_width() / 2,
                 y: 0,
             },
             physical_size: UVec2 {
-                x: window.physical_width()
-                    * ((100.0 - WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT) as u32)
-                    / 100,
+                x: window.physical_width() / 2,
                 y: window.physical_height(),
             },
             ..default()
