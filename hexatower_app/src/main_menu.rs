@@ -78,6 +78,8 @@ impl Plugin for MainMenuAndLobbyPluggin {
             Update,
             tmp_test_spawn_node.run_if(in_state(AppState::InGame)),
         );
+
+        app.add_systems(Update, tmp_test_missing_cam2d);
     }
 }
 
@@ -1071,5 +1073,13 @@ fn tmp_test_spawn_node(
             .observe(|_: On<Despawn>| panic!("Testing UI deleted...."));
 
         println!("Tried to spawn UI!")
+    }
+
+    println!("This system is running!");
+}
+
+fn tmp_test_missing_cam2d(mut removed_cams: RemovedComponents<Camera2d>) {
+    for _ in removed_cams.read() {
+        warn!("The camera has despawned!!Go forth my minions and FIND THE BUG!");
     }
 }
