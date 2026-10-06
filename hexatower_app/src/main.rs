@@ -1,4 +1,8 @@
-use bevy::{post_process::bloom::Bloom, prelude::*};
+use bevy::{
+    color::palettes::css::{BLACK, WHITE},
+    post_process::bloom::Bloom,
+    prelude::*,
+};
 use bevy_obj::ObjPlugin;
 use bevy_renet::{
     RenetClientPlugin, RenetServerPlugin,
@@ -7,9 +11,13 @@ use bevy_renet::{
 use core_game_logic::players::PlayerId;
 
 use crate::{
-    inputs_interface::InputInterfacePlugin, main_menu::MainMenuAndLobbyPluggin,
-    ui_panels::UiPanelsPlugin, vis_effect_reactions::VisEffectReactions,
-    vis_markets::VisMarketsPlugin, vis_pieces::VisPiecesPlugin, vis_tiles::VisTilesPlugin,
+    inputs_interface::InputInterfacePlugin,
+    main_menu::{MainMenuAndLobbyPluggin, VerySpecialComponent},
+    ui_panels::UiPanelsPlugin,
+    vis_effect_reactions::VisEffectReactions,
+    vis_markets::VisMarketsPlugin,
+    vis_pieces::VisPiecesPlugin,
+    vis_tiles::VisTilesPlugin,
 };
 
 const VERSION_NUMBER: u64 = 0;
@@ -43,7 +51,7 @@ fn main() {
         ))
         .init_state::<AppState>()
         .add_systems(OnEnter(AppState::InGame), (spawn_cam_3d, lights))
-        .add_systems(Update, move_3d_cam.run_if(in_state(AppState::InGame)))
+        .add_systems(Startup, move_3d_cam.run_if(in_state(AppState::InGame)))
         .run();
 }
 
@@ -69,16 +77,58 @@ pub fn spawn_cam_3d(mut commands: Commands) {
         })
         .looking_at(Vec3::ZERO, Dir3::Y);
 
+    // commands.spawn((
+    //     desired_transform,
+    //     Camera3d::default(),
+    //     Bloom::NATURAL,
+    //     InGame3dCam,
+    //     Camera {
+    //         order: 0,
+    //         clear_color: ClearColorConfig::Custom(Color::WHITE),
+    //         ..default()
+    //     },
+    // ));
+
     commands.spawn((
         desired_transform,
         Camera3d::default(),
-        Bloom::NATURAL,
-        InGame3dCam,
         Camera {
             order: 0,
-            clear_color: ClearColorConfig::Custom(Color::WHITE),
+            ..Default::default()
+        },
+        IsDefaultUiCamera,
+        InGame3dCam,
+    ));
+
+    commands.spawn((
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
             ..default()
         },
+        BackgroundColor(WHITE.into()),
+    ));
+
+    let cam2d = commands
+        .spawn((
+            Camera2d,
+            Camera {
+                order: 20,
+                clear_color: ClearColorConfig::None,
+                ..default()
+            },
+            VerySpecialComponent,
+        ))
+        .id();
+
+    commands.spawn((
+        Node {
+            width: Val::Percent(50.0),
+            height: Val::Percent(100.0),
+            ..default()
+        },
+        BackgroundColor(BLACK.into()),
+        UiTargetCamera(cam2d),
     ));
 }
 

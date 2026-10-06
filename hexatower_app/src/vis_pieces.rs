@@ -26,7 +26,7 @@ impl Plugin for VisPiecesPlugin {
                 start_piece_move,
                 despawn_piece,
             )
-                .run_if(resource_exists_and_changed::<EffectToDisplay>),
+                .distributive_run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
     }
 }

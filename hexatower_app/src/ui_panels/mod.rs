@@ -2,6 +2,7 @@ use crate::{
     AppState, InGame3dCam, OperatingPlayer,
     functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
     inputs_interface::ActionInputManager,
+    main_menu::VerySpecialComponent,
     ui_panels::{
         display_themes::DEFAULT_COLOR_THEME, lower_panel::VisualMarketUIPlugin,
         mid_panel::VisualOrdersPlugin, upper_bar::UpperBarPlugin,
@@ -51,8 +52,13 @@ pub const UNIVERSAL_BORDER: Color = Color::Srgba(ZINC_900);
 pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
 pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0;
 
-pub fn spawn_basic_ui_layout(mut commands: Commands, cam_2d: Single<Entity, With<Camera2d>>) {
+pub fn spawn_basic_ui_layout(
+    mut commands: Commands,
+    single: Single<Entity, With<VerySpecialComponent>>,
+) {
     const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
+
+    info!("And if we lose... we lose together too.");
 
     let overall_parent = commands
         .spawn((
@@ -66,7 +72,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands, cam_2d: Single<Entity, With
                 should_block_lower: false,
                 is_hoverable: false,
             },
-            UiTargetCamera(cam_2d.entity()),
+            UiTargetCamera(single.entity()),
         ))
         .id();
 
@@ -793,7 +799,7 @@ fn add_description(
 fn resize_3d_viewport(
     windows: Query<&Window>,
     mut resize_events: MessageReader<WindowResized>,
-    mut cam_3d: Single<&mut Camera, With<InGame3dCam>>,
+    mut cam_3d: Single<&mut Camera, With<Camera3d>>,
 ) {
     for resize_event in resize_events.read() {
         let window = windows.get(resize_event.window).unwrap();

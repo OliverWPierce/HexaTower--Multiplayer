@@ -87,18 +87,20 @@ const HEADER_SIZE: FontSize = FontSize::Vh(6.0);
 
 const BUTTON_TEXT_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_HEIGHT: Val = Val::Vh(10.0);
+
+#[derive(Debug, Component)]
+pub struct VerySpecialComponent;
+
 fn render_main_menu(mut commands: Commands) {
-    commands
-        .spawn((
-            Camera2d,
-            Camera {
-                order: 1,
-                clear_color: ClearColorConfig::Custom(Color::BLACK),
-                ..default()
-            },
-            IsDefaultUiCamera,
-        ))
-        .observe(|on: On<Despawn>| panic!("Main menu camera deleted...."));
+    // commands.spawn((
+    //     Camera2d,
+    //     Camera {
+    //         order: 1,
+    //         clear_color: ClearColorConfig::None,
+    //         ..default()
+    //     },
+    //     VerySpecialComponent,
+    // ));
 
     let source_node = commands
         .spawn((
@@ -1013,7 +1015,6 @@ fn render_client_connection_status_during_pregame(
     mut client: ResMut<RenetClient>,
     mut asset_server: ResMut<AssetServer>,
     mut state: ResMut<NextState<AppState>>,
-    cam_tmp: Single<Entity, With<Camera2d>>,
 ) {
     while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
         if let Ok(transmission) = postcard::from_bytes::<NetworkTransmission>(&message) {
@@ -1035,7 +1036,6 @@ fn render_client_connection_status_during_pregame(
                 NetworkTransmission::StartGame(instructions) => {
                     state.set(AppState::InGame);
                     commands.entity(background_node.entity()).despawn();
-                    commands.entity(cam_tmp.entity()).despawn();
                     create_board(&mut commands, &mut asset_server, instructions).unwrap()
                 }
                 NetworkTransmission::ActionDone(..) => unreachable!(),
