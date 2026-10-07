@@ -34,7 +34,7 @@ impl Plugin for VisualMarketUIPlugin {
         );
 
         app.add_systems(
-            SetUpBoard,
+            OnEnter(AppState::InGame),
             manage_market_ui_panel.after(spawn_basic_ui_layout),
         );
 

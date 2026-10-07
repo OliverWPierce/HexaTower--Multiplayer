@@ -27,7 +27,10 @@ pub struct VisualOrdersPlugin;
 
 impl Plugin for VisualOrdersPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(SetUpBoard, manage_orders_panel.after(spawn_basic_ui_layout));
+        app.add_systems(
+            OnEnter(AppState::InGame),
+            manage_orders_panel.after(spawn_basic_ui_layout),
+        );
 
         app.add_systems(
             Update,

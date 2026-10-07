@@ -2,7 +2,7 @@ use bevy::{color::palettes::tailwind, prelude::*};
 use core_game_logic::forensic_action_descriptions::ForensicDescribe;
 
 use crate::{
-    OperatingPlayer,
+    AppState, OperatingPlayer,
     functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
     inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn, TryEndTurn},
     ui_panels::{
@@ -16,7 +16,10 @@ pub struct UpperBarPlugin;
 
 impl Plugin for UpperBarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(SetUpBoard, effects.after(spawn_basic_ui_layout));
+        app.add_systems(
+            OnEnter(AppState::InGame),
+            effects.after(spawn_basic_ui_layout),
+        );
 
         app.add_systems(
             Update,

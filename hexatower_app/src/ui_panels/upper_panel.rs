@@ -35,7 +35,7 @@ impl Plugin for VisualInventoryPlugin {
         );
 
         app.add_systems(
-            SetUpBoard,
+            OnEnter(AppState::InGame),
             manage_inventory_panel.after(spawn_basic_ui_layout),
         );
 
