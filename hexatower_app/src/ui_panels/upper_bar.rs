@@ -38,6 +38,8 @@ impl Plugin for UpperBarPlugin {
 fn effects(mut commands: Commands, parent: Single<Entity, With<MidPanelUpper>>) {
     const BORDER_WITDH: Val = Val::Px(3.0);
 
+    info!("Spawned the UI which appears over the board!");
+
     let overall_panel = commands
         .spawn((
             Node {

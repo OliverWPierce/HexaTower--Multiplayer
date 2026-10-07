@@ -47,7 +47,7 @@ impl Plugin for UiPanelsPlugin {
 pub const UNIVERSAL_BACKGROUND: Color = Color::Srgba(ZINC_800);
 pub const UNIVERSAL_BORDER: Color = Color::Srgba(ZINC_900);
 pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
-pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0;
+pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0; // If you change this, you MUST change the camera resizing system.
 
 pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With<InGameCam2d>>) {
     const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
@@ -139,7 +139,6 @@ pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With
         ));
     }
 
-    // middle panel, invisible so as not to cover the board. Its children are where useful UI is spawned.
     commands.spawn((
         Node {
             width: Val::Percent(100.0 - WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT),
