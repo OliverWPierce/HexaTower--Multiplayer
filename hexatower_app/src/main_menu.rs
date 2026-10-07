@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::VERSION_NUMBER;
 
+use crate::cameras::{MainMenuCam, spawn_main_menu_cam};
 use crate::functional_assets::create_board;
 use crate::inputs_interface::{HOST_CLIENT_ID, NetworkTransmission};
 use crate::{
@@ -29,7 +30,10 @@ pub struct MainMenuAndLobbyPluggin;
 
 impl Plugin for MainMenuAndLobbyPluggin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::MainMenu), render_main_menu);
+        app.add_systems(
+            OnEnter(AppState::MainMenu),
+            render_main_menu.after(spawn_main_menu_cam),
+        );
         app.add_systems(
             OnEnter(AppState::ParametersScreen),
             render_parameters_screen,
@@ -72,14 +76,6 @@ impl Plugin for MainMenuAndLobbyPluggin {
                 in_state(AppState::PreGame).and_then(resource_exists_and_changed::<RenetServer>),
             ),
         );
-
-        //tmp for testing...
-        app.add_systems(
-            Update,
-            tmp_test_spawn_node.run_if(in_state(AppState::InGame)),
-        );
-
-        app.add_systems(Update, tmp_test_missing_cam2d);
     }
 }
 
@@ -88,20 +84,7 @@ const HEADER_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_TEXT_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_HEIGHT: Val = Val::Vh(10.0);
 
-#[derive(Debug, Component)]
-pub struct VerySpecialComponent;
-
-fn render_main_menu(mut commands: Commands) {
-    // commands.spawn((
-    //     Camera2d,
-    //     Camera {
-    //         order: 1,
-    //         clear_color: ClearColorConfig::None,
-    //         ..default()
-    //     },
-    //     VerySpecialComponent,
-    // ));
-
+fn render_main_menu(mut commands: Commands, camera: Single<Entity, With<MainMenuCam>>) {
     let source_node = commands
         .spawn((
             Node {
@@ -114,6 +97,7 @@ fn render_main_menu(mut commands: Commands) {
             },
             BackgroundColor(UNIVERSAL_BACKGROUND),
             MenusBackgroundNode,
+            UiTargetCamera(camera.entity()),
         ))
         .id();
 
@@ -1052,34 +1036,4 @@ pub struct BoardSetupInstructions {
     pub board_size: PresetBoardSizes,
     pub player_names: Box<[String]>,
     pub you_are_player: Option<u8>,
-}
-
-fn tmp_test_spawn_node(
-    input: Res<ButtonInput<KeyCode>>,
-    mut commands: Commands,
-    cam2d: Single<Entity, With<Camera2d>>,
-) {
-    if input.just_pressed(KeyCode::KeyA) {
-        commands
-            .spawn((
-                Node {
-                    width: Val::Percent(70.0),
-                    height: Val::Percent(50.0),
-                    ..default()
-                },
-                BackgroundColor(Color::WHITE),
-                UiTargetCamera(cam2d.entity()),
-            ))
-            .observe(|_: On<Despawn>| panic!("Testing UI deleted...."));
-
-        println!("Tried to spawn UI!")
-    }
-
-    println!("This system is running!");
-}
-
-fn tmp_test_missing_cam2d(mut removed_cams: RemovedComponents<Camera2d>) {
-    for _ in removed_cams.read() {
-        warn!("The camera has despawned!!Go forth my minions and FIND THE BUG!");
-    }
 }

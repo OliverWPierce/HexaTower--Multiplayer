@@ -1,8 +1,8 @@
 use crate::{
-    AppState, InGame3dCam, OperatingPlayer,
-    functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
+    AppState, OperatingPlayer,
+    cameras::{InGameCam2d, spawn_in_game_cameras},
+    functional_assets::{PlayerNames, VisCardDirectory, VisMarketDirectory},
     inputs_interface::ActionInputManager,
-    main_menu::VerySpecialComponent,
     ui_panels::{
         display_themes::DEFAULT_COLOR_THEME, lower_panel::VisualMarketUIPlugin,
         mid_panel::VisualOrdersPlugin, upper_bar::UpperBarPlugin,
@@ -10,7 +10,7 @@ use crate::{
     },
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
-use bevy::{camera::Viewport, color::palettes::tailwind::*, prelude::*, window::WindowResized};
+use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::forensic_action_descriptions::TextSnippet;
 
 mod lower_panel;
@@ -22,7 +22,10 @@ pub struct UiPanelsPlugin;
 
 impl Plugin for UiPanelsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(SetUpBoard, spawn_basic_ui_layout);
+        app.add_systems(
+            OnEnter(AppState::InGame),
+            spawn_basic_ui_layout.after(spawn_in_game_cameras),
+        );
         app.add_observer(hoverable_elements::hover_colors);
         app.add_observer(hoverable_elements::un_hover_colors);
         app.add_observer(unload_action_button.run_if(in_state(AppState::InGame)));
@@ -32,12 +35,6 @@ impl Plugin for UiPanelsPlugin {
             execution_button::update_panel
                 .run_if(in_state(AppState::InGame))
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
-        );
-
-        app.add_systems(OnEnter(AppState::InGame), initial_resize_event);
-        app.add_systems(
-            Update,
-            resize_3d_viewport.run_if(in_state(AppState::InGame)),
         );
 
         app.add_plugins(VisualInventoryPlugin);
@@ -52,10 +49,7 @@ pub const UNIVERSAL_BORDER: Color = Color::Srgba(ZINC_900);
 pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
 pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0;
 
-pub fn spawn_basic_ui_layout(
-    mut commands: Commands,
-    single: Single<Entity, With<VerySpecialComponent>>,
-) {
+pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With<InGameCam2d>>) {
     const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
 
     info!("And if we lose... we lose together too.");
@@ -794,40 +788,4 @@ fn add_description(
     }
 
     Ok(())
-}
-
-fn resize_3d_viewport(
-    windows: Query<&Window>,
-    mut resize_events: MessageReader<WindowResized>,
-    mut cam_3d: Single<&mut Camera, With<Camera3d>>,
-) {
-    for resize_event in resize_events.read() {
-        let window = windows.get(resize_event.window).unwrap();
-
-        cam_3d.viewport = Some(Viewport {
-            physical_position: UVec2 {
-                x: window.physical_width() / 2,
-                y: 0,
-            },
-            physical_size: UVec2 {
-                x: window.physical_width() / 2,
-                y: window.physical_height(),
-            },
-            ..default()
-        });
-    }
-}
-
-// this system just emits an event with the same window info as it starts with to get the "resize_3d_viewport" function to run without the player needing to resize the window.
-fn initial_resize_event(
-    mut writer: MessageWriter<WindowResized>,
-    windows: Query<(&Window, Entity)>,
-) {
-    for (window, window_entity) in windows {
-        writer.write(WindowResized {
-            window: window_entity,
-            width: window.width(),
-            height: window.height(),
-        });
-    }
 }
