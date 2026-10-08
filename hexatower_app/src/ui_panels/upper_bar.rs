@@ -3,7 +3,7 @@ use core_game_logic::forensic_action_descriptions::ForensicDescribe;
 
 use crate::{
     AppState, OperatingPlayer,
-    functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
+    functional_assets::{PlayerNames, VisCardDirectory, VisMarketDirectory},
     inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn, TryEndTurn},
     ui_panels::{
         MidPanelUpper, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER, add_description,

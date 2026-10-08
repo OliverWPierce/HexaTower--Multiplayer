@@ -1,4 +1,10 @@
-use bevy::{color::palettes::tailwind::*, prelude::*};
+use bevy::{
+    color::palettes::{
+        css::{BLACK, BLUE, RED, WHITE},
+        tailwind::*,
+    },
+    prelude::*,
+};
 use core_game_logic::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     orders::OrderDirectory,
@@ -10,12 +16,11 @@ use core_game_logic::{
 use crate::{
     AppState, OperatingPlayer,
     functional_assets::{
-        LogicalWorld, PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory,
-        VisOrderDirectory,
+        LogicalWorld, PlayerNames, VisCardDirectory, VisMarketDirectory, VisOrderDirectory,
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, UnloadActionButton,
+        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, UNIVERSAL_BORDER_WIDTH, UnloadActionButton,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::ExecutionButtonPanel,
         hoverable_elements, spawn_basic_ui_layout,
@@ -240,6 +245,13 @@ fn render_piece_overview(
             todo!()
         }
     }
+
+    display_bar(
+        commands,
+        overarching_order_panel,
+        Val::Percent(15.0),
+        Val::Percent(80.0),
+    );
 
     Ok(())
 }
@@ -606,4 +618,57 @@ fn render_order_execution_process(
     ));
 
     Ok(())
+}
+
+fn display_bar(commands: &mut Commands, parent: Entity, height: Val, width: Val) {
+    let big_container = commands
+        .spawn((
+            Node {
+                width,
+                height,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            ChildOf(parent),
+        ))
+        .id();
+
+    commands.spawn((
+        Node {
+            min_height: Val::Percent(100.0),
+            aspect_ratio: Some(1.0),
+            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+            border_radius: BorderRadius::left(Val::Percent(100.0)).with_right(Val::Percent(10.0)),
+            ..default()
+        },
+        BorderColor::all(WHITE),
+        BackgroundColor(RED.into()),
+        ChildOf(big_container),
+    ));
+
+    commands.spawn((
+        Node {
+            height: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            border: UiRect::vertical(UNIVERSAL_BORDER_WIDTH),
+            ..default()
+        },
+        BorderColor::all(WHITE),
+        BackgroundColor(BLACK.into()),
+        ChildOf(big_container),
+    ));
+
+    commands.spawn((
+        Node {
+            min_height: Val::Percent(100.0),
+            aspect_ratio: Some(1.5),
+            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+            border_radius: BorderRadius::right(Val::Percent(100.0)).with_left(Val::Percent(10.0)),
+            ..default()
+        },
+        BackgroundColor(BLUE.into()),
+        BorderColor::all(WHITE),
+        ChildOf(big_container),
+    ));
 }
