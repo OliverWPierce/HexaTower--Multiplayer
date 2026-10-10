@@ -58,6 +58,7 @@ fn render_piece_overview(
     visual_order_data: &VisOrderDirectory,
     operating_player: &OperatingPlayer,
     player_names: &PlayerNames,
+    health_icon: Handle<Image>,
     commands: &mut Commands,
 ) -> Result<(), BevyError> {
     commands
@@ -71,6 +72,7 @@ fn render_piece_overview(
             .expect("All pieces should have an orders component")
             .0
     };
+
     // the header
     commands.spawn((
         Node {
@@ -246,11 +248,12 @@ fn render_piece_overview(
         }
     }
 
-    display_bar(
+    stat_bar(
         commands,
         overarching_order_panel,
         Val::Percent(15.0),
         Val::Percent(80.0),
+        health_icon,
     );
 
     Ok(())
@@ -267,6 +270,7 @@ fn manage_orders_panel(
     vis_pieces: Res<VisualPieceArchetypeDirectory>,
     mut commands: Commands,
     player_names: Res<PlayerNames>,
+    asset_server: ResMut<AssetServer>,
 ) -> Result<(), BevyError> {
     if let Some(tile_of_active_piece) = input_manager.active_tile()
         && let Some(active_piece_log_entity) = logical_world.0.get::<OccupiedByPiece>(
@@ -303,6 +307,7 @@ fn manage_orders_panel(
                 &visual_order_data,
                 &operating_player,
                 &player_names,
+                asset_server.load("item_images/blue_potion.png"),
                 &mut commands,
             )
         }
@@ -620,7 +625,18 @@ fn render_order_execution_process(
     Ok(())
 }
 
-fn display_bar(commands: &mut Commands, parent: Entity, height: Val, width: Val) {
+struct StatBarSubEnts {
+    main: Entity,
+    right_side: Entity,
+}
+
+fn stat_bar(
+    commands: &mut Commands,
+    parent: Entity,
+    height: Val,
+    width: Val,
+    icon: Handle<Image>,
+) -> StatBarSubEnts {
     let big_container = commands
         .spawn((
             Node {
@@ -638,37 +654,45 @@ fn display_bar(commands: &mut Commands, parent: Entity, height: Val, width: Val)
         Node {
             min_height: Val::Percent(100.0),
             aspect_ratio: Some(1.0),
-            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+            border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
             border_radius: BorderRadius::left(Val::Percent(100.0)).with_right(Val::Percent(10.0)),
             ..default()
         },
-        BorderColor::all(WHITE),
-        BackgroundColor(RED.into()),
+        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+        BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
         ChildOf(big_container),
+        children![(ImageNode::from(icon))],
     ));
 
-    commands.spawn((
-        Node {
-            height: Val::Percent(100.0),
-            width: Val::Percent(100.0),
-            border: UiRect::vertical(UNIVERSAL_BORDER_WIDTH),
-            ..default()
-        },
-        BorderColor::all(WHITE),
-        BackgroundColor(BLACK.into()),
-        ChildOf(big_container),
-    ));
+    let main = commands
+        .spawn((
+            Node {
+                height: Val::Percent(80.0),
+                width: Val::Percent(100.0),
+                border: UiRect::vertical(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                ..default()
+            },
+            BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+            BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+            ChildOf(big_container),
+        ))
+        .id();
 
-    commands.spawn((
-        Node {
-            min_height: Val::Percent(100.0),
-            aspect_ratio: Some(1.5),
-            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-            border_radius: BorderRadius::right(Val::Percent(100.0)).with_left(Val::Percent(10.0)),
-            ..default()
-        },
-        BackgroundColor(BLUE.into()),
-        BorderColor::all(WHITE),
-        ChildOf(big_container),
-    ));
+    let right_side = commands
+        .spawn((
+            Node {
+                min_height: Val::Percent(100.0),
+                aspect_ratio: Some(1.5),
+                border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                border_radius: BorderRadius::right(Val::Percent(100.0))
+                    .with_left(Val::Percent(10.0)),
+                ..default()
+            },
+            BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+            BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+            ChildOf(big_container),
+        ))
+        .id();
+
+    StatBarSubEnts { main, right_side }
 }
