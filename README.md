@@ -8,7 +8,7 @@ I'm making this repository public primarily for resume purposes. If you're inter
 
 **Go to [core_game_logic/tile_mapping.rs](https://github.com/OliverWPierce/HexaTower--Multiplayer/blob/437d086ec887e750abfa4b6572289b0376d8aa16/core_game_logic/src/tile_mapping.rs)**
 
-For multiplayer to work, all the involved computers must have a consistent language for describing the game board. That language is TileIDs. Each tile on the board has a unique ID. This file contains the code for converting TileIds into cartesian coordinates and for relating tile IDs to each other. For example, this code allows me to ask "which tile is directly North of Tile 35?" and get an answer of "Tile 17." 
+For multiplayer to work, all the involved computers must have a consistent language for describing the game board. That language is TileIDs. Each tile on the board has a unique ID. This file contains the code for converting TileIDs into cartesian coordinates and for relating TileIDs to each other. For example, this code allows me to ask "which tile is directly North of Tile 35?" and get an answer of "Tile 17." 
 
 In addition to enabling multiplayer, this coordinate system improves performance by eliminating the need to traverse cached tile-adjacency data when calculating which moves the player can make. Instead of jumping around in memory, simple vector math is used.
 ## UI With Generics
