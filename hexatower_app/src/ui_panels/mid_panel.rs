@@ -173,7 +173,7 @@ fn render_piece_overview(
     let health_containers = stat_bar(
         commands,
         overarching_order_panel,
-        Val::Percent(20.0),
+        Val::Percent(10.0),
         LEFT_SIDE_HEADER_PARAMS.width,
         asset_server.load("item_images/red_glow_potion.png"),
     );
@@ -230,7 +230,7 @@ fn render_piece_overview(
         let remaining_orders_container = stat_bar(
             commands,
             overarching_order_panel,
-            Val::Percent(20.0),
+            Val::Percent(10.0),
             LEFT_SIDE_HEADER_PARAMS.width,
             asset_server.load("item_images/purple_potion.png"),
         );
@@ -791,7 +791,7 @@ fn stat_bar(
         .spawn((
             Node {
                 min_height: Val::Percent(100.0),
-                aspect_ratio: Some(4.0),
+                aspect_ratio: Some(2.5),
                 border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
                 border_radius: BorderRadius::right(Val::Percent(100.0))
                     .with_left(Val::Percent(10.0)),

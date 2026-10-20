@@ -8,11 +8,11 @@ impl Plugin for CameraManagementPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            resize_3d_viewport.run_if(in_state(AppState::InGame)),
+            (resize_3d_viewport, move_3d_cam).run_if(in_state(AppState::InGame)),
         );
         app.add_systems(
             OnEnter(AppState::InGame),
-            (spawn_in_game_cameras, initial_resize_event),
+            (spawn_in_game_cameras_and_lights, initial_resize_event),
         );
         app.add_systems(OnEnter(AppState::MainMenu), spawn_main_menu_cam);
     }
@@ -59,19 +59,17 @@ fn initial_resize_event(
     }
 }
 
-pub fn spawn_in_game_cameras(mut commands: Commands) {
-    let distance: f32 = 16.0;
-
-    let angle: f32 = 1.3;
+pub fn spawn_in_game_cameras_and_lights(mut commands: Commands) {
+    let desired_transform = Transform::default()
+        .with_translation(Vec3 {
+            x: 0.0,
+            z: 2.0,
+            y: 20.0,
+        })
+        .looking_at(Vec3::ZERO, Dir3::Y);
 
     commands.spawn((
-        Transform::default()
-            .with_translation(
-                Vec3::default()
-                    .with_z(angle.cos() * distance)
-                    .with_y(angle.cos() * distance),
-            )
-            .looking_at(Vec3::ZERO, Vec3::Y),
+        desired_transform,
         Camera3d::default(),
         Camera {
             order: 0,
@@ -90,10 +88,49 @@ pub fn spawn_in_game_cameras(mut commands: Commands) {
         IsDefaultUiCamera,
         InGameCam2d,
     ));
+
+    commands.spawn((
+        DirectionalLight {
+            illuminance: 6000.0,
+            shadow_maps_enabled: true,
+            ..default()
+        },
+        Transform::default()
+            .with_translation(vec3(100.0, 200.0, 300.0))
+            .looking_at(Vec3::ZERO, Dir3::Y),
+    ));
+
+    commands.spawn((
+        PointLight {
+            intensity: 120000.0,
+            shadow_maps_enabled: true,
+            ..default()
+        },
+        Transform::default().with_translation(vec3(0.0, 3.0, 0.0)),
+    ));
 }
+
 #[derive(Debug, Component)]
 pub struct MainMenuCam;
 
 pub fn spawn_main_menu_cam(mut commands: Commands) {
     commands.spawn((Camera2d, MainMenuCam, DespawnOnEnter(AppState::InGame)));
+}
+
+fn move_3d_cam(
+    inputs: Res<ButtonInput<KeyCode>>,
+    camera: Single<&mut Transform, With<Camera3d>>,
+    time: Res<Time>,
+) {
+    const VERT_SPEED: f32 = 1.2;
+    const HORIZONTAL_SPEED: f32 = 0.7;
+
+    camera.into_inner().translation += Vec3 {
+        x: (inputs.pressed(KeyCode::KeyD) as i8 - inputs.pressed(KeyCode::KeyA) as i8) as f32
+            * HORIZONTAL_SPEED,
+        y: (inputs.pressed(KeyCode::Space) as i8 - inputs.pressed(KeyCode::ShiftLeft) as i8) as f32
+            * VERT_SPEED,
+        z: (inputs.pressed(KeyCode::KeyS) as i8 - inputs.pressed(KeyCode::KeyW) as i8) as f32
+            * HORIZONTAL_SPEED,
+    } * time.delta_secs();
 }

@@ -52,6 +52,10 @@ fn effects(mut commands: Commands, parent: Single<Entity, With<MidPanelUpper>>) 
                 ..default()
             },
             ChildOf(parent.entity()),
+            Pickable {
+                should_block_lower: false,
+                is_hoverable: false,
+            },
         ))
         .id();
 
@@ -63,6 +67,10 @@ fn effects(mut commands: Commands, parent: Single<Entity, With<MidPanelUpper>>) 
                 ..default()
             },
             ChildOf(overall_panel),
+            Pickable {
+                should_block_lower: false,
+                is_hoverable: false,
+            },
         ))
         .id();
 

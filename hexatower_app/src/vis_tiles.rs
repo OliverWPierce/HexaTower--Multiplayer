@@ -29,9 +29,10 @@ impl Plugin for VisTilesPlugin {
         // switch this to a custom schedule later.
         app.add_systems(
             Update,
-            (swap_tile_mesh, roate_active_tile_visual)
-                .run_if(resource_exists_and_changed::<EffectToDisplay>),
+            (swap_tile_mesh).run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
+
+        app.add_systems(Update, roate_active_tile_visual);
 
         app.add_systems(
             Update,

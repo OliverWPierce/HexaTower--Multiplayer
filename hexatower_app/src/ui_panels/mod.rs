@@ -1,6 +1,6 @@
 use crate::{
     AppState, OperatingPlayer,
-    cameras::{InGameCam2d, spawn_in_game_cameras},
+    cameras::{InGameCam2d, spawn_in_game_cameras_and_lights},
     functional_assets::{PlayerNames, VisCardDirectory, VisMarketDirectory},
     inputs_interface::ActionInputManager,
     ui_panels::{
@@ -24,7 +24,7 @@ impl Plugin for UiPanelsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(AppState::InGame),
-            spawn_basic_ui_layout.after(spawn_in_game_cameras),
+            spawn_basic_ui_layout.after(spawn_in_game_cameras_and_lights),
         );
         app.add_observer(hoverable_elements::hover_colors);
         app.add_observer(hoverable_elements::un_hover_colors);
@@ -159,7 +159,11 @@ pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With
                     justify_content: JustifyContent::SpaceBetween,
                     ..default()
                 },
-                MidPanelUpper
+                MidPanelUpper,
+                Pickable {
+                    should_block_lower: false,
+                    is_hoverable: false
+                },
             ),
             (
                 Node {
@@ -167,7 +171,11 @@ pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With
                     justify_content: JustifyContent::SpaceBetween,
                     ..default()
                 },
-                MidPanelLower
+                MidPanelLower,
+                Pickable {
+                    should_block_lower: false,
+                    is_hoverable: false
+                },
             )
         ],
     ));
