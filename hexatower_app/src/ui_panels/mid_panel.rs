@@ -20,7 +20,7 @@ use crate::{
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, UnloadActionButton,
+        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, STAT_BAR_FONT_SIZE, UnloadActionButton,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::ExecutionButtonPanel,
         hoverable_elements, spawn_basic_ui_layout,
@@ -197,7 +197,7 @@ fn render_piece_overview(
         )),
         Text::from(format!("{}", health_info.current)),
         TextFont {
-            font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
+            font_size: STAT_BAR_FONT_SIZE,
             ..default()
         },
         TextLayout {
@@ -214,7 +214,7 @@ fn render_piece_overview(
             health_info.tier.to_roman()
         )),
         TextFont {
-            font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
+            font_size: STAT_BAR_FONT_SIZE,
             ..default()
         },
         TextLayout {
@@ -264,7 +264,7 @@ fn render_piece_overview(
             ChildOf(remaining_orders_container.right_side),
             Text::from(format!("{} | {}", orders.currently, orders.tier.to_roman())),
             TextFont {
-                font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
+                font_size: STAT_BAR_FONT_SIZE,
                 ..default()
             },
             TextLayout {
@@ -791,7 +791,7 @@ fn stat_bar(
         .spawn((
             Node {
                 min_height: Val::Percent(100.0),
-                aspect_ratio: Some(2.5),
+                min_width: Val::Percent(30.0),
                 border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
                 border_radius: BorderRadius::right(Val::Percent(100.0))
                     .with_left(Val::Percent(10.0)),

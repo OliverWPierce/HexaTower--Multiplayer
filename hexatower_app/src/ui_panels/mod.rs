@@ -796,3 +796,5 @@ fn add_description(
 
     Ok(())
 }
+
+pub const STAT_BAR_FONT_SIZE: FontSize = FontSize::Vh(1.4);

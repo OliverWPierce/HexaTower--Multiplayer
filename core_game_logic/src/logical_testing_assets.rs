@@ -121,7 +121,7 @@ pub const LOGICAL_ORDERS_FOR_TESTING: [LogicalOrder; 3] = [
         functionality: crate::orders::OrderFunction::DamageAdjacent {
             depth: 2,
             selection_range: 1..4,
-            damage: 70,
+            damage: 4,
         },
     },
     LogicalOrder {
