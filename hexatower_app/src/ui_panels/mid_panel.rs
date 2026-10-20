@@ -1,17 +1,17 @@
 use bevy::{
-    color::palettes::{
-        css::{BLACK, BLUE, RED, WHITE},
-        tailwind::*,
-    },
+    color::palettes::{css::PURPLE, tailwind::*},
     prelude::*,
 };
 use core_game_logic::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     orders::OrderDirectory,
-    pieces::{MonetaryValue, OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
+    pieces::{
+        Health, MonetaryValue, OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer,
+    },
     players::{PlayerDirectory, PlayerId, PlayerOrdersRemaining},
     tiles::TileDirectory,
 };
+use roman_numerals::{FromRoman, ToRoman};
 
 use crate::{
     AppState, OperatingPlayer,
@@ -20,7 +20,7 @@ use crate::{
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, UNIVERSAL_BORDER_WIDTH, UnloadActionButton,
+        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, UnloadActionButton,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::ExecutionButtonPanel,
         hoverable_elements, spawn_basic_ui_layout,
@@ -58,7 +58,7 @@ fn render_piece_overview(
     visual_order_data: &VisOrderDirectory,
     operating_player: &OperatingPlayer,
     player_names: &PlayerNames,
-    health_icon: Handle<Image>,
+    asset_server: ResMut<AssetServer>,
     commands: &mut Commands,
 ) -> Result<(), BevyError> {
     commands
@@ -103,7 +103,7 @@ fn render_piece_overview(
         .spawn((
             Node {
                 max_width: LEFT_SIDE_HEADER_PARAMS.width,
-                height: Val::Percent(60.0),
+                min_height: Val::Percent(30.0),
                 flex_wrap: FlexWrap::Wrap,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::SpaceAround,
@@ -170,8 +170,111 @@ fn render_piece_overview(
             );
     }
 
+    let health_containers = stat_bar(
+        commands,
+        overarching_order_panel,
+        Val::Percent(20.0),
+        LEFT_SIDE_HEADER_PARAMS.width,
+        asset_server.load("item_images/red_glow_potion.png"),
+    );
+
+    let health_info = logical_world
+        .0
+        .get::<Health>(logical_entity_of_active_piece)
+        .ok_or("All peices should have a health component.")?;
+
+    commands.spawn((
+        ChildOf(health_containers.main),
+        Node {
+            width: Val::Percent(health_info.current as f32 / health_info.max as f32 * 100.0),
+            height: Val::Percent(90.0),
+            ..default()
+        },
+        BackgroundColor(Color::hsv(
+            (0.35 * health_info.current as f32 / health_info.max as f32).clamp(0.0, 0.35) * 360.0,
+            0.9,
+            0.9,
+        )),
+        Text::from(format!("{}", health_info.current)),
+        TextFont {
+            font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
+            ..default()
+        },
+        TextLayout {
+            justify: Justify::Center,
+            linebreak: LineBreak::WordBoundary,
+        },
+    ));
+
+    commands.spawn((
+        ChildOf(health_containers.right_side),
+        Text::from(format!(
+            "{} | {}",
+            health_info.max,
+            health_info.tier.to_roman()
+        )),
+        TextFont {
+            font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
+            ..default()
+        },
+        TextLayout {
+            justify: Justify::Center,
+            linebreak: LineBreak::WordBoundary,
+        },
+    ));
+
+    if let Some(orders) = logical_world
+        .0
+        .get::<OrdersReceivable>(logical_entity_of_active_piece)
     {
-        let container_for_health_and_value = commands
+        let remaining_orders_container = stat_bar(
+            commands,
+            overarching_order_panel,
+            Val::Percent(20.0),
+            LEFT_SIDE_HEADER_PARAMS.width,
+            asset_server.load("item_images/purple_potion.png"),
+        );
+
+        for box_number in 0..orders.per_round {
+            commands.spawn((
+                Node {
+                    height: Val::Percent(90.0),
+                    width: Val::Percent(100.0 / (orders.per_round as f32)),
+                    border: UiRect::all(Val::Px(3.0)),
+                    ..default()
+                },
+                {
+                    if box_number >= orders.currently {
+                        (
+                            BackgroundColor(STONE_900.into()),
+                            BorderColor::all(STONE_950),
+                        )
+                    } else {
+                        (
+                            BackgroundColor(PURPLE_500.into()),
+                            BorderColor::all(PURPLE_700),
+                        )
+                    }
+                },
+                ChildOf(remaining_orders_container.main),
+            ));
+        }
+
+        commands.spawn((
+            ChildOf(remaining_orders_container.right_side),
+            Text::from(format!("{} | {}", orders.currently, orders.tier.to_roman())),
+            TextFont {
+                font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
+                ..default()
+            },
+            TextLayout {
+                justify: Justify::Center,
+                linebreak: LineBreak::WordBoundary,
+            },
+        ));
+    }
+    {
+        let container_for_owner_and_monetary_value = commands
             .spawn((
                 Node {
                     height: LEFT_SIDE_HEADER_PARAMS.height,
@@ -199,7 +302,7 @@ fn render_piece_overview(
                     border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
                     ..default()
                 },
-                ChildOf(container_for_health_and_value),
+                ChildOf(container_for_owner_and_monetary_value),
                 BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
                 BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
                 children![(
@@ -217,44 +320,49 @@ fn render_piece_overview(
                     TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR)
                 )],
             ));
-
-            // piece value dispay
+        } else {
             commands.spawn((
                 Node {
-                    width: Val::Percent(30.0),
+                    width: Val::Percent(68.0),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
                     ..default()
                 },
-                ChildOf(container_for_health_and_value),
-                BackgroundColor(YELLOW_500.into()),
-                BorderColor::all(YELLOW_700),
+                ChildOf(container_for_owner_and_monetary_value),
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
                 children![(
-                    Text::from(format!(
-                        "Equity: {}",
-                        logical_world
-                            .0
-                            .get::<MonetaryValue>(logical_entity_of_active_piece)
-                            .ok_or("all pieces should have info about their monetary value.")?
-                            .0
-                    )),
-                    TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR),
-                    TextColor(YELLOW_200.into())
+                    Text::from("No commander"),
+                    TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR)
                 )],
             ));
-        } else {
-            todo!()
         }
+        commands.spawn((
+            Node {
+                width: Val::Percent(30.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                ..default()
+            },
+            ChildOf(container_for_owner_and_monetary_value),
+            BackgroundColor(YELLOW_500.into()),
+            BorderColor::all(YELLOW_700),
+            children![(
+                Text::from(format!(
+                    "Equity: {}",
+                    logical_world
+                        .0
+                        .get::<MonetaryValue>(logical_entity_of_active_piece)
+                        .ok_or("all pieces should have info about their monetary value.")?
+                        .0
+                )),
+                TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR),
+                TextColor(YELLOW_200.into())
+            )],
+        ));
     }
-
-    stat_bar(
-        commands,
-        overarching_order_panel,
-        Val::Percent(15.0),
-        Val::Percent(80.0),
-        health_icon,
-    );
 
     Ok(())
 }
@@ -307,7 +415,7 @@ fn manage_orders_panel(
                 &visual_order_data,
                 &operating_player,
                 &player_names,
-                asset_server.load("item_images/blue_potion.png"),
+                asset_server,
                 &mut commands,
             )
         }
@@ -670,6 +778,7 @@ fn stat_bar(
                 height: Val::Percent(80.0),
                 width: Val::Percent(100.0),
                 border: UiRect::vertical(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                align_items: AlignItems::Center,
                 ..default()
             },
             BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
@@ -682,7 +791,7 @@ fn stat_bar(
         .spawn((
             Node {
                 min_height: Val::Percent(100.0),
-                aspect_ratio: Some(1.5),
+                aspect_ratio: Some(4.0),
                 border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
                 border_radius: BorderRadius::right(Val::Percent(100.0))
                     .with_left(Val::Percent(10.0)),

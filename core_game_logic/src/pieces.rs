@@ -96,6 +96,7 @@ pub struct PieceOwnedByPlayer(pub Entity);
 pub struct Health {
     pub max: u32,
     pub current: u32,
+    pub tier: u8,
 }
 
 #[derive(Debug, Component, Clone)]
@@ -105,6 +106,7 @@ pub struct Orders(pub [Option<OrderId>; 5]);
 pub struct OrdersReceivable {
     pub per_round: u8,
     pub currently: u8,
+    pub tier: u8,
 }
 #[derive(Debug, Component)]
 #[component(storage = "SparseSet")]

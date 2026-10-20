@@ -58,12 +58,14 @@ impl TileActionFunctionality for SpawnPieces {
                 Health {
                     max: blueprint.max_health,
                     current: blueprint.max_health,
+                    tier: 1,
                 },
                 PieceOwnedByPlayer(player_entity),
                 OccupiesTile(tile_entity),
                 OrdersReceivable {
                     per_round: blueprint.starting_orders_per_round,
                     currently: 0,
+                    tier: 1,
                 },
                 blueprint.orders.clone(),
                 selection.direction,
