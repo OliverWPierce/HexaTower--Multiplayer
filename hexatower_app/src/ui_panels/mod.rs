@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{
     AppState, OperatingPlayer,
     cameras::{InGameCam2d, spawn_in_game_cameras_and_lights},
@@ -797,4 +799,66 @@ fn add_description(
     Ok(())
 }
 
-pub const STAT_BAR_FONT_SIZE: FontSize = FontSize::Vh(1.4);
+pub trait StatBar {
+    type Stat: fmt::Display;
+
+    const STEP_SIZE: u32;
+    const COLOR: Color;
+    const ICON_PATH: &'static str; // I realize this is not ideal for long term, however at this stage of development, my priority is releasing the game, not preparing for long-term updates.
+
+    fn teir(&self) -> Option<u8>;
+    fn current(&self) -> Self::Stat;
+    fn max(&self) -> Self::Stat;
+}
+
+pub fn display_bar<S: StatBar + Into<u32> + From<u32>>(
+    stat: &S,
+    commands: &mut Commands,
+    asset_server: &mut AssetServer,
+    parent: Entity,
+) where
+    u32: std::convert::From<<S as StatBar>::Stat>,
+{
+    const FONT_SIZE: FontSize = FontSize::Vh(1.4);
+    const WIDTH: Val = Val::Percent(95.0);
+    const HEIGHT: Val = Val::Percent(15.0);
+    const INTERIOR_CORNER_RADIUS_AS_PERCENT: f32 = 10.0;
+
+    let container_box = commands
+        .spawn((
+            ChildOf(parent),
+            Node {
+                width: WIDTH,
+                height: HEIGHT,
+                ..Default::default()
+            },
+        ))
+        .id();
+
+    //left side and icon
+    commands.spawn((
+        Node {
+            min_height: Val::Percent(100.0),
+            aspect_ratio: Some(1.0),
+            border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+            border_radius: BorderRadius::left(Val::Percent(100.0))
+                .with_right(Val::Percent(INTERIOR_CORNER_RADIUS_AS_PERCENT)),
+            ..default()
+        },
+        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+        BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+        ChildOf(container_box),
+        children![(ImageNode::from(asset_server.load(S::ICON_PATH)))],
+    ));
+
+    //central items
+    let bar = commands
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0 - 2.0 * INTERIOR_CORNER_RADIUS_AS_PERCENT),
+            ..default()
+        })
+        .id();
+
+    let total_segments = u32::from(stat.max()) / S::STEP_SIZE;
+}
