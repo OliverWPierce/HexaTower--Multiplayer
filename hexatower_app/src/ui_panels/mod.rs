@@ -1,4 +1,8 @@
-use std::fmt;
+use std::{
+    array,
+    cmp::{max, min},
+    fmt,
+};
 
 use crate::{
     AppState, OperatingPlayer,
@@ -800,29 +804,30 @@ fn add_description(
 }
 
 pub trait StatBar {
-    type Stat: fmt::Display;
-
     const STEP_SIZE: u32;
-    const COLOR: Color;
+    const SEG_BACK_COLOR: Color;
+    const SEG_BORDER_COLOR: Color;
+    const SEG_EMPTY_BACK_COLOR: Color;
+    const SEG_EMPTY_BORDER_COLOR: Color;
+    const SUPERCHARGED_SEG_BORDER: Color;
     const ICON_PATH: &'static str; // I realize this is not ideal for long term, however at this stage of development, my priority is releasing the game, not preparing for long-term updates.
 
     fn teir(&self) -> Option<u8>;
-    fn current(&self) -> Self::Stat;
-    fn max(&self) -> Self::Stat;
+    fn current(&self) -> u32;
+    fn max(&self) -> u32;
 }
 
-pub fn display_bar<S: StatBar + Into<u32> + From<u32>>(
+pub fn display_bar<S: StatBar>(
     stat: &S,
     commands: &mut Commands,
     asset_server: &mut AssetServer,
     parent: Entity,
-) where
-    u32: std::convert::From<<S as StatBar>::Stat>,
-{
+) {
     const FONT_SIZE: FontSize = FontSize::Vh(1.4);
     const WIDTH: Val = Val::Percent(95.0);
     const HEIGHT: Val = Val::Percent(15.0);
     const INTERIOR_CORNER_RADIUS_AS_PERCENT: f32 = 10.0;
+    const BORDER_THICKNESS: Val = Val::Px(2.0);
 
     let container_box = commands
         .spawn((
@@ -860,5 +865,55 @@ pub fn display_bar<S: StatBar + Into<u32> + From<u32>>(
         })
         .id();
 
-    let total_segments = u32::from(stat.max()) / S::STEP_SIZE;
+    let filled_quantity_to_display = min(stat.current(), stat.max());
+
+    for _ in 0..(filled_quantity_to_display / S::STEP_SIZE) {
+        commands.spawn((
+            Node {
+                width: Val::Percent(S::STEP_SIZE as f32 * 100.0 / stat.max() as f32),
+                height: Val::Percent(95.0),
+                border: UiRect::all(BORDER_THICKNESS),
+                ..default()
+            },
+            BorderColor::all(S::SEG_BORDER_COLOR),
+            BackgroundColor(S::SEG_BACK_COLOR),
+            ChildOf(bar),
+        ));
+    }
+
+    let extra_fill = filled_quantity_to_display % S::STEP_SIZE;
+    if extra_fill != 0 {
+        commands.spawn((
+            Node {
+                width: Val::Percent(extra_fill as f32 / stat.max() as f32),
+                height: Val::Percent(95.0),
+                border: if stat.max() > stat.current() {
+                    UiRect::all(BORDER_THICKNESS).with_right(Val::Percent(0.0))
+                } else {
+                    UiRect::all(BORDER_THICKNESS)
+                },
+                ..default()
+            },
+            BorderColor::all(S::SEG_BORDER_COLOR),
+            BackgroundColor(S::SEG_BACK_COLOR),
+            ChildOf(bar),
+        ));
+    }
+
+    if stat.current() < stat.max() {
+        commands.spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(95.0),
+                border: UiRect::all(BORDER_THICKNESS),
+                ..default()
+            },
+            BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
+            BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
+            ChildOf(bar),
+        ));
+    }
+
+    // seg_length = p * MAX / 100
+    // p = seg_length * 100 / MAX
 }

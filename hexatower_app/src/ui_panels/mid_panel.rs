@@ -20,7 +20,7 @@ use crate::{
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, STAT_BAR_FONT_SIZE, UnloadActionButton,
+        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, STAT_BAR_FONT_SIZE, StatBar, UnloadActionButton,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::ExecutionButtonPanel,
         hoverable_elements, spawn_basic_ui_layout,
@@ -43,6 +43,34 @@ impl Plugin for VisualOrdersPlugin {
                 .run_if(in_state(AppState::InGame))
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
+    }
+}
+
+impl StatBar for OrdersReceivable {
+    const STEP_SIZE: u32 = 1;
+
+    const SEG_BACK_COLOR: Color = Color::Srgba(PURPLE_700);
+
+    const SEG_BORDER_COLOR: Color = Color::Srgba(PURPLE_800);
+
+    const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
+
+    const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
+
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(AMBER_600);
+
+    const ICON_PATH: &'static str;
+
+    fn teir(&self) -> Option<u8> {
+        todo!()
+    }
+
+    fn current(&self) -> u32 {
+        todo!()
+    }
+
+    fn max(&self) -> u32 {
+        todo!()
     }
 }
 
@@ -227,51 +255,7 @@ fn render_piece_overview(
         .0
         .get::<OrdersReceivable>(logical_entity_of_active_piece)
     {
-        let remaining_orders_container = stat_bar(
-            commands,
-            overarching_order_panel,
-            Val::Percent(10.0),
-            LEFT_SIDE_HEADER_PARAMS.width,
-            asset_server.load("item_images/purple_potion.png"),
-        );
-
-        for box_number in 0..orders.per_round {
-            commands.spawn((
-                Node {
-                    height: Val::Percent(90.0),
-                    width: Val::Percent(100.0 / (orders.per_round as f32)),
-                    border: UiRect::all(Val::Px(3.0)),
-                    ..default()
-                },
-                {
-                    if box_number >= orders.currently {
-                        (
-                            BackgroundColor(STONE_900.into()),
-                            BorderColor::all(STONE_950),
-                        )
-                    } else {
-                        (
-                            BackgroundColor(PURPLE_500.into()),
-                            BorderColor::all(PURPLE_700),
-                        )
-                    }
-                },
-                ChildOf(remaining_orders_container.main),
-            ));
-        }
-
-        commands.spawn((
-            ChildOf(remaining_orders_container.right_side),
-            Text::from(format!("{} | {}", orders.currently, orders.tier.to_roman())),
-            TextFont {
-                font_size: STAT_BAR_FONT_SIZE,
-                ..default()
-            },
-            TextLayout {
-                justify: Justify::Center,
-                linebreak: LineBreak::WordBoundary,
-            },
-        ));
+        // display order
     }
     {
         let container_for_owner_and_monetary_value = commands
@@ -731,77 +715,4 @@ fn render_order_execution_process(
     ));
 
     Ok(())
-}
-
-struct StatBarSubEnts {
-    main: Entity,
-    right_side: Entity,
-}
-
-fn stat_bar(
-    commands: &mut Commands,
-    parent: Entity,
-    height: Val,
-    width: Val,
-    icon: Handle<Image>,
-) -> StatBarSubEnts {
-    let big_container = commands
-        .spawn((
-            Node {
-                width,
-                height,
-                justify_content: JustifyContent::SpaceBetween,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            ChildOf(parent),
-        ))
-        .id();
-
-    commands.spawn((
-        Node {
-            min_height: Val::Percent(100.0),
-            aspect_ratio: Some(1.0),
-            border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-            border_radius: BorderRadius::left(Val::Percent(100.0)).with_right(Val::Percent(10.0)),
-            ..default()
-        },
-        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-        BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
-        ChildOf(big_container),
-        children![(ImageNode::from(icon))],
-    ));
-
-    let main = commands
-        .spawn((
-            Node {
-                height: Val::Percent(80.0),
-                width: Val::Percent(100.0),
-                border: UiRect::vertical(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-            BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
-            ChildOf(big_container),
-        ))
-        .id();
-
-    let right_side = commands
-        .spawn((
-            Node {
-                min_height: Val::Percent(100.0),
-                min_width: Val::Percent(30.0),
-                border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
-                border_radius: BorderRadius::right(Val::Percent(100.0))
-                    .with_left(Val::Percent(10.0)),
-                ..default()
-            },
-            BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
-            BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
-            ChildOf(big_container),
-        ))
-        .id();
-
-    StatBarSubEnts { main, right_side }
 }
