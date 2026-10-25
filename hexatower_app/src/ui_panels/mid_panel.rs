@@ -1,7 +1,4 @@
-use bevy::{
-    color::palettes::{css::PURPLE, tailwind::*},
-    prelude::*,
-};
+use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     orders::OrderDirectory,
@@ -11,7 +8,6 @@ use core_game_logic::{
     players::{PlayerDirectory, PlayerId, PlayerOrdersRemaining},
     tiles::TileDirectory,
 };
-use roman_numerals::{FromRoman, ToRoman};
 
 use crate::{
     AppState, OperatingPlayer,
@@ -20,7 +16,7 @@ use crate::{
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, STAT_BAR_FONT_SIZE, StatBar, UnloadActionButton,
+        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, StatBar, UnloadActionButton, display_bar,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::ExecutionButtonPanel,
         hoverable_elements, spawn_basic_ui_layout,
@@ -59,18 +55,45 @@ impl StatBar for OrdersReceivable {
 
     const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(AMBER_600);
 
-    const ICON_PATH: &'static str;
+    const ICON_PATH: &'static str = "item_images/purple_potion.png";
 
     fn teir(&self) -> Option<u8> {
-        todo!()
+        Some(self.per_round)
     }
 
     fn current(&self) -> u32 {
-        todo!()
+        self.currently as u32
     }
 
     fn max(&self) -> u32 {
-        todo!()
+        self.per_round as u32
+    }
+}
+impl StatBar for Health {
+    const STEP_SIZE: u32 = 5;
+
+    const SEG_BACK_COLOR: Color = Color::Srgba(RED_700);
+
+    const SEG_BORDER_COLOR: Color = Color::Srgba(RED_800);
+
+    const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
+
+    const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
+
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(AMBER_600);
+
+    const ICON_PATH: &'static str = "item_images/red_glow_potion.png";
+
+    fn teir(&self) -> Option<u8> {
+        Some(self.tier)
+    }
+
+    fn current(&self) -> u32 {
+        self.current
+    }
+
+    fn max(&self) -> u32 {
+        self.max
     }
 }
 
@@ -86,7 +109,7 @@ fn render_piece_overview(
     visual_order_data: &VisOrderDirectory,
     operating_player: &OperatingPlayer,
     player_names: &PlayerNames,
-    asset_server: ResMut<AssetServer>,
+    asset_server: &mut AssetServer,
     commands: &mut Commands,
 ) -> Result<(), BevyError> {
     commands
@@ -198,64 +221,18 @@ fn render_piece_overview(
             );
     }
 
-    let health_containers = stat_bar(
-        commands,
-        overarching_order_panel,
-        Val::Percent(10.0),
-        LEFT_SIDE_HEADER_PARAMS.width,
-        asset_server.load("item_images/red_glow_potion.png"),
-    );
-
     let health_info = logical_world
         .0
         .get::<Health>(logical_entity_of_active_piece)
         .ok_or("All peices should have a health component.")?;
 
-    commands.spawn((
-        ChildOf(health_containers.main),
-        Node {
-            width: Val::Percent(health_info.current as f32 / health_info.max as f32 * 100.0),
-            height: Val::Percent(90.0),
-            ..default()
-        },
-        BackgroundColor(Color::hsv(
-            (0.35 * health_info.current as f32 / health_info.max as f32).clamp(0.0, 0.35) * 360.0,
-            0.9,
-            0.9,
-        )),
-        Text::from(format!("{}", health_info.current)),
-        TextFont {
-            font_size: STAT_BAR_FONT_SIZE,
-            ..default()
-        },
-        TextLayout {
-            justify: Justify::Center,
-            linebreak: LineBreak::WordBoundary,
-        },
-    ));
-
-    commands.spawn((
-        ChildOf(health_containers.right_side),
-        Text::from(format!(
-            "{} | {}",
-            health_info.max,
-            health_info.tier.to_roman()
-        )),
-        TextFont {
-            font_size: STAT_BAR_FONT_SIZE,
-            ..default()
-        },
-        TextLayout {
-            justify: Justify::Center,
-            linebreak: LineBreak::WordBoundary,
-        },
-    ));
+    display_bar(health_info, commands, asset_server, overarching_order_panel);
 
     if let Some(orders) = logical_world
         .0
         .get::<OrdersReceivable>(logical_entity_of_active_piece)
     {
-        // display order
+        display_bar(orders, commands, asset_server, overarching_order_panel);
     }
     {
         let container_for_owner_and_monetary_value = commands
@@ -399,7 +376,7 @@ fn manage_orders_panel(
                 &visual_order_data,
                 &operating_player,
                 &player_names,
-                asset_server,
+                asset_server.into_inner(),
                 &mut commands,
             )
         }

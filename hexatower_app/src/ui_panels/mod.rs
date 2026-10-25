@@ -858,11 +858,14 @@ pub fn display_bar<S: StatBar>(
 
     //central items
     let bar = commands
-        .spawn(Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0 - 2.0 * INTERIOR_CORNER_RADIUS_AS_PERCENT),
-            ..default()
-        })
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0 - 2.0 * INTERIOR_CORNER_RADIUS_AS_PERCENT),
+                ..default()
+            },
+            ChildOf(container_box),
+        ))
         .id();
 
     let filled_quantity_to_display = min(stat.current(), stat.max());

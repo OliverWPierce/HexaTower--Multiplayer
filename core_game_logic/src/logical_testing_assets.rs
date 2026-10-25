@@ -86,7 +86,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
         is_spawnpoint: false,
     },
     LogicalPieceArchetype {
-        max_health: 1,
+        max_health: 45,
         starting_orders_per_round: 2,
         orders: Orders([
             Some(OrderId(1)),
