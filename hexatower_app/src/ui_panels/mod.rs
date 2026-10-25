@@ -10,8 +10,8 @@ use crate::{
     functional_assets::{PlayerNames, VisCardDirectory, VisMarketDirectory},
     inputs_interface::ActionInputManager,
     ui_panels::{
-        display_themes::DEFAULT_COLOR_THEME, lower_panel::VisualMarketUIPlugin,
-        mid_panel::VisualOrdersPlugin, upper_bar::UpperBarPlugin,
+        cam3d_overlay::Cam3dOverlayPlugin, display_themes::DEFAULT_COLOR_THEME,
+        lower_panel::VisualMarketUIPlugin, mid_panel::VisualOrdersPlugin,
         upper_panel::VisualInventoryPlugin,
     },
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
@@ -19,9 +19,9 @@ use crate::{
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::forensic_action_descriptions::TextSnippet;
 
+mod cam3d_overlay;
 mod lower_panel;
 mod mid_panel;
-mod upper_bar;
 mod upper_panel;
 
 pub struct UiPanelsPlugin;
@@ -46,7 +46,7 @@ impl Plugin for UiPanelsPlugin {
         app.add_plugins(VisualInventoryPlugin);
         app.add_plugins(VisualOrdersPlugin);
         app.add_plugins(VisualMarketUIPlugin);
-        app.add_plugins(UpperBarPlugin);
+        app.add_plugins(Cam3dOverlayPlugin);
     }
 }
 
@@ -57,8 +57,6 @@ pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0; // If you chan
 
 pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With<InGameCam2d>>) {
     const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
-
-    info!("And if we lose... we lose together too.");
 
     let overall_parent = commands
         .spawn((
