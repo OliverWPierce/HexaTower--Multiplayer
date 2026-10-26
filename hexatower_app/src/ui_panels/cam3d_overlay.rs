@@ -37,7 +37,7 @@ impl Plugin for Cam3dOverlayPlugin {
 
         app.add_systems(
             Update,
-            (describe_effects, edit_end_turn_text)
+            (describe_effects, edit_began_turn_text)
                 .distributive_run_if(resource_changed_or_removed::<EffectToDisplay>),
         );
     }
@@ -256,22 +256,30 @@ fn spawn_end_turn_button(mut commands: Commands, mid_panel: Single<Entity, With<
         });
 }
 
-fn edit_end_turn_text(
+fn edit_began_turn_text(
     mut text: Single<&mut Text, With<EndTurnDisplay>>,
     player_names: Res<PlayerNames>,
     operating_player: Res<OperatingPlayer>,
     effect: Option<Res<EffectToDisplay>>,
     logical_world: Res<LogicalWorld>,
 ) {
-    if let Some(effect) = effect
-        && let ActionEffect::EndedTurn(_) = effect.0
-    {
-        let active_player = logical_world.0.resource::<ActivePlayer>().0;
+    if let Some(effect) = effect {
+        if let ActionEffect::EndedTurn(_) = effect.0 {
+            let active_player = logical_world.0.resource::<ActivePlayer>().0;
 
-        if active_player == operating_player.0 {
-            text.0 = String::from("End Turn!");
-        } else {
-            text.0 = format!("It is {}'s turn.", player_names.get(active_player));
+            if active_player == operating_player.0 {
+                text.0 = String::from("End Turn!");
+            } else {
+                text.0 = format!("Siwitching to {}'s turn.", player_names.get(active_player));
+            }
+        } else if let ActionEffect::BeganTurn(_) = effect.0 {
+            let active_player = logical_world.0.resource::<ActivePlayer>().0;
+
+            if active_player == operating_player.0 {
+                text.0 = String::from("End Turn!");
+            } else {
+                text.0 = format!("It is {}'s turn.", player_names.get(active_player));
+            }
         }
     }
 }

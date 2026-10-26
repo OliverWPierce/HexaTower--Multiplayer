@@ -48,34 +48,32 @@ fn end_turn(
     acting_player: Res<OperatingPlayer>,
     client: Option<ResMut<RenetClient>>,
     mut effects_queue: ResMut<EffectsQueue>,
-) -> Result<(), BevyError> {
+) {
     let request = BackendRequest {
         acting_player: acting_player.0,
         request: RequestType::EndTurn,
     };
 
-    let change_log = try_consume_request(
+    if let Ok(change_log) = try_consume_request(
         BackendRequest {
             acting_player: acting_player.0,
             request: RequestType::EndTurn,
         },
         &mut logical_world.0,
-    )?;
+    ) {
+        if let Some(mut client) = client {
+            client.send_message(
+                DefaultChannel::ReliableOrdered,
+                postcard::to_stdvec(&NetworkTransmission::ActionDone(request)).unwrap(),
+            );
+        }
 
-    if let Some(mut client) = client {
-        client.send_message(
-            DefaultChannel::ReliableOrdered,
-            postcard::to_stdvec(&NetworkTransmission::ActionDone(request)).unwrap(),
-        );
+        effects_queue
+            .0
+            .append(&mut VecDeque::from(change_log.inner()));
+
+        *action_input_manager = ActionInputManager::default();
     }
-
-    effects_queue
-        .0
-        .append(&mut VecDeque::from(change_log.inner()));
-
-    *action_input_manager = ActionInputManager::default();
-
-    Ok(())
 }
 
 mod loaded_action_invariance {
