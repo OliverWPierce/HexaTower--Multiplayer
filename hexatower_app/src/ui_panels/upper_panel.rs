@@ -2,7 +2,7 @@ use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     cards::{CardDirectory, CardId},
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
-    players::{InventoryIndex, PlayerCardInventory, PlayerDirectory},
+    players::{Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory},
 };
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, UnloadActionButton,
+        LEFT_SIDE_HEADER_PARAMS, StatBar, UnloadActionButton, display_bar,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::{self, ExecutionButtonPanel},
         hoverable_elements,
@@ -49,12 +49,41 @@ struct Header;
 
 const INVENTORY_LABEL: &str = "Inventory";
 
+impl StatBar for Coins {
+    const STEP_SIZE: u32 = 3;
+
+    const SEG_BACK_COLOR: Color = Color::Srgba(AMBER_700);
+
+    const SEG_BORDER_COLOR: Color = Color::Srgba(AMBER_800);
+
+    const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
+
+    const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
+
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(AMBER_200);
+
+    const ICON_PATH: &'static str = "item_images/purple_potion.png";
+
+    fn teir(&self) -> Option<u8> {
+        None
+    }
+
+    fn current(&self) -> u32 {
+        self.0
+    }
+
+    fn max(&self) -> u32 {
+        21
+    }
+}
+
 fn render_inventory(
     commands: &mut Commands,
     panel: Entity,
     vis_cards: &VisCardDirectory,
     log_world: &LogicalWorld,
     display_player: &OperatingPlayer,
+    asset_server: &mut AssetServer,
 ) -> Result<(), BevyError> {
     commands.entity(panel).despawn_children();
 
@@ -162,6 +191,10 @@ fn render_inventory(
                 ChildOf(container_for_item_icons),
             ));
         }
+    }
+
+    if let Some(coins) = log_world.0.get::<Coins>(log_player) {
+        display_bar(coins, commands, asset_server, panel);
     }
 
     Ok(())
@@ -403,6 +436,7 @@ fn manage_inventory_panel(
     vis_markets: Res<VisMarketDirectory>,
     vis_pieces: Res<VisualPieceArchetypeDirectory>,
     player_names: Res<PlayerNames>,
+    asset_server: ResMut<AssetServer>,
 ) -> Result<(), BevyError> {
     if let Some(FrontendAction::UseCard { index, cache }) = loaded_action.loaded_action() {
         let card = log_world
@@ -433,6 +467,7 @@ fn manage_inventory_panel(
             &vis_cards,
             &log_world,
             &display_player,
+            asset_server.into_inner(),
         )
     }
 }

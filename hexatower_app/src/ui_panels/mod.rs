@@ -18,6 +18,7 @@ use crate::{
 };
 use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::forensic_action_descriptions::TextSnippet;
+use roman_numerals::ToRoman;
 
 mod cam3d_overlay;
 mod lower_panel;
@@ -871,22 +872,30 @@ pub fn display_bar<S: StatBar>(
     for _ in 0..(filled_quantity_to_display / S::STEP_SIZE) {
         commands.spawn((
             Node {
-                width: Val::Percent(S::STEP_SIZE as f32 * 100.0 / stat.max() as f32),
+                min_width: Val::Percent(S::STEP_SIZE as f32 * 100.0 / stat.max() as f32),
                 height: Val::Percent(95.0),
                 border: UiRect::all(BORDER_THICKNESS),
                 ..default()
             },
-            BorderColor::all(S::SEG_BORDER_COLOR),
+            BorderColor::all(if stat.current() > stat.max() {
+                S::SUPERCHARGED_SEG_BORDER
+            } else {
+                S::SEG_BORDER_COLOR
+            }),
             BackgroundColor(S::SEG_BACK_COLOR),
             ChildOf(bar),
         ));
     }
 
-    let extra_fill = filled_quantity_to_display % S::STEP_SIZE;
-    if extra_fill != 0 {
+    if !filled_quantity_to_display.is_multiple_of(S::STEP_SIZE) {
+        info!("Spawning extra fill!");
         commands.spawn((
             Node {
-                width: Val::Percent(extra_fill as f32 / stat.max() as f32),
+                min_width: Val::Percent(
+                    S::STEP_SIZE as f32 * 100.0
+                        / filled_quantity_to_display as f32
+                        / (filled_quantity_to_display % S::STEP_SIZE) as f32,
+                ),
                 height: Val::Percent(95.0),
                 border: if stat.max() > stat.current() {
                     UiRect::all(BORDER_THICKNESS).with_right(Val::Percent(0.0))
@@ -895,26 +904,51 @@ pub fn display_bar<S: StatBar>(
                 },
                 ..default()
             },
-            BorderColor::all(S::SEG_BORDER_COLOR),
+            BorderColor::all(if stat.current() > stat.max() {
+                S::SUPERCHARGED_SEG_BORDER
+            } else {
+                S::SEG_BORDER_COLOR
+            }),
             BackgroundColor(S::SEG_BACK_COLOR),
             ChildOf(bar),
         ));
     }
 
-    if stat.current() < stat.max() {
-        commands.spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(95.0),
-                border: UiRect::all(BORDER_THICKNESS),
-                ..default()
-            },
-            BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
-            BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
-            ChildOf(bar),
-        ));
-    }
+    // if stat.current() < stat.max() {
+    //     commands.spawn((
+    //         Node {
+    //             width: Val::Percent(100.0),
+    //             height: Val::Percent(95.0),
+    //             border: UiRect::all(BORDER_THICKNESS),
+    //             ..default()
+    //         },
+    //         BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
+    //         BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
+    //         ChildOf(bar),
+    //     ));
+    // }
 
-    // seg_length = p * MAX / 100
-    // p = seg_length * 100 / MAX
+    //right side
+    commands.spawn((
+        Node {
+            height: Val::Percent(100.0),
+            width: Val::Percent(35.0),
+            border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            border_radius: BorderRadius::right(Val::Percent(100.0))
+                .with_left(Val::Percent(INTERIOR_CORNER_RADIUS_AS_PERCENT)),
+            ..default()
+        },
+        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+        BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+        ChildOf(container_box),
+        children![
+            (Text::from(if let Some(teir) = stat.teir() {
+                format!("{} / {} | {}", stat.current(), stat.max(), teir.to_roman())
+            } else {
+                format!("{} / {}", stat.current(), stat.max())
+            }))
+        ],
+    ));
 }

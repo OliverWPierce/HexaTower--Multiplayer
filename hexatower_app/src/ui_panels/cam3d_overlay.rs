@@ -247,7 +247,7 @@ fn spawn_end_turn_button(mut commands: Commands, mid_panel: Single<Entity, With<
             },
             ChildOf(mid_panel.entity()),
             BackgroundColor(UNIVERSAL_BACKGROUND),
-            BorderColor::all(UNIVERSAL_BACKGROUND),
+            BorderColor::all(UNIVERSAL_BORDER),
             EndTurnDisplay,
             children![(Text::from("..."), EndTurnDisplay)],
         ))
