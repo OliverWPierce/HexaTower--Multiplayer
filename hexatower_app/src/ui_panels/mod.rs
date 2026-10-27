@@ -2,6 +2,7 @@ use std::{
     array,
     cmp::{max, min},
     fmt,
+    process::Child,
 };
 
 use crate::{
@@ -867,66 +868,97 @@ pub fn display_bar<S: StatBar>(
         ))
         .id();
 
-    let filled_quantity_to_display = min(stat.current(), stat.max());
+    let mut remaining_hp_to_display = min(stat.current(), stat.max());
+    let mut filled_segment_regions = 0;
 
-    for _ in 0..(filled_quantity_to_display / S::STEP_SIZE) {
+    while remaining_hp_to_display >= S::STEP_SIZE {
         commands.spawn((
+            ChildOf(bar),
             Node {
-                min_width: Val::Percent(S::STEP_SIZE as f32 * 100.0 / stat.max() as f32),
+                width: Val::Percent(S::STEP_SIZE as f32 / stat.max() as f32 * 100.0),
                 height: Val::Percent(95.0),
                 border: UiRect::all(BORDER_THICKNESS),
                 ..default()
             },
-            BorderColor::all(if stat.current() > stat.max() {
-                S::SUPERCHARGED_SEG_BORDER
-            } else {
-                S::SEG_BORDER_COLOR
-            }),
             BackgroundColor(S::SEG_BACK_COLOR),
-            ChildOf(bar),
+            BorderColor::all(S::SEG_BORDER_COLOR),
         ));
+
+        filled_segment_regions += 1;
+        remaining_hp_to_display -= S::STEP_SIZE;
     }
 
-    if !filled_quantity_to_display.is_multiple_of(S::STEP_SIZE) {
-        info!("Spawning extra fill!");
+    if stat.current() >= stat.max() {
         commands.spawn((
+            ChildOf(bar),
             Node {
-                min_width: Val::Percent(
-                    S::STEP_SIZE as f32 * 100.0
-                        / filled_quantity_to_display as f32
-                        / (filled_quantity_to_display % S::STEP_SIZE) as f32,
-                ),
+                width: Val::Percent(remaining_hp_to_display as f32 / stat.max() as f32 * 100.0),
                 height: Val::Percent(95.0),
-                border: if stat.max() > stat.current() {
-                    UiRect::all(BORDER_THICKNESS).with_right(Val::Percent(0.0))
-                } else {
-                    UiRect::all(BORDER_THICKNESS)
-                },
+                border: UiRect::all(BORDER_THICKNESS),
                 ..default()
             },
-            BorderColor::all(if stat.current() > stat.max() {
-                S::SUPERCHARGED_SEG_BORDER
-            } else {
-                S::SEG_BORDER_COLOR
-            }),
             BackgroundColor(S::SEG_BACK_COLOR),
+            BorderColor::all(S::SEG_BORDER_COLOR),
+        ));
+    } else {
+        commands.spawn((
             ChildOf(bar),
+            Node {
+                width: Val::Percent(remaining_hp_to_display as f32 / stat.max() as f32 * 100.0),
+                height: Val::Percent(95.0),
+                border: UiRect::all(BORDER_THICKNESS).with_right(Val::Percent(0.0)),
+                ..default()
+            },
+            BackgroundColor(S::SEG_BACK_COLOR),
+            BorderColor::all(S::SEG_BORDER_COLOR),
+        ));
+
+        if let empty_part_of_bar = (S::STEP_SIZE - remaining_hp_to_display)
+            && empty_part_of_bar != 0
+        {
+            commands.spawn((
+                ChildOf(bar),
+                Node {
+                    width: Val::Percent(empty_part_of_bar as f32 / stat.max() as f32 * 100.0),
+                    height: Val::Percent(95.0),
+                    border: UiRect::all(BORDER_THICKNESS),
+                    ..default()
+                },
+                BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
+                BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
+            ));
+        }
+
+        filled_segment_regions += 1;
+
+        let mut remaining_blank_to_display = stat.max() - filled_segment_regions * S::STEP_SIZE;
+
+        while remaining_blank_to_display >= S::STEP_SIZE {
+            commands.spawn((
+                ChildOf(bar),
+                Node {
+                    width: Val::Percent(S::STEP_SIZE as f32 / stat.max() as f32 * 100.0),
+                    height: Val::Percent(95.0),
+                    border: UiRect::all(BORDER_THICKNESS),
+                    ..default()
+                },
+                BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
+                BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
+            ));
+            remaining_blank_to_display -= S::STEP_SIZE;
+        }
+
+        commands.spawn((
+            ChildOf(bar),
+            Node {
+                width: Val::Percent(remaining_blank_to_display as f32 / stat.max() as f32 * 100.0),
+                height: Val::Percent(95.0),
+                ..default()
+            },
+            BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
+            BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
         ));
     }
-
-    // if stat.current() < stat.max() {
-    //     commands.spawn((
-    //         Node {
-    //             width: Val::Percent(100.0),
-    //             height: Val::Percent(95.0),
-    //             border: UiRect::all(BORDER_THICKNESS),
-    //             ..default()
-    //         },
-    //         BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
-    //         BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
-    //         ChildOf(bar),
-    //     ));
-    // }
 
     //right side
     commands.spawn((
