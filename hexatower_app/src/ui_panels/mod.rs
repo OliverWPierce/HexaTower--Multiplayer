@@ -889,29 +889,33 @@ pub fn display_bar<S: StatBar>(
     }
 
     if stat.current() >= stat.max() {
-        commands.spawn((
-            ChildOf(bar),
-            Node {
-                width: Val::Percent(remaining_hp_to_display as f32 / stat.max() as f32 * 100.0),
-                height: Val::Percent(95.0),
-                border: UiRect::all(BORDER_THICKNESS),
-                ..default()
-            },
-            BackgroundColor(S::SEG_BACK_COLOR),
-            BorderColor::all(S::SEG_BORDER_COLOR),
-        ));
+        if remaining_hp_to_display != 0 {
+            commands.spawn((
+                ChildOf(bar),
+                Node {
+                    width: Val::Percent(remaining_hp_to_display as f32 / stat.max() as f32 * 100.0),
+                    height: Val::Percent(95.0),
+                    border: UiRect::all(BORDER_THICKNESS),
+                    ..default()
+                },
+                BackgroundColor(S::SEG_BACK_COLOR),
+                BorderColor::all(S::SEG_BORDER_COLOR),
+            ));
+        }
     } else {
-        commands.spawn((
-            ChildOf(bar),
-            Node {
-                width: Val::Percent(remaining_hp_to_display as f32 / stat.max() as f32 * 100.0),
-                height: Val::Percent(95.0),
-                border: UiRect::all(BORDER_THICKNESS).with_right(Val::Percent(0.0)),
-                ..default()
-            },
-            BackgroundColor(S::SEG_BACK_COLOR),
-            BorderColor::all(S::SEG_BORDER_COLOR),
-        ));
+        if remaining_hp_to_display != 0 {
+            commands.spawn((
+                ChildOf(bar),
+                Node {
+                    width: Val::Percent(remaining_hp_to_display as f32 / stat.max() as f32 * 100.0),
+                    height: Val::Percent(95.0),
+                    border: UiRect::all(BORDER_THICKNESS).with_right(Val::Percent(0.0)),
+                    ..default()
+                },
+                BackgroundColor(S::SEG_BACK_COLOR),
+                BorderColor::all(S::SEG_BORDER_COLOR),
+            ));
+        }
 
         if let empty_part_of_bar = (S::STEP_SIZE - remaining_hp_to_display)
             && empty_part_of_bar != 0

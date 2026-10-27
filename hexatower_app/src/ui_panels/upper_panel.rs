@@ -52,15 +52,15 @@ const INVENTORY_LABEL: &str = "Inventory";
 impl StatBar for Coins {
     const STEP_SIZE: u32 = 3;
 
-    const SEG_BACK_COLOR: Color = Color::Srgba(AMBER_700);
+    const SEG_BACK_COLOR: Color = Color::Srgba(YELLOW_500);
 
-    const SEG_BORDER_COLOR: Color = Color::Srgba(AMBER_800);
+    const SEG_BORDER_COLOR: Color = Color::Srgba(YELLOW_700);
 
     const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
 
     const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
 
-    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(AMBER_200);
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(YELLOW_200);
 
     const ICON_PATH: &'static str = "item_images/purple_potion.png";
 
