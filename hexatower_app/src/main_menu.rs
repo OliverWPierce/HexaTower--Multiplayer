@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::VERSION_NUMBER;
 
+use crate::cameras::{MainMenuCam, spawn_main_menu_cam};
 use crate::functional_assets::create_board;
 use crate::inputs_interface::{HOST_CLIENT_ID, NetworkTransmission};
 use crate::{
@@ -29,7 +30,10 @@ pub struct MainMenuAndLobbyPluggin;
 
 impl Plugin for MainMenuAndLobbyPluggin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::MainMenu), render_main_menu);
+        app.add_systems(
+            OnEnter(AppState::MainMenu),
+            render_main_menu.after(spawn_main_menu_cam),
+        );
         app.add_systems(
             OnEnter(AppState::ParametersScreen),
             render_parameters_screen,
@@ -79,9 +83,8 @@ const HEADER_SIZE: FontSize = FontSize::Vh(6.0);
 
 const BUTTON_TEXT_SIZE: FontSize = FontSize::Vh(6.0);
 const BUTTON_HEIGHT: Val = Val::Vh(10.0);
-fn render_main_menu(mut commands: Commands) {
-    commands.spawn(Camera2d);
 
+fn render_main_menu(mut commands: Commands, camera: Single<Entity, With<MainMenuCam>>) {
     let source_node = commands
         .spawn((
             Node {
@@ -94,6 +97,7 @@ fn render_main_menu(mut commands: Commands) {
             },
             BackgroundColor(UNIVERSAL_BACKGROUND),
             MenusBackgroundNode,
+            UiTargetCamera(camera.entity()),
         ))
         .id();
 
@@ -995,7 +999,6 @@ fn render_client_connection_status_during_pregame(
     mut client: ResMut<RenetClient>,
     mut asset_server: ResMut<AssetServer>,
     mut state: ResMut<NextState<AppState>>,
-    cam_tmp: Single<Entity, With<Camera2d>>,
 ) {
     while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
         if let Ok(transmission) = postcard::from_bytes::<NetworkTransmission>(&message) {
@@ -1017,7 +1020,6 @@ fn render_client_connection_status_during_pregame(
                 NetworkTransmission::StartGame(instructions) => {
                     state.set(AppState::InGame);
                     commands.entity(background_node.entity()).despawn();
-                    commands.entity(cam_tmp.entity()).despawn();
                     create_board(&mut commands, &mut asset_server, instructions).unwrap()
                 }
                 NetworkTransmission::ActionDone(..) => unreachable!(),

@@ -2,7 +2,7 @@ use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     cards::{CardDirectory, CardId},
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
-    players::{InventoryIndex, PlayerCardInventory, PlayerDirectory},
+    players::{Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory, PlayerOrdersRemaining},
 };
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, UnloadActionButton,
+        LEFT_SIDE_HEADER_PARAMS, StatBar, UnloadActionButton, display_bar,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::{self, ExecutionButtonPanel},
         hoverable_elements,
@@ -35,7 +35,7 @@ impl Plugin for VisualInventoryPlugin {
         );
 
         app.add_systems(
-            SetUpBoard,
+            OnEnter(AppState::InGame),
             manage_inventory_panel.after(spawn_basic_ui_layout),
         );
 
@@ -49,12 +49,75 @@ struct Header;
 
 const INVENTORY_LABEL: &str = "Inventory";
 
+impl StatBar for Coins {
+    const STEP_SIZE: u32 = 3;
+
+    const SEG_BACK_COLOR: Color = Color::Srgba(YELLOW_500);
+
+    const SEG_BORDER_COLOR: Color = Color::Srgba(YELLOW_700);
+
+    const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
+
+    const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
+
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(YELLOW_200);
+
+    const ICON_PATH: &'static str = "item_images/purple_potion.png";
+
+    const STAT_TITLE: &'static str = "Coins";
+
+    fn teir(&self) -> Option<u8> {
+        None
+    }
+
+    fn current(&self) -> u32 {
+        self.0
+    }
+
+    fn max(&self) -> u32 {
+        21
+    }
+}
+
+impl StatBar for PlayerOrdersRemaining {
+    const STEP_SIZE: u32 = 1;
+
+    const SEG_BACK_COLOR: Color = Color::Srgba(ROSE_700);
+
+    const SEG_BORDER_COLOR: Color = Color::Srgba(ROSE_950);
+
+    const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
+
+    const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
+
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(ROSE_400);
+
+    const ICON_PATH: &'static str = "item_images/purple_potion.png";
+
+    const STAT_TITLE: &'static str = "Orders";
+    #[inline]
+    fn teir(&self) -> Option<u8> {
+        None
+    }
+
+    #[inline]
+    fn current(&self) -> u32 {
+        self.remaining as u32
+    }
+
+    #[inline]
+    fn max(&self) -> u32 {
+        3
+    }
+}
+
 fn render_inventory(
     commands: &mut Commands,
     panel: Entity,
     vis_cards: &VisCardDirectory,
     log_world: &LogicalWorld,
     display_player: &OperatingPlayer,
+    asset_server: &mut AssetServer,
 ) -> Result<(), BevyError> {
     commands.entity(panel).despawn_children();
 
@@ -162,6 +225,14 @@ fn render_inventory(
                 ChildOf(container_for_item_icons),
             ));
         }
+    }
+
+    if let Some(coins) = log_world.0.get::<Coins>(log_player) {
+        display_bar(coins, commands, asset_server, panel);
+    }
+
+    if let Some(orders) = log_world.0.get::<PlayerOrdersRemaining>(log_player) {
+        display_bar(orders, commands, asset_server, panel);
     }
 
     Ok(())
@@ -403,6 +474,7 @@ fn manage_inventory_panel(
     vis_markets: Res<VisMarketDirectory>,
     vis_pieces: Res<VisualPieceArchetypeDirectory>,
     player_names: Res<PlayerNames>,
+    asset_server: ResMut<AssetServer>,
 ) -> Result<(), BevyError> {
     if let Some(FrontendAction::UseCard { index, cache }) = loaded_action.loaded_action() {
         let card = log_world
@@ -433,6 +505,7 @@ fn manage_inventory_panel(
             &vis_cards,
             &log_world,
             &display_player,
+            asset_server.into_inner(),
         )
     }
 }

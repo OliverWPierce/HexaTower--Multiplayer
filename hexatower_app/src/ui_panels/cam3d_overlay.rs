@@ -1,22 +1,29 @@
 use bevy::{color::palettes::tailwind, prelude::*};
-use core_game_logic::forensic_action_descriptions::ForensicDescribe;
+use core_game_logic::{
+    forensic_action_descriptions::ForensicDescribe,
+    players::{ActivePlayer, PlayerData},
+    requests::ActionEffect,
+};
 
 use crate::{
-    OperatingPlayer,
-    functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
-    inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn},
+    AppState, OperatingPlayer,
+    functional_assets::{LogicalWorld, PlayerNames, VisCardDirectory, VisMarketDirectory},
+    inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn, TryEndTurn},
     ui_panels::{
-        MidPanelUpper, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER, add_description,
+        MidPanelLower, MidPanelUpper, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER, add_description,
         spawn_basic_ui_layout,
     },
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
 
-pub struct UpperBarPlugin;
+pub struct Cam3dOverlayPlugin;
 
-impl Plugin for UpperBarPlugin {
+impl Plugin for Cam3dOverlayPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(SetUpBoard, effects.after(spawn_basic_ui_layout));
+        app.add_systems(
+            OnEnter(AppState::InGame),
+            (effects, spawn_end_turn_button).after(spawn_basic_ui_layout),
+        );
 
         app.add_systems(
             Update,
@@ -30,13 +37,16 @@ impl Plugin for UpperBarPlugin {
 
         app.add_systems(
             Update,
-            describe_effects.run_if(resource_changed_or_removed::<EffectToDisplay>),
+            (describe_effects, edit_began_turn_text)
+                .distributive_run_if(resource_changed_or_removed::<EffectToDisplay>),
         );
     }
 }
 
+const BORDER_WITDH: Val = Val::Px(3.0);
+
 fn effects(mut commands: Commands, parent: Single<Entity, With<MidPanelUpper>>) {
-    const BORDER_WITDH: Val = Val::Px(3.0);
+    info!("Spawned the UI which appears over the board!");
 
     let overall_panel = commands
         .spawn((
@@ -47,6 +57,10 @@ fn effects(mut commands: Commands, parent: Single<Entity, With<MidPanelUpper>>) 
                 ..default()
             },
             ChildOf(parent.entity()),
+            Pickable {
+                should_block_lower: false,
+                is_hoverable: false,
+            },
         ))
         .id();
 
@@ -58,6 +72,10 @@ fn effects(mut commands: Commands, parent: Single<Entity, With<MidPanelUpper>>) 
                 ..default()
             },
             ChildOf(overall_panel),
+            Pickable {
+                should_block_lower: false,
+                is_hoverable: false,
+            },
         ))
         .id();
 
@@ -209,4 +227,59 @@ fn describe_effects(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Component)]
+struct EndTurnDisplay;
+
+fn spawn_end_turn_button(mut commands: Commands, mid_panel: Single<Entity, With<MidPanelLower>>) {
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(30.0),
+                height: Val::Vh(11.0),
+                flex_direction: FlexDirection::Column,
+                border: UiRect::all(BORDER_WITDH),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                border_radius: BorderRadius::top_right(Val::Percent(100.0)),
+                ..default()
+            },
+            ChildOf(mid_panel.entity()),
+            BackgroundColor(UNIVERSAL_BACKGROUND),
+            BorderColor::all(UNIVERSAL_BORDER),
+            EndTurnDisplay,
+            children![(Text::from("..."), EndTurnDisplay)],
+        ))
+        .observe(|_: On<Pointer<Click>>, mut commands: Commands| -> () {
+            commands.trigger(TryEndTurn);
+        });
+}
+
+fn edit_began_turn_text(
+    mut text: Single<&mut Text, With<EndTurnDisplay>>,
+    player_names: Res<PlayerNames>,
+    operating_player: Res<OperatingPlayer>,
+    effect: Option<Res<EffectToDisplay>>,
+    logical_world: Res<LogicalWorld>,
+) {
+    if let Some(effect) = effect {
+        if let ActionEffect::EndedTurn(_) = effect.0 {
+            let active_player = logical_world.0.resource::<ActivePlayer>().0;
+
+            if active_player == operating_player.0 {
+                text.0 = String::from("End Turn!");
+            } else {
+                text.0 = format!("Siwitching to {}'s turn.", player_names.get(active_player));
+            }
+        } else if let ActionEffect::BeganTurn(_) = effect.0 {
+            let active_player = logical_world.0.resource::<ActivePlayer>().0;
+
+            if active_player == operating_player.0 {
+                text.0 = String::from("End Turn!");
+            } else {
+                text.0 = format!("It is {}'s turn.", player_names.get(active_player));
+            }
+        }
+    }
 }

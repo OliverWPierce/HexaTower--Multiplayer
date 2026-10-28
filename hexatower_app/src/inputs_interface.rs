@@ -48,45 +48,43 @@ fn end_turn(
     acting_player: Res<OperatingPlayer>,
     client: Option<ResMut<RenetClient>>,
     mut effects_queue: ResMut<EffectsQueue>,
-) -> Result<(), BevyError> {
+) {
     let request = BackendRequest {
         acting_player: acting_player.0,
         request: RequestType::EndTurn,
     };
 
-    let change_log = try_consume_request(
+    if let Ok(change_log) = try_consume_request(
         BackendRequest {
             acting_player: acting_player.0,
             request: RequestType::EndTurn,
         },
         &mut logical_world.0,
-    )?;
+    ) {
+        if let Some(mut client) = client {
+            client.send_message(
+                DefaultChannel::ReliableOrdered,
+                postcard::to_stdvec(&NetworkTransmission::ActionDone(request)).unwrap(),
+            );
+        }
 
-    if let Some(mut client) = client {
-        client.send_message(
-            DefaultChannel::ReliableOrdered,
-            postcard::to_stdvec(&NetworkTransmission::ActionDone(request)).unwrap(),
-        );
+        effects_queue
+            .0
+            .append(&mut VecDeque::from(change_log.inner()));
+
+        *action_input_manager = ActionInputManager::default();
     }
-
-    effects_queue
-        .0
-        .append(&mut VecDeque::from(change_log.inner()));
-
-    *action_input_manager = ActionInputManager::default();
-
-    Ok(())
 }
 
 mod loaded_action_invariance {
     use bevy::prelude::Resource;
     use core_game_logic::{
-        markets::SlotInMarket, players::InventoryIndex, requests::ActionProcessCache,
-        tile_mapping::TileId,
+        markets::SlotInMarket, orders::OrderFunction, players::InventoryIndex,
+        requests::ActionProcessCache, tile_mapping::TileId,
     };
     use thiserror::Error;
 
-    use crate::ui_panels::OrderAtPieceIndex;
+    use crate::functional_assets::LogicalWorld;
 
     #[derive(Debug, Resource, Default)]
     pub struct ActionInputManager {
@@ -96,8 +94,8 @@ mod loaded_action_invariance {
 
     #[derive(Debug, Error)]
     pub enum LoadActionError {
-        #[error("The action {0:?} requires a tile to be active.")]
-        ActiveTileMissing(FrontendAction),
+        #[error("The action requires a tile to be active.")]
+        ActiveTileMissing,
     }
 
     #[derive(Debug)]
@@ -107,7 +105,7 @@ mod loaded_action_invariance {
             cache: ActionProcessCache,
         },
         UseOrder {
-            index_of_order_on_active_piece: OrderAtPieceIndex,
+            index_of_order_on_active_piece: u8,
             cache: ActionProcessCache,
         },
         PurchaseCard {
@@ -153,7 +151,7 @@ mod loaded_action_invariance {
                     }
                     _ => {
                         if self.active_tile.is_none() {
-                            return Err(LoadActionError::ActiveTileMissing(action));
+                            return Err(LoadActionError::ActiveTileMissing);
                         }
 
                         self.loaded_action = Some(action);
@@ -162,6 +160,24 @@ mod loaded_action_invariance {
             } else {
                 self.loaded_action = None;
             }
+
+            Ok(())
+        }
+
+        pub fn try_load_order(
+            &mut self,
+            index_in_piece: u8,
+            functionality: &OrderFunction,
+            logical_world: &LogicalWorld,
+        ) -> anyhow::Result<()> {
+            if self.active_tile().is_none() {
+                Err(LoadActionError::ActiveTileMissing)?;
+            }
+
+            self.loaded_action = Some(FrontendAction::UseOrder {
+                index_of_order_on_active_piece: index_in_piece,
+                cache: functionality.action_cache(self.active_tile.unwrap(), &logical_world.0)?,
+            });
 
             Ok(())
         }
@@ -210,7 +226,7 @@ fn try_execute_loaded_action(
                 },  }
             },
             FrontendAction::UseOrder { index_of_order_on_active_piece, cache } => {
-                RequestType::UseOrder { tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, index_of_order: index_of_order_on_active_piece.0, input: match cache {
+                RequestType::UseOrder { tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, index_of_order: *index_of_order_on_active_piece, input: match cache {
                     ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
                     ActionProcessCache::Ex1 => todo!(),
                 }, }

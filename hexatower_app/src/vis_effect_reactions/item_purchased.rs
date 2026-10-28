@@ -63,7 +63,7 @@ pub fn purchase_item(
                         &mut rng,
                     ),
                     WorldAssetRoot(asset_server.load::<WorldAsset>(
-                        GltfAssetLabel::Scene(0).from_asset("particles_and_effects/green_plu.glb"),
+                        GltfAssetLabel::Scene(0).from_asset("particles_and_effects/green_plus.glb"),
                     )),
                 )
             })

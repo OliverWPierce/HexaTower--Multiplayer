@@ -2,7 +2,9 @@ use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     orders::OrderDirectory,
-    pieces::{OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
+    pieces::{
+        Health, MonetaryValue, OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer,
+    },
     players::{PlayerDirectory, PlayerId, PlayerOrdersRemaining},
     tiles::TileDirectory,
 };
@@ -10,12 +12,11 @@ use core_game_logic::{
 use crate::{
     AppState, OperatingPlayer,
     functional_assets::{
-        LogicalWorld, PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory,
-        VisOrderDirectory,
+        LogicalWorld, PlayerNames, VisCardDirectory, VisMarketDirectory, VisOrderDirectory,
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, UnloadActionButton,
+        LEFT_SIDE_HEADER_PARAMS, OrdersPanel, StatBar, UnloadActionButton, display_bar,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::ExecutionButtonPanel,
         hoverable_elements, spawn_basic_ui_layout,
@@ -27,7 +28,10 @@ pub struct VisualOrdersPlugin;
 
 impl Plugin for VisualOrdersPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(SetUpBoard, manage_orders_panel.after(spawn_basic_ui_layout));
+        app.add_systems(
+            OnEnter(AppState::InGame),
+            manage_orders_panel.after(spawn_basic_ui_layout),
+        );
 
         app.add_systems(
             Update,
@@ -35,8 +39,67 @@ impl Plugin for VisualOrdersPlugin {
                 .run_if(in_state(AppState::InGame))
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
+    }
+}
 
-        app.add_observer(load_order.run_if(in_state(AppState::InGame)));
+impl StatBar for OrdersReceivable {
+    const STEP_SIZE: u32 = 1;
+
+    const SEG_BACK_COLOR: Color = Color::Srgba(ROSE_700);
+
+    const SEG_BORDER_COLOR: Color = Color::Srgba(ROSE_950);
+
+    const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
+
+    const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
+
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(ROSE_400);
+
+    const ICON_PATH: &'static str = "item_images/purple_potion.png";
+
+    const STAT_TITLE: &'static str = "Stamina";
+    #[inline]
+    fn teir(&self) -> Option<u8> {
+        Some(self.per_round)
+    }
+    #[inline]
+    fn current(&self) -> u32 {
+        self.currently as u32
+    }
+
+    #[inline]
+    fn max(&self) -> u32 {
+        self.per_round as u32
+    }
+}
+
+impl StatBar for Health {
+    const STEP_SIZE: u32 = 5;
+
+    const SEG_BACK_COLOR: Color = Color::Srgba(EMERALD_700);
+
+    const SEG_BORDER_COLOR: Color = Color::Srgba(EMERALD_950);
+
+    const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
+
+    const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
+
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(EMERALD_300);
+
+    const ICON_PATH: &'static str = "item_images/red_glow_potion.png";
+
+    const STAT_TITLE: &'static str = "Health";
+
+    fn teir(&self) -> Option<u8> {
+        Some(self.tier)
+    }
+
+    fn current(&self) -> u32 {
+        self.current
+    }
+
+    fn max(&self) -> u32 {
+        self.max
     }
 }
 
@@ -45,12 +108,14 @@ struct Header;
 
 const ORDER_LIBRARY_LABEL: &str = "Piece Capabilities";
 
-fn render_orders_of_active_piece(
+fn render_piece_overview(
     overarching_order_panel: Entity,
     logical_entity_of_active_piece: Entity,
     logical_world: &LogicalWorld,
     visual_order_data: &VisOrderDirectory,
     operating_player: &OperatingPlayer,
+    player_names: &PlayerNames,
+    asset_server: &mut AssetServer,
     commands: &mut Commands,
 ) -> Result<(), BevyError> {
     commands
@@ -65,6 +130,7 @@ fn render_orders_of_active_piece(
             .0
     };
 
+    // the header
     commands.spawn((
         Node {
             height: LEFT_SIDE_HEADER_PARAMS.height,
@@ -94,7 +160,7 @@ fn render_orders_of_active_piece(
         .spawn((
             Node {
                 max_width: LEFT_SIDE_HEADER_PARAMS.width,
-                height: Val::Percent(60.0),
+                min_height: Val::Percent(30.0),
                 flex_wrap: FlexWrap::Wrap,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::SpaceAround,
@@ -105,11 +171,13 @@ fn render_orders_of_active_piece(
         ))
         .id();
 
-    for (index, maybe_order) in orders_to_display.iter().enumerate() {
-        if let Some(order) = maybe_order {
-            let visual_details = visual_order_data.get_order(*order)?;
-
-            commands.spawn((
+    for (index, order) in orders_to_display
+        .iter()
+        .enumerate()
+        .filter_map(|(index, order)| order.map(|id| (index, id)))
+    {
+        commands
+            .spawn((
                 Node {
                     aspect_ratio: Some(1.0),
                     height: Val::Percent(30.0),
@@ -124,10 +192,9 @@ fn render_orders_of_active_piece(
                     BackgroundColor(Color::Srgba(ZINC_700)),
                 ),
                 ChildOf(container_for_order_icons),
-                OrderAtPieceIndex(index as u8),
                 children![(
                     ImageNode {
-                        image: visual_details.image.clone(),
+                        image: visual_order_data.get_order(order)?.image.clone(),
                         image_mode: NodeImageMode::Stretch,
                         ..default()
                     },
@@ -137,176 +204,132 @@ fn render_orders_of_active_piece(
                         ..default()
                     }
                 )],
-            ));
-        } else {
-            commands.spawn((
-                Node {
-                    aspect_ratio: Some(1.0),
-                    height: Val::Percent(30.0),
-                    border_radius: BorderRadius::all(Val::Percent(100.0)),
-                    border: UiRect::all(Val::Px(3.0)),
-                    ..default()
+            ))
+            .observe(
+                move |mut trigger: On<Pointer<Click>>,
+                      mut action_manager: ResMut<ActionInputManager>,
+                      logical_world: Res<LogicalWorld>|
+                      -> Result<(), BevyError> {
+                    trigger.propagate(false);
+
+                    action_manager.try_load_order(
+                        index as u8,
+                        &logical_world
+                            .0
+                            .resource::<OrderDirectory>()
+                            .get_order(order)?
+                            .functionality,
+                        &logical_world,
+                    )?;
+
+                    Ok(())
                 },
-                hoverable_elements::create_hoverable_ui_bundle(
-                    BorderColor::all(SLATE_950),
-                    BackgroundColor(Color::Srgba(ZINC_950)),
-                    BorderColor::all(SLATE_400),
-                    BackgroundColor(Color::Srgba(ZINC_900)),
-                ),
-                ChildOf(container_for_order_icons),
-            ));
-        }
+            );
     }
 
+    let health_info = logical_world
+        .0
+        .get::<Health>(logical_entity_of_active_piece)
+        .ok_or("All peices should have a health component.")?;
+
+    display_bar(health_info, commands, asset_server, overarching_order_panel);
+
+    if let Some(orders) = logical_world
+        .0
+        .get::<OrdersReceivable>(logical_entity_of_active_piece)
     {
-        let piece_owner = logical_world
-            .0
-            .get::<PieceOwnedByPlayer>(logical_entity_of_active_piece);
-
-        let piece_orders = logical_world
-            .0
-            .get::<OrdersReceivable>(logical_entity_of_active_piece)
-            .ok_or(
-                "all piece's should contain information about how many orders they can receive",
-            )?;
-
-        let big_container_bar = commands
+        display_bar(orders, commands, asset_server, overarching_order_panel);
+    }
+    {
+        let container_for_owner_and_monetary_value = commands
             .spawn((
-                ChildOf(overarching_order_panel),
                 Node {
+                    height: LEFT_SIDE_HEADER_PARAMS.height,
                     width: LEFT_SIDE_HEADER_PARAMS.width,
-                    height: Val::Px(24.0),
-                    border: UiRect::all(Val::Px(2.0)),
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
                     justify_content: JustifyContent::SpaceBetween,
-                    padding: UiRect::left(Val::Px(4.0)).with_right(Val::Px(4.0)),
                     ..default()
                 },
-                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
-                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+                ChildOf(overarching_order_panel),
             ))
             .id();
 
-        commands.spawn((
-            ChildOf(big_container_bar),
-            Node {
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            children![
-                (Text::new("Piece orders: "), TextFont::from_font_size(16.0),),
-                (
-                    Text::new(format!("{}", piece_orders.currently)),
-                    TextFont::from_font_size(16.0),
-                    TextColor(match piece_orders.currently {
-                        0 => ROSE_600.into(),
-                        1 => ROSE_300.into(),
-                        2 => AMBER_300.into(),
-                        3 => EMERALD_300.into(),
-                        _ => TEAL_300.into(),
-                    })
-                ),
-                (
-                    Text::new(format!("/{}", piece_orders.per_round)),
-                    TextFont::from_font_size(16.0),
-                ),
-            ],
-        ));
-        if let Some(owner) = piece_owner {
-            let owner_id = *logical_world
-                .0
-                .get::<PlayerId>(owner.0)
-                .ok_or("A player did not have a player Id")?;
+        const TEXT_SIZE_FOR_MID_BAR: FontSize = FontSize::Vh(2.0);
 
-            if owner_id == operating_player.0 {
-                commands.spawn((
-                    ChildOf(big_container_bar),
-                    Node {
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    children![(
-                        Text::new(String::from("Commander: You")),
-                        TextFont::from_font_size(16.0),
-                    ),],
-                ));
-            } else {
-                commands.spawn((
-                    ChildOf(big_container_bar),
-                    Node {
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    children![(
-                        Text::new(format!("Commander: {:?}", owner_id)),
-                        TextFont::from_font_size(16.0),
-                    )],
-                ));
-            }
-        } else {
+        if let Some(PieceOwnedByPlayer(player)) = logical_world
+            .0
+            .get::<PieceOwnedByPlayer>(logical_entity_of_active_piece)
+        {
+            // commander's name.
             commands.spawn((
-                ChildOf(big_container_bar),
                 Node {
-                    height: Val::Percent(100.0),
+                    width: Val::Percent(68.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
                     ..default()
                 },
+                ChildOf(container_for_owner_and_monetary_value),
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
                 children![(
-                    Text::new(String::from("For Sale")),
-                    TextFont::from_font_size(16.0),
+                    Text::from(format!(
+                        "Commander: {}",
+                        player_names
+                            .get(
+                                *(logical_world
+                                    .0
+                                    .get::<PlayerId>(*player)
+                                    .ok_or("all player entities should have an Id.")?),
+                            )
+                            .clone()
+                    )),
+                    TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR)
+                )],
+            ));
+        } else {
+            commands.spawn((
+                Node {
+                    width: Val::Percent(68.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                    ..default()
+                },
+                ChildOf(container_for_owner_and_monetary_value),
+                BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+                children![(
+                    Text::from("No commander"),
+                    TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR)
                 )],
             ));
         }
+        commands.spawn((
+            Node {
+                width: Val::Percent(30.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+                ..default()
+            },
+            ChildOf(container_for_owner_and_monetary_value),
+            BackgroundColor(YELLOW_500.into()),
+            BorderColor::all(YELLOW_700),
+            children![(
+                Text::from(format!(
+                    "Equity: {}",
+                    logical_world
+                        .0
+                        .get::<MonetaryValue>(logical_entity_of_active_piece)
+                        .ok_or("all pieces should have info about their monetary value.")?
+                        .0
+                )),
+                TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR),
+                TextColor(YELLOW_200.into())
+            )],
+        ));
     }
-
-    Ok(())
-}
-
-#[derive(Debug, Component, Clone, Copy)]
-pub struct OrderAtPieceIndex(pub u8);
-
-fn load_order(
-    click: On<Pointer<Click>>,
-    orders: Query<&OrderAtPieceIndex>,
-    logical_world: Res<LogicalWorld>,
-    mut input_manager: ResMut<ActionInputManager>,
-) -> Result<(), BevyError> {
-    let Ok(&order_index) = orders.get(click.entity) else {
-        return Ok(());
-    };
-
-    let Some(active_piece) = input_manager.active_tile() else {
-        warn!("Player clicked an icon to load an order, but there was no active tile");
-        return Ok(());
-    };
-
-    input_manager.try_load_action(Some(FrontendAction::UseOrder {
-        index_of_order_on_active_piece: order_index,
-        cache: logical_world
-            .0
-            .resource::<OrderDirectory>()
-            .get_order(
-                logical_world
-                    .0
-                    .get::<Orders>(
-                        logical_world
-                            .0
-                            .get::<OccupiedByPiece>(
-                                logical_world
-                                    .0
-                                    .resource::<TileDirectory>()
-                                    .get_entity(active_piece),
-                            )
-                            .ok_or("Tile was unnoccupied")?
-                            .piece(),
-                    )
-                    .expect("all pieces should store data about the orders they use")
-                    .0
-                    .get(order_index.0 as usize)
-                    .unwrap()
-                    .ok_or("No order found at this index for this piece")?,
-            )?
-            .functionality
-            .action_cache(active_piece, &logical_world.0)?,
-    }))?;
 
     Ok(())
 }
@@ -322,6 +345,7 @@ fn manage_orders_panel(
     vis_pieces: Res<VisualPieceArchetypeDirectory>,
     mut commands: Commands,
     player_names: Res<PlayerNames>,
+    asset_server: ResMut<AssetServer>,
 ) -> Result<(), BevyError> {
     if let Some(tile_of_active_piece) = input_manager.active_tile()
         && let Some(active_piece_log_entity) = logical_world.0.get::<OccupiedByPiece>(
@@ -341,7 +365,7 @@ fn manage_orders_panel(
                 &logical_world,
                 overarching_order_panel.entity(),
                 active_piece_log_entity.piece(),
-                index_of_order_on_active_piece,
+                *index_of_order_on_active_piece,
                 &visual_order_data,
                 &operating_player,
                 cache.forensic_description(),
@@ -351,12 +375,14 @@ fn manage_orders_panel(
                 &player_names,
             )
         } else {
-            render_orders_of_active_piece(
+            render_piece_overview(
                 overarching_order_panel.entity(),
                 active_piece_log_entity.piece(),
                 &logical_world,
                 &visual_order_data,
                 &operating_player,
+                &player_names,
+                asset_server.into_inner(),
                 &mut commands,
             )
         }
@@ -385,7 +411,7 @@ fn render_order_execution_process(
     logical_world: &LogicalWorld,
     parent_panel: Entity,
     logical_piece: Entity,
-    order_index: &OrderAtPieceIndex,
+    order_index: u8,
     visual_order_data: &VisOrderDirectory,
     operating_player: &OperatingPlayer,
     description: Box<[TextSnippet]>,
@@ -400,7 +426,7 @@ fn render_order_execution_process(
             .get::<Orders>(logical_piece)
             .expect("all pieces should have an order")
             .0
-            .get(order_index.0 as usize)
+            .get(order_index as usize)
             .ok_or("Order index is out of bounds")?
             .ok_or("No order in this slot")?;
         visual_order_data.get_order(order)?

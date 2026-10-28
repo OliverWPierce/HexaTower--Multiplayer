@@ -136,6 +136,8 @@ pub fn apply_start_turn_effects(world: &mut World, player: PlayerId) -> ChangeLo
     let mut orders_to_give = 2;
     let mut log = ChangeLog::default();
 
+    log.write(ActionEffect::BeganTurn(player));
+
     log.write(ActionEffect::IncreasedRemainingOrdersOfPlayer {
         receipient: player,
         source: None,

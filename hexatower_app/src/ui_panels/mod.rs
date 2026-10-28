@@ -1,30 +1,34 @@
-use bevy::{color::palettes::tailwind::*, prelude::*};
-use core_game_logic::forensic_action_descriptions::{LinkedGamplayElement, TextSnippet};
+use std::cmp::min;
 
 use crate::{
     AppState, OperatingPlayer,
-    functional_assets::{PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory},
-    inputs_interface::{ActionInputManager, TryEndTurn},
+    cameras::{InGameCam2d, spawn_in_game_cameras_and_lights},
+    functional_assets::{PlayerNames, VisCardDirectory, VisMarketDirectory},
+    inputs_interface::ActionInputManager,
     ui_panels::{
-        display_themes::DEFAULT_COLOR_THEME, lower_panel::VisualMarketUIPlugin,
-        mid_panel::VisualOrdersPlugin, upper_bar::UpperBarPlugin,
+        cam3d_overlay::Cam3dOverlayPlugin, display_themes::DEFAULT_COLOR_THEME,
+        lower_panel::VisualMarketUIPlugin, mid_panel::VisualOrdersPlugin,
         upper_panel::VisualInventoryPlugin,
     },
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
+use bevy::{color::palettes::tailwind::*, prelude::*};
+use core_game_logic::forensic_action_descriptions::TextSnippet;
+use roman_numerals::ToRoman;
 
+mod cam3d_overlay;
 mod lower_panel;
 mod mid_panel;
-mod upper_bar;
 mod upper_panel;
-
-pub use mid_panel::OrderAtPieceIndex;
 
 pub struct UiPanelsPlugin;
 
 impl Plugin for UiPanelsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(SetUpBoard, spawn_basic_ui_layout);
+        app.add_systems(
+            OnEnter(AppState::InGame),
+            spawn_basic_ui_layout.after(spawn_in_game_cameras_and_lights),
+        );
         app.add_observer(hoverable_elements::hover_colors);
         app.add_observer(hoverable_elements::un_hover_colors);
         app.add_observer(unload_action_button.run_if(in_state(AppState::InGame)));
@@ -39,16 +43,16 @@ impl Plugin for UiPanelsPlugin {
         app.add_plugins(VisualInventoryPlugin);
         app.add_plugins(VisualOrdersPlugin);
         app.add_plugins(VisualMarketUIPlugin);
-        app.add_plugins(UpperBarPlugin);
+        app.add_plugins(Cam3dOverlayPlugin);
     }
 }
 
 pub const UNIVERSAL_BACKGROUND: Color = Color::Srgba(ZINC_800);
 pub const UNIVERSAL_BORDER: Color = Color::Srgba(ZINC_900);
 pub const UNIVERSAL_BORDER_WIDTH: Val = Val::Px(6.0);
+pub const WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT: f32 = 50.0; // If you change this, you MUST change the camera resizing system.
 
-pub fn spawn_basic_ui_layout(mut commands: Commands) {
-    pub const SIDE_PANELS_WIDTH_AS_A_PERCENT: f32 = 25.0;
+pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With<InGameCam2d>>) {
     const SUB_PANEL_WIDTHS: Val = Val::Percent(96.0);
 
     let overall_parent = commands
@@ -63,6 +67,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                 should_block_lower: false,
                 is_hoverable: false,
             },
+            UiTargetCamera(single.entity()),
         ))
         .id();
 
@@ -74,7 +79,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
 
         commands.spawn((
             Node {
-                width: Val::Percent(SIDE_PANELS_WIDTH_AS_A_PERCENT),
+                width: Val::Percent(WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT),
                 height: Val::Percent(100.0),
                 border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                 flex_direction: FlexDirection::Column,
@@ -137,7 +142,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
 
     commands.spawn((
         Node {
-            width: Val::Percent(100.0 - 2.0 * SIDE_PANELS_WIDTH_AS_A_PERCENT),
+            width: Val::Percent(100.0 - WIDTH_OF_OVERARCHING_LEFT_PANEL_AS_PERCENT),
             height: Val::Percent(100.0),
             border: UiRect::top(UNIVERSAL_BORDER_WIDTH).with_bottom(UNIVERSAL_BORDER_WIDTH),
             flex_direction: FlexDirection::Column,
@@ -155,7 +160,11 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                     justify_content: JustifyContent::SpaceBetween,
                     ..default()
                 },
-                MidPanelUpper
+                MidPanelUpper,
+                Pickable {
+                    should_block_lower: false,
+                    is_hoverable: false
+                },
             ),
             (
                 Node {
@@ -163,51 +172,15 @@ pub fn spawn_basic_ui_layout(mut commands: Commands) {
                     justify_content: JustifyContent::SpaceBetween,
                     ..default()
                 },
-                MidPanelLower
+                MidPanelLower,
+                Pickable {
+                    should_block_lower: false,
+                    is_hoverable: false
+                },
             )
         ],
     ));
-
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(SIDE_PANELS_WIDTH_AS_A_PERCENT),
-                height: Val::Percent(100.0),
-                border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceAround,
-                ..default()
-            },
-            BorderColor::all(UNIVERSAL_BORDER),
-            BackgroundColor(UNIVERSAL_BACKGROUND),
-            ChildOf(overall_parent),
-            children![(
-                Node {
-                    width: SUB_PANEL_WIDTHS,
-                    height: Val::Px(65.0),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-                    ..Default::default()
-                },
-                BorderColor::all(SLATE_900),
-                BackgroundColor(SLATE_600.into()),
-                EndTurnButton,
-                children![(
-                    Text::new("End Turn"),
-                    TextFont {
-                        font_size: FontSize::Px(24.0),
-                        ..default()
-                    },
-                )]
-            )],
-        ))
-        .observe(|_: On<Pointer<Click>>, mut commands: Commands| commands.trigger(TryEndTurn));
 }
-
-#[derive(Debug, Component)]
-pub struct EndTurnButton;
 
 #[derive(Debug, Component)]
 struct InventoryPanel;
@@ -253,8 +226,6 @@ fn unload_action_button(
             .expect("This function cannot error when given an input of None.")
     }
 }
-#[derive(Debug, Component)]
-pub struct TextLinkToGameplayElement(pub LinkedGamplayElement);
 
 mod display_themes {
     use bevy::{
@@ -759,7 +730,6 @@ fn add_description(
                         TextColor(DEFAULT_COLOR_THEME.highlight_color),
                         TextSpan::new(visual_cards.get_card(*card_id)?.name.clone()),
                         TextFont::from_font_size(font_size),
-                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
                     ));
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Piece(
@@ -770,7 +740,6 @@ fn add_description(
                         TextColor(DEFAULT_COLOR_THEME.highlight_color),
                         TextSpan::new(vis_pieces.get_visual_details(*archetype_id)?.name.clone()),
                         TextFont::from_font_size(font_size),
-                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
                     ));
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Market(
@@ -781,23 +750,32 @@ fn add_description(
                         TextColor(DEFAULT_COLOR_THEME.highlight_color),
                         TextSpan::new(vis_markets.get_market(*market_id)?.name.clone()),
                         TextFont::from_font_size(font_size),
-                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
                     ));
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Tile(
                     tile_type,
                 ) => {
-                    commands.spawn((
-                        ChildOf(as_child_of_node),
-                        TextColor(display_themes::color_for_tile_type_under_default_theme(
-                            tile_type,
-                        )),
-                        TextSpan::new(display_themes::name_for_tile_type_under_default_theme(
-                            tile_type,
-                        )),
-                        TextFont::from_font_size(font_size),
-                        TextLinkToGameplayElement(LinkedGamplayElement::Tile(tile_type.clone())),
-                    ));
+                    let tile_type = tile_type.clone();
+
+                    commands
+                        .spawn((
+                            ChildOf(as_child_of_node),
+                            TextColor(display_themes::color_for_tile_type_under_default_theme(
+                                &tile_type,
+                            )),
+                            TextSpan::new(display_themes::name_for_tile_type_under_default_theme(
+                                &tile_type,
+                            )),
+                            TextFont::from_font_size(font_size),
+                        ))
+                        .observe(move |mut trigger: On<Pointer<Over>>| {
+                            trigger.propagate(false);
+                            println!("Hovered a link for a {:?} tile.", tile_type);
+                        })
+                        .observe(|mut trigger: On<Pointer<Out>>| {
+                            trigger.propagate(false);
+                            println!("Unhovered a tile type link.")
+                        });
                 }
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Player(
                     player_id,
@@ -805,7 +783,6 @@ fn add_description(
                     commands.spawn((
                         ChildOf(as_child_of_node),
                         TextColor(DEFAULT_COLOR_THEME.highlight_color),
-                        TextLinkToGameplayElement(linked_gamplay_element.clone()),
                         TextSpan::new(if operating_player.0 == *player_id {
                             "You"
                         } else {
@@ -819,4 +796,219 @@ fn add_description(
     }
 
     Ok(())
+}
+
+pub trait StatBar {
+    const STEP_SIZE: u32;
+    const SEG_BACK_COLOR: Color;
+    const SEG_BORDER_COLOR: Color;
+    const SEG_EMPTY_BACK_COLOR: Color;
+    const SEG_EMPTY_BORDER_COLOR: Color;
+    const SUPERCHARGED_SEG_BORDER: Color;
+    const ICON_PATH: &'static str; // I realize this is not ideal for long term, however at this stage of development, my priority is releasing the game, not preparing for long-term updates.
+    const STAT_TITLE: &'static str; // I realize this is not ideal for long term, however at this stage of development, my priority is releasing the game, not preparing for long-term updates.
+
+    fn teir(&self) -> Option<u8>;
+    fn current(&self) -> u32;
+    fn max(&self) -> u32;
+}
+
+pub fn display_bar<S: StatBar>(
+    stat: &S,
+    commands: &mut Commands,
+    asset_server: &mut AssetServer,
+    parent: Entity,
+) {
+    const FONT_SIZE: FontSize = FontSize::Vh(1.4);
+    const WIDTH: Val = Val::Percent(95.0);
+    const HEIGHT: Val = Val::Percent(15.0);
+    const INTERIOR_CORNER_RADIUS_AS_PERCENT: f32 = 10.0;
+    const BORDER_THICKNESS: Val = Val::Px(2.0);
+
+    let container_box = commands
+        .spawn((
+            ChildOf(parent),
+            Node {
+                width: WIDTH,
+                height: HEIGHT,
+                align_items: AlignItems::Center,
+                ..Default::default()
+            },
+        ))
+        .id();
+
+    //left side and icon
+    commands.spawn((
+        Node {
+            min_height: Val::Percent(100.0),
+            width: Val::Percent(25.0),
+            border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::SpaceBetween,
+            padding: UiRect::left(Val::Px(4.0)),
+            border_radius: BorderRadius::left(Val::Percent(100.0))
+                .with_right(Val::Percent(INTERIOR_CORNER_RADIUS_AS_PERCENT)),
+            ..default()
+        },
+        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+        BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+        ChildOf(container_box),
+        children![
+            (
+                Text::from(S::STAT_TITLE),
+                TextColor(GRAY_200.into()),
+                TextFont::from_font_size(FONT_SIZE)
+            ),
+            (
+                Node {
+                    min_height: Val::Percent(100.0),
+                    aspect_ratio: Some(1.0),
+                    ..default()
+                },
+                children![(ImageNode::from(asset_server.load(S::ICON_PATH)))],
+            ),
+        ],
+    ));
+
+    let bar = commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0 - 2.0 * INTERIOR_CORNER_RADIUS_AS_PERCENT),
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            ChildOf(container_box),
+        ))
+        .id();
+
+    let mut remaining_hp_to_display = min(stat.current(), stat.max());
+    let mut filled_segment_regions = 0;
+
+    while remaining_hp_to_display >= S::STEP_SIZE {
+        commands.spawn((
+            ChildOf(bar),
+            Node {
+                width: Val::Percent(S::STEP_SIZE as f32 / stat.max() as f32 * 100.0),
+                height: Val::Percent(95.0),
+                border: UiRect::all(BORDER_THICKNESS),
+                ..default()
+            },
+            BackgroundColor(S::SEG_BACK_COLOR),
+            BorderColor::all(if stat.max() >= stat.current() {
+                S::SEG_BORDER_COLOR
+            } else {
+                S::SUPERCHARGED_SEG_BORDER
+            }),
+        ));
+
+        filled_segment_regions += 1;
+        remaining_hp_to_display -= S::STEP_SIZE;
+    }
+
+    if stat.current() >= stat.max() {
+        if remaining_hp_to_display != 0 {
+            commands.spawn((
+                ChildOf(bar),
+                Node {
+                    width: Val::Percent(remaining_hp_to_display as f32 / stat.max() as f32 * 100.0),
+                    height: Val::Percent(95.0),
+                    border: UiRect::all(BORDER_THICKNESS),
+                    ..default()
+                },
+                BackgroundColor(S::SEG_BACK_COLOR),
+                BorderColor::all(if stat.max() >= stat.current() {
+                    S::SEG_BORDER_COLOR
+                } else {
+                    S::SUPERCHARGED_SEG_BORDER
+                }),
+            ));
+        }
+    } else {
+        if remaining_hp_to_display != 0 {
+            commands.spawn((
+                ChildOf(bar),
+                Node {
+                    width: Val::Percent(remaining_hp_to_display as f32 / stat.max() as f32 * 100.0),
+                    height: Val::Percent(95.0),
+                    border: UiRect::all(BORDER_THICKNESS).with_right(Val::Percent(0.0)),
+                    ..default()
+                },
+                BackgroundColor(S::SEG_BACK_COLOR),
+                BorderColor::all(S::SEG_BORDER_COLOR),
+            ));
+        }
+
+        if let empty_part_of_bar = (S::STEP_SIZE - remaining_hp_to_display)
+            && empty_part_of_bar != 0
+        {
+            commands.spawn((
+                ChildOf(bar),
+                Node {
+                    width: Val::Percent(empty_part_of_bar as f32 / stat.max() as f32 * 100.0),
+                    height: Val::Percent(95.0),
+                    border: UiRect::all(BORDER_THICKNESS),
+                    ..default()
+                },
+                BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
+                BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
+            ));
+        }
+
+        filled_segment_regions += 1;
+
+        let mut remaining_blank_to_display = stat.max() - filled_segment_regions * S::STEP_SIZE;
+
+        while remaining_blank_to_display >= S::STEP_SIZE {
+            commands.spawn((
+                ChildOf(bar),
+                Node {
+                    width: Val::Percent(S::STEP_SIZE as f32 / stat.max() as f32 * 100.0),
+                    height: Val::Percent(95.0),
+                    border: UiRect::all(BORDER_THICKNESS),
+                    ..default()
+                },
+                BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
+                BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
+            ));
+            remaining_blank_to_display -= S::STEP_SIZE;
+        }
+
+        commands.spawn((
+            ChildOf(bar),
+            Node {
+                width: Val::Percent(remaining_blank_to_display as f32 / stat.max() as f32 * 100.0),
+                height: Val::Percent(95.0),
+                ..default()
+            },
+            BackgroundColor(S::SEG_EMPTY_BACK_COLOR),
+            BorderColor::all(S::SEG_EMPTY_BORDER_COLOR),
+        ));
+    }
+
+    //right side
+    commands.spawn((
+        Node {
+            height: Val::Percent(100.0),
+            width: Val::Percent(30.0),
+            border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            border_radius: BorderRadius::right(Val::Percent(100.0))
+                .with_left(Val::Percent(INTERIOR_CORNER_RADIUS_AS_PERCENT)),
+            ..default()
+        },
+        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+        BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
+        ChildOf(container_box),
+        children![(
+            Text::from(if let Some(teir) = stat.teir() {
+                format!("{} / {} | {}", stat.current(), stat.max(), teir.to_roman())
+            } else {
+                format!("{} / {}", stat.current(), stat.max())
+            }),
+            TextFont::from_font_size(FONT_SIZE),
+            TextColor(S::SUPERCHARGED_SEG_BORDER),
+        )],
+    ));
 }
