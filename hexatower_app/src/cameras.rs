@@ -59,48 +59,17 @@ fn initial_resize_event(
     }
 }
 
-struct Cam3dControls {
-    climb_angle: f32,
-    rotation_about_vertical: f32,
-    x: f32,
-    z: f32,
-    radius: f32,
-}
-
-impl From<Cam3dControls> for Transform {
-    fn from(value: Cam3dControls) -> Self {
-        let translation = Vec3 {
-            x: value.x
-                + value.radius
-                    * f32::cos(value.climb_angle)
-                    * f32::cos(value.rotation_about_vertical),
-            y: value.radius * f32::sin(value.climb_angle),
-            z: value.z
-                + value.radius
-                    * f32::cos(value.climb_angle)
-                    * f32::sin(value.rotation_about_vertical),
-        };
-
-        Transform::from_translation(translation).looking_at(
-            Vec3 {
-                x: value.x,
-                y: 0.0,
-                z: value.z,
-            },
-            Vec3::Y,
-        )
-    }
-}
-
 pub fn spawn_in_game_cameras_and_lights(mut commands: Commands) {
+    let desired_transform = Transform::default()
+        .with_translation(Vec3 {
+            x: 0.0,
+            z: 2.0,
+            y: 20.0,
+        })
+        .looking_at(Vec3::ZERO, Dir3::Y);
+
     commands.spawn((
-        Transform::from(Cam3dControls {
-            climb_angle: 1.0,
-            rotation_about_vertical: 1.0,
-            x: 2.5,
-            z: 5.0,
-            radius: 3.0,
-        }),
+        desired_transform,
         Camera3d::default(),
         Camera {
             order: 0,
