@@ -2,7 +2,7 @@ use bevy::{color::palettes::tailwind::*, prelude::*};
 use core_game_logic::{
     cards::{CardDirectory, CardId},
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
-    players::{Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory},
+    players::{Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory, PlayerOrdersRemaining},
 };
 
 use crate::{
@@ -64,6 +64,8 @@ impl StatBar for Coins {
 
     const ICON_PATH: &'static str = "item_images/purple_potion.png";
 
+    const STAT_TITLE: &'static str = "Coins";
+
     fn teir(&self) -> Option<u8> {
         None
     }
@@ -74,6 +76,38 @@ impl StatBar for Coins {
 
     fn max(&self) -> u32 {
         21
+    }
+}
+
+impl StatBar for PlayerOrdersRemaining {
+    const STEP_SIZE: u32 = 1;
+
+    const SEG_BACK_COLOR: Color = Color::Srgba(ROSE_700);
+
+    const SEG_BORDER_COLOR: Color = Color::Srgba(ROSE_950);
+
+    const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
+
+    const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
+
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(ROSE_400);
+
+    const ICON_PATH: &'static str = "item_images/purple_potion.png";
+
+    const STAT_TITLE: &'static str = "Orders";
+    #[inline]
+    fn teir(&self) -> Option<u8> {
+        None
+    }
+
+    #[inline]
+    fn current(&self) -> u32 {
+        self.remaining as u32
+    }
+
+    #[inline]
+    fn max(&self) -> u32 {
+        3
     }
 }
 
@@ -195,6 +229,10 @@ fn render_inventory(
 
     if let Some(coins) = log_world.0.get::<Coins>(log_player) {
         display_bar(coins, commands, asset_server, panel);
+    }
+
+    if let Some(orders) = log_world.0.get::<PlayerOrdersRemaining>(log_player) {
+        display_bar(orders, commands, asset_server, panel);
     }
 
     Ok(())

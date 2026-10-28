@@ -45,44 +45,50 @@ impl Plugin for VisualOrdersPlugin {
 impl StatBar for OrdersReceivable {
     const STEP_SIZE: u32 = 1;
 
-    const SEG_BACK_COLOR: Color = Color::Srgba(PURPLE_700);
+    const SEG_BACK_COLOR: Color = Color::Srgba(ROSE_700);
 
-    const SEG_BORDER_COLOR: Color = Color::Srgba(PURPLE_800);
+    const SEG_BORDER_COLOR: Color = Color::Srgba(ROSE_950);
 
     const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
 
     const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
 
-    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(AMBER_600);
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(ROSE_400);
 
     const ICON_PATH: &'static str = "item_images/purple_potion.png";
 
+    const STAT_TITLE: &'static str = "Stamina";
+    #[inline]
     fn teir(&self) -> Option<u8> {
         Some(self.per_round)
     }
-
+    #[inline]
     fn current(&self) -> u32 {
         self.currently as u32
     }
 
+    #[inline]
     fn max(&self) -> u32 {
         self.per_round as u32
     }
 }
+
 impl StatBar for Health {
     const STEP_SIZE: u32 = 5;
 
-    const SEG_BACK_COLOR: Color = Color::Srgba(RED_700);
+    const SEG_BACK_COLOR: Color = Color::Srgba(EMERALD_700);
 
-    const SEG_BORDER_COLOR: Color = Color::Srgba(RED_800);
+    const SEG_BORDER_COLOR: Color = Color::Srgba(EMERALD_950);
 
     const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
 
     const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
 
-    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(AMBER_600);
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(EMERALD_300);
 
     const ICON_PATH: &'static str = "item_images/red_glow_potion.png";
+
+    const STAT_TITLE: &'static str = "Health";
 
     fn teir(&self) -> Option<u8> {
         Some(self.tier)

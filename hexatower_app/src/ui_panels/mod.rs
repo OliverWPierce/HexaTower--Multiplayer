@@ -1,9 +1,4 @@
-use std::{
-    array,
-    cmp::{max, min},
-    fmt,
-    process::Child,
-};
+use std::cmp::min;
 
 use crate::{
     AppState, OperatingPlayer,
@@ -811,6 +806,7 @@ pub trait StatBar {
     const SEG_EMPTY_BORDER_COLOR: Color;
     const SUPERCHARGED_SEG_BORDER: Color;
     const ICON_PATH: &'static str; // I realize this is not ideal for long term, however at this stage of development, my priority is releasing the game, not preparing for long-term updates.
+    const STAT_TITLE: &'static str; // I realize this is not ideal for long term, however at this stage of development, my priority is releasing the game, not preparing for long-term updates.
 
     fn teir(&self) -> Option<u8>;
     fn current(&self) -> u32;
@@ -835,6 +831,7 @@ pub fn display_bar<S: StatBar>(
             Node {
                 width: WIDTH,
                 height: HEIGHT,
+                align_items: AlignItems::Center,
                 ..Default::default()
             },
         ))
@@ -844,8 +841,11 @@ pub fn display_bar<S: StatBar>(
     commands.spawn((
         Node {
             min_height: Val::Percent(100.0),
-            aspect_ratio: Some(1.0),
+            width: Val::Percent(25.0),
             border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::SpaceBetween,
+            padding: UiRect::left(Val::Px(4.0)),
             border_radius: BorderRadius::left(Val::Percent(100.0))
                 .with_right(Val::Percent(INTERIOR_CORNER_RADIUS_AS_PERCENT)),
             ..default()
@@ -853,15 +853,29 @@ pub fn display_bar<S: StatBar>(
         BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
         BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
         ChildOf(container_box),
-        children![(ImageNode::from(asset_server.load(S::ICON_PATH)))],
+        children![
+            (
+                Text::from(S::STAT_TITLE),
+                TextColor(GRAY_200.into()),
+                TextFont::from_font_size(FONT_SIZE)
+            ),
+            (
+                Node {
+                    min_height: Val::Percent(100.0),
+                    aspect_ratio: Some(1.0),
+                    ..default()
+                },
+                children![(ImageNode::from(asset_server.load(S::ICON_PATH)))],
+            ),
+        ],
     ));
 
-    //central items
     let bar = commands
         .spawn((
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0 - 2.0 * INTERIOR_CORNER_RADIUS_AS_PERCENT),
+                align_items: AlignItems::Center,
                 ..default()
             },
             ChildOf(container_box),
@@ -881,7 +895,11 @@ pub fn display_bar<S: StatBar>(
                 ..default()
             },
             BackgroundColor(S::SEG_BACK_COLOR),
-            BorderColor::all(S::SEG_BORDER_COLOR),
+            BorderColor::all(if stat.max() >= stat.current() {
+                S::SEG_BORDER_COLOR
+            } else {
+                S::SUPERCHARGED_SEG_BORDER
+            }),
         ));
 
         filled_segment_regions += 1;
@@ -899,7 +917,11 @@ pub fn display_bar<S: StatBar>(
                     ..default()
                 },
                 BackgroundColor(S::SEG_BACK_COLOR),
-                BorderColor::all(S::SEG_BORDER_COLOR),
+                BorderColor::all(if stat.max() >= stat.current() {
+                    S::SEG_BORDER_COLOR
+                } else {
+                    S::SUPERCHARGED_SEG_BORDER
+                }),
             ));
         }
     } else {
@@ -968,7 +990,7 @@ pub fn display_bar<S: StatBar>(
     commands.spawn((
         Node {
             height: Val::Percent(100.0),
-            width: Val::Percent(35.0),
+            width: Val::Percent(30.0),
             border: UiRect::all(LEFT_SIDE_HEADER_PARAMS.border_thickness),
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
@@ -979,12 +1001,14 @@ pub fn display_bar<S: StatBar>(
         BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
         BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
         ChildOf(container_box),
-        children![
-            (Text::from(if let Some(teir) = stat.teir() {
+        children![(
+            Text::from(if let Some(teir) = stat.teir() {
                 format!("{} / {} | {}", stat.current(), stat.max(), teir.to_roman())
             } else {
                 format!("{} / {}", stat.current(), stat.max())
-            }))
-        ],
+            }),
+            TextFont::from_font_size(FONT_SIZE),
+            TextColor(S::SUPERCHARGED_SEG_BORDER),
+        )],
     ));
 }
