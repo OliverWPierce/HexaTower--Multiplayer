@@ -1,9 +1,11 @@
-use bevy::{color::palettes::tailwind::*, prelude::*};
+use bevy::{
+    color::palettes::{css::WHITE, tailwind::*},
+    prelude::*,
+};
 use core_game_logic::{
     cards::{CardDirectory, CardId},
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     players::{Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory, PlayerOrdersRemaining},
-    tiles::TileDirectory,
 };
 
 use crate::{
@@ -193,16 +195,16 @@ fn render_inventory(
         .spawn((
             Node {
                 width: LEFT_SIDE_HEADER_PARAMS.width,
-                height: Val::Percent(37.0),
-                flex_wrap: FlexWrap::Wrap,
+                height: Val::Percent(40.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::SpaceAround,
                 border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-                border_radius: BorderRadius::all(Val::Percent(100.0)),
-                flex_grow: 1.0,
+                border_radius: BorderRadius::all(Val::Percent(10.0)),
+                flex_grow: 2.0,
                 ..default()
             },
             ChildOf(panel),
+            BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
         ))
         .id();
 
@@ -219,6 +221,7 @@ fn render_inventory(
                     border_radius: BorderRadius::all(Val::Px(3.0)),
                     ..default()
                 },
+                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
                 ChildOf(container_for_item_icons),
                 children![(ImageNode::from(image.clone()))],
             ))
@@ -237,6 +240,25 @@ fn render_inventory(
                             .functionality
                             .action_cache(&logical_world.0, operator.0)?,
                     }))?;
+
+                    Ok(())
+                },
+            )
+            .observe(
+                |hover: On<Pointer<Over>>,
+                 mut colors: Query<&mut BorderColor>|
+                 -> Result<(), BevyError> {
+                    *colors.get_mut(hover.entity)?.into_inner() = BorderColor::all(WHITE);
+
+                    Ok(())
+                },
+            )
+            .observe(
+                |out: On<Pointer<Out>>,
+                 mut colors: Query<&mut BorderColor>|
+                 -> Result<(), BevyError> {
+                    *colors.get_mut(out.entity)?.into_inner() =
+                        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color);
 
                     Ok(())
                 },
