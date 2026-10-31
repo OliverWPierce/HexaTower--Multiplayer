@@ -9,7 +9,7 @@ use core_game_logic::{
 use crate::{
     AppState, OperatingPlayer,
     functional_assets::{
-        LogicalWorld, PlayerNames, SetUpBoard, VisCardDirectory, VisMarket, VisMarketDirectory,
+        LogicalWorld, PlayerNames, VisCardDirectory, VisMarket, VisMarketDirectory,
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{

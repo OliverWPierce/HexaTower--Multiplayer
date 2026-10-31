@@ -821,7 +821,7 @@ pub fn display_bar<S: StatBar>(
 ) {
     const FONT_SIZE: FontSize = FontSize::Vh(1.4);
     const WIDTH: Val = Val::Percent(95.0);
-    const HEIGHT: Val = Val::Percent(15.0);
+    const HEIGHT: Val = Val::Percent(13.0);
     const INTERIOR_CORNER_RADIUS_AS_PERCENT: f32 = 10.0;
     const BORDER_THICKNESS: Val = Val::Px(2.0);
 

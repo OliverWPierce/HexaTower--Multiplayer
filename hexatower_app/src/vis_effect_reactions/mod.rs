@@ -146,41 +146,42 @@ fn animate_scale(
         });
 }
 
-pub fn spawn_pluse(
-    commands: &mut Commands,
-    location: Vec3,
-    quantity: u8,
-    delay_between: f32,
-    mesh: Handle<WorldAsset>,
-    duration_of_individual_pulse: f32,
-) {
-    for delay_mult in 0..quantity {
-        commands.spawn((
-            Transform::from_translation(location),
-            AnimatedScale(
-                AnimatedProperty::new_seamless(
-                    Vec3::ZERO,
-                    [
-                        AnimatedPropertyInterval {
-                            next_value: Vec3::ZERO,
-                            duration: delay_between * delay_mult as f32,
-                            mode: EaseFunction::Linear,
-                        },
-                        AnimatedPropertyInterval {
-                            next_value: Vec3::ONE,
-                            duration: duration_of_individual_pulse,
-                            mode: EaseFunction::QuinticIn,
-                        },
-                    ]
-                    .into(),
-                    0.0,
-                ),
-                true,
-            ),
-            WorldAssetRoot(mesh.clone()),
-        ));
-    }
-}
+// pub fn spawn_pluse(
+//     commands: &mut Commands,
+//     location: Vec3,
+//     quantity: u8,
+//     delay_between: f32,
+//     mesh: Handle<WorldAsset>,
+//     duration_of_individual_pulse: f32,
+// ) {
+//     for delay_mult in 0..quantity {
+//         commands.spawn((
+//             Transform::from_translation(location),
+//             AnimatedScale(
+//                 AnimatedProperty::new_seamless(
+//                     Vec3::ZERO,
+//                     [
+//                         AnimatedPropertyInterval {
+//                             next_value: Vec3::ZERO,
+//                             duration: delay_between * delay_mult as f32,
+//                             mode: EaseFunction::Linear,
+//                         },
+//                         AnimatedPropertyInterval {
+//                             next_value: Vec3::ONE,
+//                             duration: duration_of_individual_pulse,
+//                             mode: EaseFunction::QuinticIn,
+//                         },
+//                     ]
+//                     .into(),
+//                     0.0,
+//                 ),
+//                 true,
+//             ),
+//             WorldAssetRoot(mesh.clone()),
+//         ));
+//     }
+// }
+
 pub fn tower_of_player(logical_world: &LogicalWorld, player: PlayerId) -> Option<TileId> {
     let owned_pieces = logical_world
         .0

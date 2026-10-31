@@ -3,19 +3,19 @@ use core_game_logic::{
     cards::{CardDirectory, CardId},
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     players::{Coins, InventoryIndex, PlayerCardInventory, PlayerDirectory, PlayerOrdersRemaining},
+    tiles::TileDirectory,
 };
 
 use crate::{
     AppState, OperatingPlayer,
     functional_assets::{
-        LogicalWorld, PlayerNames, SetUpBoard, VisCardDirectory, VisMarketDirectory, VisualCardId,
+        LogicalWorld, PlayerNames, VisCardDirectory, VisMarketDirectory, VisualCard, VisualCardId,
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
-        LEFT_SIDE_HEADER_PARAMS, StatBar, UnloadActionButton, display_bar,
+        LEFT_SIDE_HEADER_PARAMS, StatBar, UNIVERSAL_BORDER_WIDTH, UnloadActionButton, display_bar,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::{self, ExecutionButtonPanel},
-        hoverable_elements,
     },
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
@@ -52,9 +52,9 @@ const INVENTORY_LABEL: &str = "Inventory";
 impl StatBar for Coins {
     const STEP_SIZE: u32 = 3;
 
-    const SEG_BACK_COLOR: Color = Color::Srgba(YELLOW_500);
+    const SEG_BACK_COLOR: Color = Color::Srgba(YELLOW_700);
 
-    const SEG_BORDER_COLOR: Color = Color::Srgba(YELLOW_700);
+    const SEG_BORDER_COLOR: Color = Color::Srgba(YELLOW_900);
 
     const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
 
@@ -111,6 +111,37 @@ impl StatBar for PlayerOrdersRemaining {
     }
 }
 
+impl StatBar for PlayerCardInventory {
+    const STEP_SIZE: u32 = 1;
+
+    const SEG_BACK_COLOR: Color = Color::Srgba(SKY_800);
+
+    const SEG_BORDER_COLOR: Color = Color::Srgba(SKY_950);
+
+    const SEG_EMPTY_BACK_COLOR: Color = Color::Srgba(GRAY_800);
+
+    const SEG_EMPTY_BORDER_COLOR: Color = Color::Srgba(GRAY_900);
+
+    const SUPERCHARGED_SEG_BORDER: Color = Color::Srgba(SKY_500);
+
+    const ICON_PATH: &'static str = "card_images/market_1.png";
+
+    const STAT_TITLE: &'static str = "Hand";
+
+    #[inline]
+    fn teir(&self) -> Option<u8> {
+        None
+    }
+    #[inline]
+    fn current(&self) -> u32 {
+        self.cards_in_hand() as u32
+    }
+    #[inline]
+    fn max(&self) -> u32 {
+        self.max_card_capacity() as u32
+    }
+}
+
 fn render_inventory(
     commands: &mut Commands,
     panel: Entity,
@@ -162,10 +193,12 @@ fn render_inventory(
         .spawn((
             Node {
                 max_width: LEFT_SIDE_HEADER_PARAMS.width,
-                height: Val::Percent(60.0),
+                height: Val::Percent(35.0),
                 flex_wrap: FlexWrap::Wrap,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::SpaceAround,
+                border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                border_radius: BorderRadius::all(Val::Percent(100.0)),
                 flex_grow: 1.0,
                 ..default()
             },
@@ -173,59 +206,47 @@ fn render_inventory(
         ))
         .id();
 
-    for maybe_index in 0..card_inventory.max_card_capacity() {
-        if let Some(card) = players_cards.get(maybe_index as usize) {
-            commands.spawn((
+    for (index, &card) in players_cards.iter().enumerate() {
+        let Ok(VisualCard { image, .. }) = vis_cards.get_card(card) else {
+            continue;
+        };
+
+        commands
+            .spawn((
                 Node {
-                    aspect_ratio: Some(1.0),
-                    height: Val::Percent(30.0),
-                    border_radius: BorderRadius::all(Val::Percent(10.0)),
-                    border: UiRect::all(Val::Px(3.0)),
+                    aspect_ratio: Some(3.0 / 5.0),
                     ..default()
                 },
-                hoverable_elements::create_hoverable_ui_bundle(
-                    BorderColor::all(SLATE_950),
-                    BackgroundColor(Color::Srgba(ZINC_800)),
-                    BorderColor::all(SLATE_400),
-                    BackgroundColor(Color::Srgba(ZINC_700)),
-                ),
                 ChildOf(container_for_item_icons),
-                VisualCardIndex(InventoryIndex(maybe_index)),
-                VisualCardId(*card),
-                InventorySlot,
-                children![(
-                    ImageNode {
-                        image: vis_cards.get_card(*card)?.image.clone(),
-                        image_mode: NodeImageMode::Stretch,
-                        ..default()
-                    },
-                    Node {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    }
-                )],
-            ));
-        } else {
-            commands.spawn((
-                Node {
-                    aspect_ratio: Some(1.0),
-                    height: Val::Percent(30.0),
-                    border_radius: BorderRadius::all(Val::Percent(10.0)),
-                    border: UiRect::all(Val::Px(3.0)),
-                    ..default()
+                children![(ImageNode::from(image.clone()))],
+            ))
+            .observe(
+                move |_: On<Pointer<Click>>,
+                      mut action: ResMut<ActionInputManager>,
+                      operator: Res<OperatingPlayer>,
+                      logical_world: Res<LogicalWorld>|
+                      -> Result<(), BevyError> {
+                    action.try_load_action(Some(FrontendAction::UseCard {
+                        index: InventoryIndex(index as u8),
+                        cache: logical_world
+                            .0
+                            .resource::<CardDirectory>()
+                            .get_card(card)?
+                            .functionality
+                            .action_cache(&logical_world.0, operator.0)?,
+                    }))?;
+
+                    println!(
+                        "{:?}",
+                        logical_world.0.resource::<TileDirectory>().tile_entities()[0]
+                    );
+
+                    Ok(())
                 },
-                InventorySlot,
-                hoverable_elements::create_hoverable_ui_bundle(
-                    BorderColor::all(SLATE_950),
-                    BackgroundColor(Color::Srgba(ZINC_950)),
-                    BorderColor::all(SLATE_400),
-                    BackgroundColor(Color::Srgba(ZINC_900)),
-                ),
-                ChildOf(container_for_item_icons),
-            ));
-        }
+            );
     }
+
+    display_bar(card_inventory, commands, asset_server, panel);
 
     if let Some(coins) = log_world.0.get::<Coins>(log_player) {
         display_bar(coins, commands, asset_server, panel);
