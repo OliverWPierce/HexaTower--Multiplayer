@@ -192,8 +192,8 @@ fn render_inventory(
     let container_for_item_icons = commands
         .spawn((
             Node {
-                max_width: LEFT_SIDE_HEADER_PARAMS.width,
-                height: Val::Percent(35.0),
+                width: LEFT_SIDE_HEADER_PARAMS.width,
+                height: Val::Percent(37.0),
                 flex_wrap: FlexWrap::Wrap,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::SpaceAround,
@@ -215,6 +215,8 @@ fn render_inventory(
             .spawn((
                 Node {
                     aspect_ratio: Some(3.0 / 5.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    border_radius: BorderRadius::all(Val::Px(3.0)),
                     ..default()
                 },
                 ChildOf(container_for_item_icons),
@@ -235,11 +237,6 @@ fn render_inventory(
                             .functionality
                             .action_cache(&logical_world.0, operator.0)?,
                     }))?;
-
-                    println!(
-                        "{:?}",
-                        logical_world.0.resource::<TileDirectory>().tile_entities()[0]
-                    );
 
                     Ok(())
                 },
