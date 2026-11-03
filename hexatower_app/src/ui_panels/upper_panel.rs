@@ -249,7 +249,6 @@ fn render_inventory(
                  mut colors: Query<&mut BorderColor>|
                  -> Result<(), BevyError> {
                     *colors.get_mut(hover.entity)?.into_inner() = BorderColor::all(WHITE);
-
                     Ok(())
                 },
             )
@@ -425,7 +424,7 @@ fn render_card_execution_panel(
         children![
             (
                 Node {
-                    aspect_ratio: Some(1.0),
+                    aspect_ratio: Some(3.0 / 5.0),
                     flex_shrink: 0.0,
                     height: Val::Percent(100.0),
                     border_radius: BorderRadius::all(Val::Percent(10.0)),
