@@ -26,6 +26,7 @@ impl Plugin for InputInterfacePlugin {
                 client_receive_in_game_message,
                 server_receive_in_game_messages,
                 maybe_display_effect,
+                cancel_order,
             )
                 .run_if(in_state(AppState::InGame)),
         );
@@ -387,4 +388,15 @@ fn maybe_display_effect(
     }
 
     timer.0.tick(delta.delta());
+}
+
+fn cancel_order(
+    input: Res<ButtonInput<KeyCode>>,
+    mut action_input_manager: ResMut<ActionInputManager>,
+) {
+    if input.just_pressed(KeyCode::KeyE) {
+        action_input_manager
+            .try_load_action(None)
+            .expect("Should always be able to load an action of None.")
+    }
 }
