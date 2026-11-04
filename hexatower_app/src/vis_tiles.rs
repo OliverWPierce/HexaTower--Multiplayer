@@ -166,12 +166,14 @@ fn swap_tile_mesh(
 
 fn set_active_tile(
     mut click: On<Pointer<Click>>,
+    mouse: Res<ButtonInput<MouseButton>>,
     vis_tiles: Query<&TileId>,
     vis_pieces: Query<&VisOccupies>,
     mut input_manager: ResMut<ActionInputManager>,
 ) {
     if let Some(cache) = input_manager.process_cache()
         && let ActionProcessCache::TileAction(..) = cache
+        && !mouse.just_released(MouseButton::Right)
     {
         return;
     }

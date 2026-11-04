@@ -330,6 +330,8 @@ fn client_receive_in_game_message(
                 action_input_manager
                     .try_load_action(None)
                     .expect("It should always be possible to load an action of Option::None.");
+            } else {
+                warn!("Received Action failed validation. Players may be out of sync.");
             }
         }
     }

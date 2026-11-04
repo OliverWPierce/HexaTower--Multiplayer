@@ -52,6 +52,7 @@ pub fn banners(
             ..default()
         },
         DespawnTimer(Timer::from_seconds(4.0, TimerMode::Once)),
+        Pickable::IGNORE,
         children![(
             Node {
                 height: Val::Percent(5.0),
