@@ -416,7 +416,7 @@ fn render_card_execution_panel(
     commands.spawn((
         Node {
             width: Val::Percent(96.0),
-            height: Val::Percent(25.0),
+            height: Val::Percent(35.0),
             flex_shrink: 0.0,
             ..Default::default()
         },

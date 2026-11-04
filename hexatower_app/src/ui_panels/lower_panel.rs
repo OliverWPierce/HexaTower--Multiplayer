@@ -203,7 +203,7 @@ fn display_options(
     Ok(())
 }
 
-fn render_card_execution_panel(
+fn render_card_purchase_panel(
     parent_panel: Entity,
     visual_cards: &VisCardDirectory,
     commands: &mut Commands,
@@ -293,7 +293,7 @@ fn render_card_execution_panel(
     commands.spawn((
         Node {
             width: Val::Percent(96.0),
-            height: Val::Percent(25.0),
+            height: Val::Percent(35.0),
             flex_shrink: 0.0,
             ..Default::default()
         },
@@ -301,7 +301,7 @@ fn render_card_execution_panel(
         children![
             (
                 Node {
-                    aspect_ratio: Some(1.0),
+                    aspect_ratio: Some(3.0 / 5.0),
                     flex_shrink: 0.0,
                     height: Val::Percent(100.0),
                     border_radius: BorderRadius::all(Val::Percent(10.0)),
@@ -413,7 +413,7 @@ fn manage_market_ui_panel(
                 .get_market(market)?
                 .get_card_and_price(*slot);
 
-            render_card_execution_panel(
+            render_card_purchase_panel(
                 panel.entity(),
                 &visual_cards,
                 &mut commands,

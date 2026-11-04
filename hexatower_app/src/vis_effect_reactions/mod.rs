@@ -9,6 +9,7 @@ use core_game_logic::{
 };
 use rand::rngs::ThreadRng;
 
+mod banners;
 mod coin_flying;
 mod item_purchased;
 mod piece_damage;
@@ -25,6 +26,9 @@ impl Plugin for VisEffectReactions {
             Update,
             (animate_translation, animate_scale).run_if(in_state(AppState::InGame)),
         );
+
+        app.add_systems(Update, monitor_timers);
+
         app.add_systems(
             Update,
             (
@@ -33,6 +37,7 @@ impl Plugin for VisEffectReactions {
                 item_purchased::purchase_item,
                 piece_orders::piece_orders,
                 piece_damage::piece_damage_or_heal,
+                banners::banners,
             )
                 .distributive_run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
@@ -325,4 +330,20 @@ pub fn anim_bundle_spawn_await_disappear(
             true,
         ),
     )
+}
+
+#[derive(Debug, Component)]
+pub struct DespawnTimer(pub Timer);
+
+fn monitor_timers(
+    mut commands: Commands,
+    mut timers: Query<(Entity, &mut DespawnTimer)>,
+    time: Res<Time>,
+) {
+    for (ent, mut timer) in timers.iter_mut() {
+        timer.0.tick(time.delta());
+        if timer.0.is_finished() {
+            commands.entity(ent).despawn();
+        }
+    }
 }

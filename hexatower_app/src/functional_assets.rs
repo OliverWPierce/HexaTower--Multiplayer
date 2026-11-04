@@ -1,6 +1,10 @@
 use std::time::Duration;
 
-use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
+use bevy::{
+    color::palettes::{css::MAGENTA, tailwind::*},
+    ecs::schedule::ScheduleLabel,
+    prelude::*,
+};
 use core_game_logic::{
     CreationParameters,
     cards::CardId,
@@ -52,6 +56,7 @@ pub fn create_board(
     commands.insert_resource(LogicalWorld(logical_world));
     {
         let mut baseplate_assets = Vec::new();
+        let mut player_colors = Vec::new();
 
         for i in 0..player_names.len() {
             baseplate_assets.push(match i {
@@ -76,12 +81,25 @@ pub fn create_board(
 
                 _ => asset_server
                     .load::<WorldAsset>(GltfAssetLabel::Scene(0).from_asset("VisualError3d.glb")),
-            })
+            });
+            player_colors.push(
+                match i {
+                    0 => GREEN_700,
+                    1 => RED_700,
+                    2 => BLUE_700,
+                    3 => YELLOW_700,
+                    4 => PURPLE_700,
+                    5 => GRAY_700,
+                    _ => MAGENTA,
+                }
+                .into(),
+            );
         }
 
         commands.insert_resource(BasePlatesDirectory::new(
             baseplate_assets.into_boxed_slice(),
         ));
+        commands.insert_resource(PlayerData::<Color>::new(player_colors.into_boxed_slice()));
     }
 
     commands.insert_resource(player_names);
