@@ -312,6 +312,7 @@ fn client_receive_in_game_message(
     networking_mode: Res<MultiplayerNetworkingMode>,
     mut logical_world: ResMut<LogicalWorld>,
     mut effects_queue: ResMut<EffectsQueue>,
+    mut action_input_manager: ResMut<ActionInputManager>,
 ) {
     while let Some(message) = client.0.receive_message(DefaultChannel::ReliableOrdered) {
         if let NetworkTransmission::ActionDone(action) =
@@ -325,6 +326,10 @@ fn client_receive_in_game_message(
                 effects_queue
                     .0
                     .append(&mut VecDeque::from(change_log.inner()));
+
+                action_input_manager
+                    .try_load_action(None)
+                    .expect("It should always be possible to load an action of Option::None.");
             }
         }
     }
