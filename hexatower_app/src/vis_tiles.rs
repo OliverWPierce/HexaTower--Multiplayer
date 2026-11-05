@@ -5,7 +5,7 @@
 /// storing a wrapper of a tile id uses less memory than storing two entity ids. Foregoing a parent-child relationship
 /// between tiles and indicators comes at the cost of a) making tile movement more challenging, and b) clicking an indicator does
 /// not bubble up to the tile.
-use bevy::{color::palettes::tailwind::AMBER_700, prelude::*};
+use bevy::{color::palettes::tailwind::AMBER_700, ecs::query::QueryData, prelude::*};
 use core_game_logic::{
     pieces::FacingHexDirection,
     requests::{ActionEffect, ActionProcessCache},
@@ -18,7 +18,6 @@ use crate::{
     AppState,
     functional_assets::{LogicalWorld, SetUpBoard},
     inputs_interface::{ActionInputManager, EffectToDisplay},
-    vis_pieces::VisOccupies,
 };
 
 pub struct VisTilesPlugin;
@@ -44,9 +43,8 @@ impl Plugin for VisTilesPlugin {
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
 
-        app.add_observer(set_active_tile.run_if(in_state(AppState::InGame)));
+        app.add_observer(click_observer::<false, TileId>.run_if(in_state(AppState::InGame)));
         app.add_observer(indicate_direction.run_if(in_state(AppState::InGame)));
-        app.add_observer(select_tile.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -162,29 +160,6 @@ fn swap_tile_mesh(
         }),
         ChildOf(*parent),
     ));
-}
-
-fn set_active_tile(
-    mut click: On<Pointer<Click>>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    vis_tiles: Query<&TileId>,
-    vis_pieces: Query<&VisOccupies>,
-    mut input_manager: ResMut<ActionInputManager>,
-) {
-    if let Some(cache) = input_manager.process_cache()
-        && let ActionProcessCache::TileAction(..) = cache
-        && !mouse.just_released(MouseButton::Right)
-    {
-        return;
-    }
-
-    if let Ok(&tile) = vis_tiles.get(click.entity) {
-        click.propagate(false);
-        input_manager.set_active_tile(Some(tile));
-    } else if let Ok(&VisOccupies(tile)) = vis_pieces.get(click.entity) {
-        click.propagate(false);
-        input_manager.set_active_tile(Some(tile));
-    }
 }
 
 #[derive(Debug, Component)]
@@ -348,37 +323,55 @@ fn update_tile_selection_and_eligibility_indicators(
     }
 }
 
-fn select_tile(
-    mut trigger: On<Pointer<Click>>,
-    tiles: Query<&TileId>,
+// We can condense tile-like interactions to something simpler. 1 system for handling both activations and selections. This code is duplicated.
+
+/// Components with this trait are able to act as if they were a tile, for the purposes of player mouse clicks.
+pub trait TilePointer: Component + Sized {
+    fn get_tile(&self, logical_world: &LogicalWorld) -> TileId;
+}
+
+pub fn click_observer<const SHOULD_PROPAGATE: bool, T: TilePointer>(
+    mut click: On<Pointer<Click>>,
+    entities: Query<&T>,
+    mouse: Res<ButtonInput<MouseButton>>,
     mut loaded_action: ResMut<ActionInputManager>,
     logical_world: Res<LogicalWorld>,
     direction_indicator: Single<&mut Visibility, With<DirectionIndicator>>,
 ) {
-    let Ok(tile_id) = tiles.get(trigger.entity) else {
-        return;
+    let tile = {
+        let Ok(component_for_tile_id) = entities.get(click.entity) else {
+            return;
+        };
+
+        click.propagate(SHOULD_PROPAGATE);
+        component_for_tile_id.get_tile(&logical_world)
     };
 
-    trigger.propagate(false);
-
-    if let Some(hit_location) = trigger.hit.position
-        && let Some(ActionProcessCache::TileAction(cache)) = loaded_action.process_cache_mut()
+    if let Some(ActionProcessCache::TileAction(selection_data)) = loaded_action.process_cache_mut()
+        && let Some(position) = click.hit.position
+        && !mouse.just_released(MouseButton::Right)
     {
-        {
-            let tile = SelectedTile {
-                id: *tile_id,
-                direction: hex_direction_from_click_data(
-                    HexVector2d::from(*tile_id).into(),
-                    hit_location,
-                ),
-            };
+        let to_select = SelectedTile {
+            id: tile,
+            direction: hex_direction_from_click_data(HexVector2d::from(tile).into(), position),
+        };
 
-            if cache
-                .try_select_tile_and_update_elligibility(tile, &logical_world.0)
-                .is_ok()
-            {
-                *direction_indicator.into_inner() = Visibility::Hidden;
-            }
+        if selection_data
+            .try_select_tile_and_update_elligibility(to_select, &logical_world.0)
+            .is_ok()
+        {
+            *direction_indicator.into_inner() = Visibility::Hidden;
         }
+
+        return;
+    }
+
+    loaded_action.set_active_tile(Some(tile));
+}
+
+impl TilePointer for TileId {
+    #[inline]
+    fn get_tile(&self, _: &LogicalWorld) -> TileId {
+        *self
     }
 }

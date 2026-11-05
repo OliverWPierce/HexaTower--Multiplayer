@@ -5,6 +5,7 @@ use core_game_logic::{
 };
 
 use crate::{
+    AppState,
     inputs_interface::EffectToDisplay,
     vis_effect_reactions::{
         AnimatedProperty, AnimatedPropertyInterval, AnimatedScale, AnimatedTranslation,
@@ -12,6 +13,7 @@ use crate::{
     vis_pieces::visual_piece_archetypes_storage::{
         BasePlatesDirectory, VisualPieceArchetypeDirectory,
     },
+    vis_tiles::{TilePointer, click_observer},
 };
 
 pub struct VisPiecesPlugin;
@@ -28,6 +30,8 @@ impl Plugin for VisPiecesPlugin {
             )
                 .distributive_run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
+
+        app.add_observer(click_observer::<false, VisOccupies>.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -69,6 +73,13 @@ pub mod visual_piece_archetypes_storage {
 
 #[derive(Debug, Component)]
 pub struct VisOccupies(pub TileId);
+
+impl TilePointer for VisOccupies {
+    #[inline]
+    fn get_tile(&self, _: &crate::functional_assets::LogicalWorld) -> TileId {
+        self.0
+    }
+}
 
 const BASEPLATE_HEIGHT: f32 = 0.115;
 
