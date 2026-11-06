@@ -181,15 +181,15 @@ fn render_piece_overview(
                 Node {
                     aspect_ratio: Some(1.0),
                     width: Val::Percent((100.0 / 6.0) - 1.0),
-                    border_radius: BorderRadius::all(Val::Percent(100.0)),
+                    border_radius: BorderRadius::all(Val::Px(4.0)),
                     border: UiRect::all(Val::Px(3.0)),
                     ..default()
                 },
                 hoverable_elements::create_hoverable_ui_bundle(
-                    BorderColor::all(SLATE_950),
-                    BackgroundColor(Color::Srgba(ZINC_800)),
-                    BorderColor::all(SLATE_400),
-                    BackgroundColor(Color::Srgba(ZINC_700)),
+                    BorderColor::all(RED_950),
+                    BackgroundColor(Color::Srgba(RED_800)),
+                    BorderColor::all(RED_600),
+                    BackgroundColor(Color::Srgba(RED_700)),
                 ),
                 ChildOf(container_for_order_icons),
                 children![(

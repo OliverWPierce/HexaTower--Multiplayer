@@ -18,6 +18,7 @@ use crate::{
         LEFT_SIDE_HEADER_PARAMS, StatBar, UNIVERSAL_BORDER_WIDTH, UnloadActionButton, display_bar,
         display_themes::{DEFAULT_COLOR_THEME, DESCRIPTION_FONT_SIZE, TOOLTIP_FONT_SIZE},
         execution_button::{self, ExecutionButtonPanel},
+        hoverable_elements,
     },
     vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory,
 };
@@ -221,7 +222,12 @@ fn render_inventory(
                     border_radius: BorderRadius::all(Val::Px(3.0)),
                     ..default()
                 },
-                BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
+                hoverable_elements::create_hoverable_ui_bundle(
+                    BorderColor::all(SLATE_900),
+                    BackgroundColor(Color::Srgba(SLATE_800)),
+                    BorderColor::all(SLATE_600),
+                    BackgroundColor(Color::Srgba(SLATE_700)),
+                ),
                 ChildOf(container_for_item_icons),
                 children![(ImageNode::from(image.clone()))],
             ))
@@ -240,24 +246,6 @@ fn render_inventory(
                             .functionality
                             .action_cache(&logical_world.0, operator.0)?,
                     }))?;
-
-                    Ok(())
-                },
-            )
-            .observe(
-                |hover: On<Pointer<Over>>,
-                 mut colors: Query<&mut BorderColor>|
-                 -> Result<(), BevyError> {
-                    *colors.get_mut(hover.entity)?.into_inner() = BorderColor::all(WHITE);
-                    Ok(())
-                },
-            )
-            .observe(
-                |out: On<Pointer<Out>>,
-                 mut colors: Query<&mut BorderColor>|
-                 -> Result<(), BevyError> {
-                    *colors.get_mut(out.entity)?.into_inner() =
-                        BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color);
 
                     Ok(())
                 },
