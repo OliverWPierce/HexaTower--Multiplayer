@@ -1,6 +1,10 @@
 use std::time::Duration;
 
-use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
+use bevy::{
+    color::palettes::{css::MAGENTA, tailwind::*},
+    ecs::schedule::ScheduleLabel,
+    prelude::*,
+};
 use core_game_logic::{
     CreationParameters,
     cards::CardId,
@@ -52,6 +56,7 @@ pub fn create_board(
     commands.insert_resource(LogicalWorld(logical_world));
     {
         let mut baseplate_assets = Vec::new();
+        let mut player_colors = Vec::new();
 
         for i in 0..player_names.len() {
             baseplate_assets.push(match i {
@@ -76,12 +81,25 @@ pub fn create_board(
 
                 _ => asset_server
                     .load::<WorldAsset>(GltfAssetLabel::Scene(0).from_asset("VisualError3d.glb")),
-            })
+            });
+            player_colors.push(
+                match i {
+                    0 => GREEN_700,
+                    1 => RED_700,
+                    2 => BLUE_700,
+                    3 => YELLOW_700,
+                    4 => PURPLE_700,
+                    5 => GRAY_700,
+                    _ => MAGENTA,
+                }
+                .into(),
+            );
         }
 
         commands.insert_resource(BasePlatesDirectory::new(
             baseplate_assets.into_boxed_slice(),
         ));
+        commands.insert_resource(PlayerData::<Color>::new(player_colors.into_boxed_slice()));
     }
 
     commands.insert_resource(player_names);
@@ -92,33 +110,33 @@ pub fn create_board(
 
     commands.insert_resource(VisCardDirectory(Box::new([
         VisualCard {
-            image: asset_server.load("item_images/blue_potion.png"),
+            image: asset_server.load("card_images/placeholder_orange.png"),
             name: "Elixer of Youth".into(),
             tooltip: "Command Z! command Zeee!!".into(),
         },
         VisualCard {
-            image: asset_server.load("item_images/red_glow_potion.png"),
-            name: "Draft of Orthendale".into(),
+            image: asset_server.load("card_images/placeholdder_blue.png"),
+            name: "Corruptor".into(),
             tooltip: "Realestate is my specialty!".into(),
         },
         VisualCard {
-            image: asset_server.load("item_images/green_potion.png"),
-            name: "Magic Sauce".into(),
+            image: asset_server.load("card_images/spawn_tower.png"),
+            name: "Tower Genesis".into(),
             tooltip: "Enjoy your very own piece".into(),
         },
         VisualCard {
-            image: asset_server.load("order_icons/single_dagger.png"),
-            name: "Market Spawner".into(),
+            image: asset_server.load("card_images/market_1.png"),
+            name: "Investment".into(),
             tooltip: "All your needed wares sold here!".into(),
         },
         VisualCard {
-            image: asset_server.load("item_images/blue_potion.png"),
-            name: "Radioactive Slurry".into(),
+            image: asset_server.load("card_images/spawn_wizard.png"),
+            name: "Wizard Genesis".into(),
             tooltip: "Mind ye placement".into(),
         },
         VisualCard {
-            image: asset_server.load("item_images/green_potion.png"),
-            name: "Potion of Punctuation".into(),
+            image: asset_server.load("card_images/spawn_rover.png"),
+            name: "Rover Genesis".into(),
             tooltip: "Something witty about this piece will be established later.".into(),
         },
     ])));

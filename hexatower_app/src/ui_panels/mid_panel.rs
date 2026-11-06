@@ -159,7 +159,7 @@ fn render_piece_overview(
     let container_for_order_icons = commands
         .spawn((
             Node {
-                max_width: LEFT_SIDE_HEADER_PARAMS.width,
+                width: LEFT_SIDE_HEADER_PARAMS.width,
                 min_height: Val::Percent(30.0),
                 flex_wrap: FlexWrap::Wrap,
                 align_items: AlignItems::Center,
@@ -180,7 +180,7 @@ fn render_piece_overview(
             .spawn((
                 Node {
                     aspect_ratio: Some(1.0),
-                    height: Val::Percent(30.0),
+                    width: Val::Percent((100.0 / 6.0) - 1.0),
                     border_radius: BorderRadius::all(Val::Percent(100.0)),
                     border: UiRect::all(Val::Px(3.0)),
                     ..default()
@@ -273,17 +273,18 @@ fn render_piece_overview(
                 BackgroundColor(LEFT_SIDE_HEADER_PARAMS.background_color),
                 BorderColor::all(LEFT_SIDE_HEADER_PARAMS.border_color),
                 children![(
-                    Text::from(format!(
-                        "Commander: {}",
-                        player_names
-                            .get(
-                                *(logical_world
-                                    .0
-                                    .get::<PlayerId>(*player)
-                                    .ok_or("all player entities should have an Id.")?),
-                            )
-                            .clone()
-                    )),
+                    Text::from(format!("Commander: {}", {
+                        let player = *(logical_world
+                            .0
+                            .get::<PlayerId>(*player)
+                            .ok_or("all player entities should have an Id.")?);
+
+                        if player == operating_player.0 {
+                            "You"
+                        } else {
+                            player_names.get(player)
+                        }
+                    })),
                     TextFont::from_font_size(TEXT_SIZE_FOR_MID_BAR)
                 )],
             ));

@@ -73,7 +73,6 @@ pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With
 
     // the inventory, orders, and market panels
     {
-        const OVERALL_PANEL_HEIGHTS: Val = Val::Percent(32.0);
         const PANEL_BACKGROUNDS: Color = Color::Srgba(STONE_700);
         const PANEL_BORDERS: Color = Color::Srgba(STONE_800);
 
@@ -95,7 +94,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With
                     InventoryPanel,
                     Node {
                         width: SUB_PANEL_WIDTHS,
-                        height: OVERALL_PANEL_HEIGHTS,
+                        height: Val::Percent(40.0),
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
@@ -110,7 +109,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With
                     OrdersPanel,
                     Node {
                         width: SUB_PANEL_WIDTHS,
-                        height: OVERALL_PANEL_HEIGHTS,
+                        height: Val::Percent(32.0),
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
@@ -125,7 +124,7 @@ pub fn spawn_basic_ui_layout(mut commands: Commands, single: Single<Entity, With
                     MarketPanel,
                     Node {
                         width: SUB_PANEL_WIDTHS,
-                        height: OVERALL_PANEL_HEIGHTS,
+                        height: Val::Percent(24.0),
                         border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
@@ -821,7 +820,7 @@ pub fn display_bar<S: StatBar>(
 ) {
     const FONT_SIZE: FontSize = FontSize::Vh(1.4);
     const WIDTH: Val = Val::Percent(95.0);
-    const HEIGHT: Val = Val::Percent(15.0);
+    const HEIGHT: Val = Val::Percent(13.0);
     const INTERIOR_CORNER_RADIUS_AS_PERCENT: f32 = 10.0;
     const BORDER_THICKNESS: Val = Val::Px(2.0);
 

@@ -83,7 +83,7 @@ impl ForensicDescribe for PieceAttacksAdjacent {
             },
             TextSnippet::new_basic_text(" to pieces on selected tiles within a "),
             TextSnippet::PlainText {
-                text: format!("{} ring", self.damage),
+                text: format!("{} ring", self.adjacency_depth),
                 color: Some(crate::forensic_action_descriptions::ColorIndicators::GeneralHighlight),
             },
             TextSnippet::new_basic_text(" radius"),

@@ -9,7 +9,7 @@ use core_game_logic::{
 use crate::{
     AppState, OperatingPlayer,
     functional_assets::{
-        LogicalWorld, PlayerNames, SetUpBoard, VisCardDirectory, VisMarket, VisMarketDirectory,
+        LogicalWorld, PlayerNames, VisCardDirectory, VisMarket, VisMarketDirectory,
     },
     inputs_interface::{ActionInputManager, FrontendAction},
     ui_panels::{
@@ -37,8 +37,6 @@ impl Plugin for VisualMarketUIPlugin {
             OnEnter(AppState::InGame),
             manage_market_ui_panel.after(spawn_basic_ui_layout),
         );
-
-        app.add_observer(load_purchase_action.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -78,26 +76,36 @@ fn display_options(
         )],
         ChildOf(overarching_panel),
     ));
-
-    let container_for_item_boards = commands
+    let container_x = commands
         .spawn((
             Node {
-                min_width: LEFT_SIDE_HEADER_PARAMS.width,
-                height: Val::Percent(60.0),
-                flex_wrap: FlexWrap::Wrap,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceAround,
-                flex_grow: 1.0,
+                height: Val::Percent(90.0),
+                width: LEFT_SIDE_HEADER_PARAMS.width,
                 ..default()
             },
             ChildOf(overarching_panel),
         ))
         .id();
 
+    let container_for_item_boards = commands
+        .spawn((
+            Node {
+                width: Val::Percent(60.0),
+                height: Val::Percent(100.0),
+                flex_wrap: FlexWrap::Wrap,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceAround,
+                flex_grow: 1.0,
+                ..default()
+            },
+            ChildOf(container_x),
+        ))
+        .id();
+
     for (slot, (card, price)) in logical_market.0.iter().enumerate() {
         let background_board = Node {
-            aspect_ratio: Some(0.8),
-            width: Val::Percent(30.0),
+            aspect_ratio: Some(3.0 / 5.0),
+            height: Val::Percent(100.0),
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
             justify_content: JustifyContent::SpaceAround,
@@ -106,68 +114,79 @@ fn display_options(
             ..default()
         };
 
-        commands.spawn((
-            ChildOf(container_for_item_boards),
-            background_board,
-            hoverable_elements::create_hoverable_ui_bundle(
-                BorderColor::all(SLATE_950),
-                BackgroundColor(Color::Srgba(ZINC_800)),
-                BorderColor::all(SLATE_400),
-                BackgroundColor(Color::Srgba(ZINC_700)),
-            ),
-            match slot {
-                0 => IndicatesSlotInMarket(SlotInMarket::First),
-                1 => IndicatesSlotInMarket(SlotInMarket::Second),
-                2 => IndicatesSlotInMarket(SlotInMarket::Third),
-                _ => unreachable!(),
-            },
-            children![
-                (
-                    Node {
-                        aspect_ratio: Some(1.0),
-                        width: Val::Percent(95.0),
-                        border_radius: BorderRadius::all(Val::Percent(10.0)),
-                        border: UiRect::all(Val::Px(3.0)),
-                        ..default()
-                    },
+        commands
+            .spawn((
+                ChildOf(container_for_item_boards),
+                background_board,
+                hoverable_elements::create_hoverable_ui_bundle(
                     BorderColor::all(SLATE_950),
                     BackgroundColor(Color::Srgba(ZINC_800)),
-                    children![(
-                        ImageNode {
-                            image: visual_cards.get_card(*card)?.image.clone(),
-                            image_mode: NodeImageMode::Stretch,
+                    BorderColor::all(SLATE_400),
+                    BackgroundColor(Color::Srgba(ZINC_700)),
+                ),
+                children![
+                    (
+                        Node {
+                            aspect_ratio: Some(3.0 / 5.0),
+                            height: Val::Percent(85.0),
+                            border_radius: BorderRadius::all(Val::Percent(10.0)),
+                            border: UiRect::all(Val::Px(3.0)),
                             ..default()
                         },
-                        Node {
-                            width: Val::Percent(100.0),
-                            height: Val::Percent(100.0),
+                        BorderColor::all(SLATE_950),
+                        BackgroundColor(Color::Srgba(ZINC_800)),
+                        children![(
+                            ImageNode {
+                                image: visual_cards.get_card(*card)?.image.clone(),
+                                image_mode: NodeImageMode::Stretch,
+                                ..default()
+                            },
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            }
+                        )],
+                    ),
+                    (
+                        Text::new(format!("{}", price.0)),
+                        TextFont {
+                            font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
                             ..default()
-                        }
-                    )],
-                ),
-                (
-                    Text::new(format!("{}", price.0)),
-                    TextFont {
-                        font_size: LEFT_SIDE_HEADER_PARAMS.text_size,
-                        ..default()
-                    },
-                    TextLayout {
-                        justify: Justify::Center,
-                        linebreak: LineBreak::WordBoundary,
-                    },
-                    TextColor(DEFAULT_COLOR_THEME.money_color),
-                )
-            ],
-        ));
+                        },
+                        TextLayout {
+                            justify: Justify::Center,
+                            linebreak: LineBreak::WordBoundary,
+                        },
+                        TextColor(DEFAULT_COLOR_THEME.money_color),
+                    )
+                ],
+            ))
+            .observe(
+                move |_: On<Pointer<Click>>, mut action: ResMut<ActionInputManager>| {
+                    let _ = action.try_load_action(Some(FrontendAction::PurchaseCard {
+                        slot: match slot {
+                            0 => SlotInMarket::First,
+                            1 => SlotInMarket::Second,
+                            2 => SlotInMarket::Third,
+                            _ => unimplemented!(
+                                "Market capacity exceeded what the frontend expected."
+                            ),
+                        },
+                    }));
+                },
+            );
     }
 
     commands.spawn((
         Node {
-            height: LEFT_SIDE_HEADER_PARAMS.height,
-            width: LEFT_SIDE_HEADER_PARAMS.width,
+            height: Val::Percent(100.0),
+            width: Val::Percent(60.0),
             justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
             ..default()
         },
+        ChildOf(container_x),
         children![(
             Text::new(visual_market.description.clone()),
             TextFont {
@@ -179,13 +198,12 @@ fn display_options(
                 linebreak: LineBreak::WordBoundary,
             },
         )],
-        ChildOf(overarching_panel),
     ));
 
     Ok(())
 }
 
-fn render_card_execution_panel(
+fn render_card_purchase_panel(
     parent_panel: Entity,
     visual_cards: &VisCardDirectory,
     commands: &mut Commands,
@@ -275,7 +293,7 @@ fn render_card_execution_panel(
     commands.spawn((
         Node {
             width: Val::Percent(96.0),
-            height: Val::Percent(25.0),
+            height: Val::Percent(35.0),
             flex_shrink: 0.0,
             ..Default::default()
         },
@@ -283,7 +301,7 @@ fn render_card_execution_panel(
         children![
             (
                 Node {
-                    aspect_ratio: Some(1.0),
+                    aspect_ratio: Some(3.0 / 5.0),
                     flex_shrink: 0.0,
                     height: Val::Percent(100.0),
                     border_radius: BorderRadius::all(Val::Percent(10.0)),
@@ -395,7 +413,7 @@ fn manage_market_ui_panel(
                 .get_market(market)?
                 .get_card_and_price(*slot);
 
-            render_card_execution_panel(
+            render_card_purchase_panel(
                 panel.entity(),
                 &visual_cards,
                 &mut commands,
@@ -431,25 +449,6 @@ fn manage_market_ui_panel(
             },
         ));
     }
-
-    Ok(())
-}
-
-#[derive(Debug, Component)]
-struct IndicatesSlotInMarket(SlotInMarket);
-
-fn load_purchase_action(
-    mut trigger: On<Pointer<Click>>,
-    card_purchase_icons: Query<&IndicatesSlotInMarket>,
-    mut action_manager: ResMut<ActionInputManager>,
-) -> Result<(), BevyError> {
-    let Ok(slot) = card_purchase_icons.get(trigger.entity) else {
-        return Ok(());
-    };
-
-    trigger.propagate(false);
-
-    action_manager.try_load_action(Some(FrontendAction::PurchaseCard { slot: slot.0 }))?;
 
     Ok(())
 }

@@ -18,6 +18,7 @@ use crate::{
     AppState,
     functional_assets::{LogicalWorld, SetUpBoard},
     inputs_interface::{ActionInputManager, EffectToDisplay},
+    vis_markets::VisMarketOccupies,
     vis_pieces::VisOccupies,
 };
 
@@ -43,10 +44,8 @@ impl Plugin for VisTilesPlugin {
                 .run_if(in_state(AppState::InGame))
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
-
-        app.add_observer(set_active_tile.run_if(in_state(AppState::InGame)));
         app.add_observer(indicate_direction.run_if(in_state(AppState::InGame)));
-        app.add_observer(select_tile.run_if(in_state(AppState::InGame)));
+        app.add_observer(piece_market_and_tile_clicks.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -162,27 +161,6 @@ fn swap_tile_mesh(
         }),
         ChildOf(*parent),
     ));
-}
-
-fn set_active_tile(
-    mut click: On<Pointer<Click>>,
-    vis_tiles: Query<&TileId>,
-    vis_pieces: Query<&VisOccupies>,
-    mut input_manager: ResMut<ActionInputManager>,
-) {
-    if let Some(cache) = input_manager.process_cache()
-        && let ActionProcessCache::TileAction(..) = cache
-    {
-        return;
-    }
-
-    if let Ok(&tile) = vis_tiles.get(click.entity) {
-        click.propagate(false);
-        input_manager.set_active_tile(Some(tile));
-    } else if let Ok(&VisOccupies(tile)) = vis_pieces.get(click.entity) {
-        click.propagate(false);
-        input_manager.set_active_tile(Some(tile));
-    }
 }
 
 #[derive(Debug, Component)]
@@ -346,37 +324,52 @@ fn update_tile_selection_and_eligibility_indicators(
     }
 }
 
-fn select_tile(
-    mut trigger: On<Pointer<Click>>,
+fn piece_market_and_tile_clicks(
+    mut click: On<Pointer<Click>>,
     tiles: Query<&TileId>,
+    pieces: Query<&VisOccupies>,
+    markets: Query<&VisMarketOccupies>,
+    indicators: Query<&IndicatorWatches>,
     mut loaded_action: ResMut<ActionInputManager>,
     logical_world: Res<LogicalWorld>,
     direction_indicator: Single<&mut Visibility, With<DirectionIndicator>>,
 ) {
-    let Ok(tile_id) = tiles.get(trigger.entity) else {
-        return;
+    let tile = {
+        if let Ok(&tile) = tiles.get(click.entity) {
+            click.propagate(false);
+            tile
+        } else if let Ok(&VisOccupies(tile)) = pieces.get(click.entity) {
+            click.propagate(false);
+            tile
+        } else if let Ok(&VisMarketOccupies(tile)) = markets.get(click.entity) {
+            click.propagate(false);
+            tile
+        } else if let Ok(&IndicatorWatches(tile)) = indicators.get(click.entity) {
+            click.propagate(false);
+            tile
+        } else {
+            return;
+        }
     };
 
-    trigger.propagate(false);
-
-    if let Some(hit_location) = trigger.hit.position
-        && let Some(ActionProcessCache::TileAction(cache)) = loaded_action.process_cache_mut()
+    if let Some(ActionProcessCache::TileAction(selection_data)) = loaded_action.process_cache_mut()
+        && let Some(position) = click.hit.position
+        && click.button != PointerButton::Secondary
     {
-        {
-            let tile = SelectedTile {
-                id: *tile_id,
-                direction: hex_direction_from_click_data(
-                    HexVector2d::from(*tile_id).into(),
-                    hit_location,
-                ),
-            };
+        let to_select = SelectedTile {
+            id: tile,
+            direction: hex_direction_from_click_data(HexVector2d::from(tile).into(), position),
+        };
 
-            if cache
-                .try_select_tile_and_update_elligibility(tile, &logical_world.0)
-                .is_ok()
-            {
-                *direction_indicator.into_inner() = Visibility::Hidden;
-            }
+        if selection_data
+            .try_select_tile_and_update_elligibility(to_select, &logical_world.0)
+            .is_ok()
+        {
+            *direction_indicator.into_inner() = Visibility::Hidden;
         }
+
+        return;
     }
+
+    loaded_action.set_active_tile(Some(tile));
 }
