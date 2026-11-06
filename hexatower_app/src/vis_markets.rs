@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use core_game_logic::{requests::ActionEffect, tile_mapping::HexVector2d};
+use core_game_logic::{
+    requests::ActionEffect,
+    tile_mapping::{HexVector2d, TileId},
+};
 
 use crate::{
     AppState,
@@ -22,10 +25,10 @@ impl Plugin for VisMarketsPlugin {
 }
 
 #[derive(Debug, Component)]
-struct MarketModel;
+pub struct VisMarketOccupies(pub TileId);
 
 fn spin_markets(
-    mut models_to_spin: Query<&mut Transform, With<MarketModel>>,
+    mut models_to_spin: Query<&mut Transform, With<VisMarketOccupies>>,
     delta_time: Res<Time>,
 ) {
     const SPEED: f32 = 0.17;
@@ -48,7 +51,7 @@ fn add_markets(
 
     commands.spawn((
         Transform::from_translation(Vec3::from(HexVector2d::from(tile))).with_scale(Vec3::ZERO),
-        MarketModel,
+        VisMarketOccupies(tile),
         WorldAssetRoot(visual_details.get_market(market)?.model.clone()),
         AnimatedScale(
             AnimatedProperty::new_seamless(

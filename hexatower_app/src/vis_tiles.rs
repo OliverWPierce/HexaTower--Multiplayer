@@ -5,7 +5,7 @@
 /// storing a wrapper of a tile id uses less memory than storing two entity ids. Foregoing a parent-child relationship
 /// between tiles and indicators comes at the cost of a) making tile movement more challenging, and b) clicking an indicator does
 /// not bubble up to the tile.
-use bevy::{color::palettes::tailwind::AMBER_700, ecs::query::QueryData, prelude::*};
+use bevy::{color::palettes::tailwind::AMBER_700, prelude::*};
 use core_game_logic::{
     pieces::FacingHexDirection,
     requests::{ActionEffect, ActionProcessCache},
@@ -18,6 +18,8 @@ use crate::{
     AppState,
     functional_assets::{LogicalWorld, SetUpBoard},
     inputs_interface::{ActionInputManager, EffectToDisplay},
+    vis_markets::VisMarketOccupies,
+    vis_pieces::VisOccupies,
 };
 
 pub struct VisTilesPlugin;
@@ -42,9 +44,8 @@ impl Plugin for VisTilesPlugin {
                 .run_if(in_state(AppState::InGame))
                 .run_if(resource_exists_and_changed::<ActionInputManager>),
         );
-
-        app.add_observer(click_observer::<false, TileId>.run_if(in_state(AppState::InGame)));
         app.add_observer(indicate_direction.run_if(in_state(AppState::InGame)));
+        app.add_observer(piece_market_and_tile_clicks.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -245,6 +246,8 @@ fn indicate_direction(
         *visibility = Visibility::Hidden;
         Ok(())
     }
+
+    *visibility = Visibility::Hidden;
 }
 
 fn hex_direction_from_click_data(tile_location: Vec3, hit_location: Vec3) -> FacingHexDirection {
@@ -323,33 +326,37 @@ fn update_tile_selection_and_eligibility_indicators(
     }
 }
 
-// We can condense tile-like interactions to something simpler. 1 system for handling both activations and selections. This code is duplicated.
-
-/// Components with this trait are able to act as if they were a tile, for the purposes of player mouse clicks.
-pub trait TilePointer: Component + Sized {
-    fn get_tile(&self, logical_world: &LogicalWorld) -> TileId;
-}
-
-pub fn click_observer<const SHOULD_PROPAGATE: bool, T: TilePointer>(
+fn piece_market_and_tile_clicks(
     mut click: On<Pointer<Click>>,
-    entities: Query<&T>,
-    mouse: Res<ButtonInput<MouseButton>>,
+    tiles: Query<&TileId>,
+    pieces: Query<&VisOccupies>,
+    markets: Query<&VisMarketOccupies>,
+    indicators: Query<&IndicatorWatches>,
     mut loaded_action: ResMut<ActionInputManager>,
     logical_world: Res<LogicalWorld>,
     direction_indicator: Single<&mut Visibility, With<DirectionIndicator>>,
 ) {
     let tile = {
-        let Ok(component_for_tile_id) = entities.get(click.entity) else {
+        if let Ok(&tile) = tiles.get(click.entity) {
+            click.propagate(false);
+            tile
+        } else if let Ok(&VisOccupies(tile)) = pieces.get(click.entity) {
+            click.propagate(false);
+            tile
+        } else if let Ok(&VisMarketOccupies(tile)) = markets.get(click.entity) {
+            click.propagate(false);
+            tile
+        } else if let Ok(&IndicatorWatches(tile)) = indicators.get(click.entity) {
+            click.propagate(false);
+            tile
+        } else {
             return;
-        };
-
-        click.propagate(SHOULD_PROPAGATE);
-        component_for_tile_id.get_tile(&logical_world)
+        }
     };
 
     if let Some(ActionProcessCache::TileAction(selection_data)) = loaded_action.process_cache_mut()
         && let Some(position) = click.hit.position
-        && !mouse.just_released(MouseButton::Right)
+        && click.button != PointerButton::Secondary
     {
         let to_select = SelectedTile {
             id: tile,
@@ -367,11 +374,4 @@ pub fn click_observer<const SHOULD_PROPAGATE: bool, T: TilePointer>(
     }
 
     loaded_action.set_active_tile(Some(tile));
-}
-
-impl TilePointer for TileId {
-    #[inline]
-    fn get_tile(&self, _: &LogicalWorld) -> TileId {
-        *self
-    }
 }
