@@ -1,10 +1,7 @@
 use bevy::{camera::Viewport, prelude::*, window::WindowResized};
-use core_game_logic::{
-    tile_mapping::{self, SQRT_3, TileIdServer, tiles_on_board},
-    tiles::TileDirectory,
-};
+use core_game_logic::tile_mapping::{self, SQRT_3, TileIdServer};
 
-use crate::{AppState, functional_assets::LogicalWorld, main_menu::PresetBoardSizes};
+use crate::{AppState, functional_assets::LogicalWorld};
 
 pub struct CameraManagementPlugin;
 
@@ -129,7 +126,7 @@ fn move_3d_cam(
 ) {
     const VERT_SPEED: f32 = 1.2;
     const HORIZONTAL_SPEED: f32 = 0.7;
-    const CAM_WANDER_DIST: f32 = 2.0;
+    const CAM_WANDER_DIST: f32 = 0.5;
 
     let radius = (tile_mapping::TileId::ring_impercise(
         &tiles
