@@ -1,6 +1,10 @@
 use bevy::{camera::Viewport, prelude::*, window::WindowResized};
+use core_game_logic::{
+    tile_mapping::{self, SQRT_3, TileIdServer, tiles_on_board},
+    tiles::TileDirectory,
+};
 
-use crate::AppState;
+use crate::{AppState, functional_assets::LogicalWorld, main_menu::PresetBoardSizes};
 
 pub struct CameraManagementPlugin;
 
@@ -119,18 +123,37 @@ pub fn spawn_main_menu_cam(mut commands: Commands) {
 
 fn move_3d_cam(
     inputs: Res<ButtonInput<KeyCode>>,
+    tiles: Res<LogicalWorld>,
     camera: Single<&mut Transform, With<Camera3d>>,
     time: Res<Time>,
 ) {
     const VERT_SPEED: f32 = 1.2;
     const HORIZONTAL_SPEED: f32 = 0.7;
+    const CAM_WANDER_DIST: f32 = 2.0;
 
-    camera.into_inner().translation += Vec3 {
-        x: (inputs.pressed(KeyCode::KeyD) as i8 - inputs.pressed(KeyCode::KeyA) as i8) as f32
-            * HORIZONTAL_SPEED,
-        y: (inputs.pressed(KeyCode::Space) as i8 - inputs.pressed(KeyCode::ShiftLeft) as i8) as f32
-            * VERT_SPEED,
-        z: (inputs.pressed(KeyCode::KeyS) as i8 - inputs.pressed(KeyCode::KeyW) as i8) as f32
-            * HORIZONTAL_SPEED,
-    } * time.delta_secs();
+    let radius = (tile_mapping::TileId::ring_impercise(
+        &tiles
+            .0
+            .resource::<TileIdServer>()
+            .construct_tile_id(tiles.0.resource::<TileIdServer>().total_tiles_on_board - 1)
+            .unwrap(),
+    ) as f32
+        * SQRT_3)
+        + CAM_WANDER_DIST;
+
+    let mut cam = camera.into_inner();
+    cam.translation = (cam.translation
+        + Vec3 {
+            x: ((inputs.pressed(KeyCode::KeyD) as i8 - inputs.pressed(KeyCode::KeyA) as i8) as f32
+                * HORIZONTAL_SPEED),
+            y: (inputs.pressed(KeyCode::Space) as i8 - inputs.pressed(KeyCode::ShiftLeft) as i8)
+                as f32
+                * VERT_SPEED,
+            z: (inputs.pressed(KeyCode::KeyS) as i8 - inputs.pressed(KeyCode::KeyW) as i8) as f32
+                * HORIZONTAL_SPEED,
+        } * time.delta_secs())
+    .clamp(
+        Vec3::splat(-radius).with_y(1.5),
+        Vec3::splat(radius).with_y(100.0),
+    );
 }

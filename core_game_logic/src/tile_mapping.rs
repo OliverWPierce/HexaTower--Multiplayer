@@ -24,8 +24,24 @@ pub struct TileIdServer {
 }
 
 impl TileId {
+    #[inline]
     pub fn id(&self) -> u32 {
         self.0
+    }
+
+    /// This function returns the ring that a given tile is on.
+    /// It may have a preformance advantage in that it uses no loops. However, it does use a square root.
+    /// Unfortunately, the math relies upon decimal values. Floating-point operations can be impercise,
+    /// so this function is not used in the TileId <-> HexVec2d conversion code. That code affects logical
+    /// gameplay, which must remain in sync and cannot be disrupped by floating-point errors. For visual stuff,
+    /// this function is an efficient way to get the ring a tile is placed on.
+    ///
+    /// To make it faster for smaller board sizes, I tried using a taylor series to eliminate the floating point math.
+    /// Unfortunately, even an 8-term taylor polynomial is insufficient to eliminate percision errors: some small(ish)
+    /// ids get mapped to the wrong tile. A square root seems to be the best option at present.
+    #[inline]
+    pub fn ring_impercise(&self) -> u32 {
+        (0.5 + ((4 * self.0 - 1) as f32 / 12.0).powf(0.5)).floor() as u32
     }
 }
 
