@@ -246,8 +246,6 @@ fn indicate_direction(
         *visibility = Visibility::Hidden;
         Ok(())
     }
-
-    *visibility = Visibility::Hidden;
 }
 
 fn hex_direction_from_click_data(tile_location: Vec3, hit_location: Vec3) -> FacingHexDirection {
