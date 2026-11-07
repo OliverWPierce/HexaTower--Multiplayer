@@ -7,6 +7,7 @@ use crate::{
     forensic_action_descriptions::{
         ColorIndicators, ForensicDescribe, LinkedGamplayElement, TextSnippet,
     },
+    inputless_actions::InputlessAction,
     markets::{MarketDirectory, MarketId, SlotInMarket},
     orders::OrderDirectory,
     pieces::{FacingHexDirection, OccupiedByPiece, Orders, OrdersReceivable, PieceOwnedByPlayer},
@@ -278,7 +279,7 @@ pub enum RotationTileStates {
 #[derive(Debug)]
 pub enum ActionProcessCache {
     TileAction(TileActionProcessCache),
-    Ex1,
+    Inputless(Box<dyn InputlessAction>),
 }
 
 impl ForensicDescribe for ActionProcessCache {
@@ -287,7 +288,7 @@ impl ForensicDescribe for ActionProcessCache {
             ActionProcessCache::TileAction(tile_action_process_cache) => {
                 tile_action_process_cache.forensic_describe()
             }
-            ActionProcessCache::Ex1 => todo!(),
+            ActionProcessCache::Inputless(action) => action.forensic_description(),
         }
     }
 }
@@ -323,7 +324,7 @@ pub enum RequestType {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum InputData {
     SelectedTiles(Box<[SelectedTile]>),
-    Ex1,
+    None,
 }
 #[derive(Debug, Error)]
 #[error(
@@ -354,6 +355,10 @@ pub enum PurchaseCardError {
 #[derive(Debug, Error)]
 #[error("Tile {0:?} is vacant.")]
 struct NoPieceOnTile(TileId);
+
+#[derive(Debug, Error)]
+#[error("Executing this inputless action was invalid for the following reason {0}.")]
+struct InvalidInputlessAction(String);
 
 #[derive(Debug, Error)]
 pub enum ExecuteOrderError {
@@ -428,7 +433,13 @@ pub fn try_consume_request(
 
                     tile_action_process_cache.try_execute(world)?
                 }
-                ActionProcessCache::Ex1 => todo!(),
+                ActionProcessCache::Inputless(action) => {
+                    if let Some(error) = action.execution_blocker(world) {
+                        return Err(InvalidInputlessAction(error).into());
+                    }
+
+                    action.execute(world)
+                }
             };
 
             world
@@ -574,7 +585,13 @@ pub fn try_consume_request(
 
                     change_log.append(&mut tile_action_process_cache.try_execute(world)?);
                 }
-                ActionProcessCache::Ex1 => todo!(),
+                ActionProcessCache::Inputless(action) => {
+                    if let Some(error) = action.execution_blocker(world) {
+                        return Err(InvalidInputlessAction(error).into());
+                    }
+
+                    change_log.append(&mut action.execute(world));
+                }
             }
 
             if let Some(mut orders) = world.get_mut::<OrdersReceivable>(piece) {
