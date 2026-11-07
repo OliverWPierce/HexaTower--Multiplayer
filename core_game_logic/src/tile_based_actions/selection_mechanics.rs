@@ -1,4 +1,4 @@
-use std::ops::IndexMut;
+use std::ops::{Index, IndexMut};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -39,19 +39,19 @@ impl SelectionData {
             ordered_selections: Vec::new(),
         }
     }
-
+    #[inline]
     pub fn get_validated_ordered_selections(&self) -> &[SelectedTile] {
         self.ordered_selections.as_slice()
     }
-
+    #[inline]
     pub fn get_states(&self) -> &[State] {
         &self.all_tile_states
     }
-
+    #[inline]
     pub fn selection_count(&self) -> usize {
         self.ordered_selections.len()
     }
-
+    #[inline]
     pub fn set_all_possible_elligible(&mut self) {
         for tile in self.all_tile_states.iter_mut() {
             if *tile == State::Neither {
@@ -59,7 +59,7 @@ impl SelectionData {
             }
         }
     }
-
+    #[inline]
     pub fn set_all_possible_inelligible(&mut self) {
         for tile in self.all_tile_states.iter_mut() {
             if *tile == State::Elligible {
@@ -67,21 +67,21 @@ impl SelectionData {
             }
         }
     }
-
+    #[inline]
     pub fn maybe_set_inelligible(&mut self, tile: TileId) {
         let s = self.all_tile_states.index_mut(tile.id() as usize);
         if *s == State::Elligible {
             *s = State::Neither;
         }
     }
-
+    #[inline]
     pub fn maybe_set_elligible(&mut self, tile: TileId) {
         let s = self.all_tile_states.index_mut(tile.id() as usize);
         if *s == State::Neither {
             *s = State::Elligible;
         }
     }
-
+    #[inline]
     pub fn try_select(
         &mut self,
         tile: TileId,
@@ -99,5 +99,9 @@ impl SelectionData {
         } else {
             Err(InvalidSelection(tile))
         }
+    }
+    #[inline]
+    pub fn state_of_tile(&self, tile: TileId) -> &State {
+        self.all_tile_states.index(tile.id() as usize)
     }
 }
