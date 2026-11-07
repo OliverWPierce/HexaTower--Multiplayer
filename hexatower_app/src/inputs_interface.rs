@@ -223,13 +223,13 @@ fn try_execute_loaded_action(
             FrontendAction::UseCard { index, cache } => {
                 RequestType::UseCard { inventory_index: *index, input: match cache {
                     ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
-                    ActionProcessCache::Inputless(..) => InputData::None,
+                    ActionProcessCache::Ex1 => todo!(),
                 },  }
             },
             FrontendAction::UseOrder { index_of_order_on_active_piece, cache } => {
                 RequestType::UseOrder { tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, index_of_order: *index_of_order_on_active_piece, input: match cache {
                     ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
-                    ActionProcessCache::Inputless(..) => InputData::None,
+                    ActionProcessCache::Ex1 => todo!(),
                 }, }
             },
             FrontendAction::PurchaseCard { slot } => {

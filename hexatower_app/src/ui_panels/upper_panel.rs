@@ -1,4 +1,7 @@
-use bevy::{color::palettes::tailwind::*, prelude::*};
+use bevy::{
+    color::palettes::{css::WHITE, tailwind::*},
+    prelude::*,
+};
 use core_game_logic::{
     cards::{CardDirectory, CardId},
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},

@@ -523,7 +523,7 @@ mod execution_button {
                     }
                 }
 
-                core_game_logic::requests::ActionProcessCache::Inputless(..) => (),
+                core_game_logic::requests::ActionProcessCache::Ex1 => (),
             }
         }
         Ok(())
@@ -556,11 +556,7 @@ mod execution_button {
                         ))));
                     }
                 }
-                core_game_logic::requests::ActionProcessCache::Inputless(action) => {
-                    if let Some(blocker) = action.execution_blocker(&logical_world.0) {
-                        return Ok(Some(Blocker(blocker)));
-                    }
-                }
+                core_game_logic::requests::ActionProcessCache::Ex1 => (),
             }
         }
 
