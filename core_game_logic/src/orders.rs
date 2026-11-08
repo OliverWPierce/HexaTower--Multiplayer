@@ -10,6 +10,7 @@ use crate::{
         TileAction, TileActionProcessCache,
         change_tile_type::{AdjecentRestriction, ConvertTileTo},
         damage_piece::PieceAttacksAdjacent,
+        give_self_coins::GiveOwnerCoins,
         move_piece::{MovePiece, MovementMethod},
     },
     tile_mapping::TileId,
@@ -26,6 +27,9 @@ pub enum OrderFunction {
         depth: u8,
         selection_range: Range<usize>,
         damage: u32,
+    },
+    GiveOwnedCurrency {
+        ammount: u32,
     },
 }
 
@@ -82,6 +86,18 @@ impl OrderFunction {
                             adjacency_depth: *depth,
                         },
                         selection_range.clone(),
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::GiveOwnedCurrency { ammount } => Ok(ActionProcessCache::TileAction(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        GiveOwnerCoins {
+                            tile_of_piece: piece_occupies_tile,
+                            ammount: *ammount,
+                        },
+                        1..1,
                     )?,
                     world,
                 ),

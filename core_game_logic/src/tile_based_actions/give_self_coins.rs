@@ -88,10 +88,9 @@ impl ForensicDescribe for GiveOwnerCoins {
         Box::new([
             TextSnippet::new_basic_text("Give the owner +"),
             TextSnippet::PlainText {
-                text: format!("+{}", self.ammount),
+                text: format!("+{} coins.", self.ammount),
                 color: Some(crate::forensic_action_descriptions::ColorIndicators::Money),
             },
-            TextSnippet::new_basic_text(" coins."),
         ])
     }
 }

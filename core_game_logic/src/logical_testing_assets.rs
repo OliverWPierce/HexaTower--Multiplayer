@@ -6,6 +6,7 @@ use crate::{
     tile_based_actions::{move_piece::MovementMethod, spawn_pieces::SpawningRestrictions},
     tiles::TileType,
 };
+
 // only used in testing
 #[allow(unused)]
 pub const LOGICAL_CARDS_FOR_TESTING: [LogicalCard; 6] = [
