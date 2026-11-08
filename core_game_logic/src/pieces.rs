@@ -35,7 +35,7 @@ pub fn initialize_pieces(world: &mut World, piece_archetypes: Box<[LogicalPieceA
 #[derive(Debug, Clone)]
 pub struct LogicalPieceArchetype {
     pub max_health: u32,
-    pub starting_orders_per_round: u8,
+    pub orders_per_round: u8,
     pub orders: Orders,
     pub gives_extra_player_order: bool,
     pub default_monetary_value: u32,

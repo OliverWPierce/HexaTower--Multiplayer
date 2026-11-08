@@ -7,9 +7,10 @@ use bevy::{
 };
 use core_game_logic::{
     CreationParameters,
-    cards::CardId,
-    markets::MarketId,
-    orders::OrderId,
+    cards::{CardId, LogicalCard},
+    markets::{LogicalMarket, MarketId},
+    orders::{LogicalOrder, OrderId},
+    pieces::{LogicalPieceArchetype, Orders},
     players::{ActivePlayer, PlayerData},
 };
 use thiserror::Error;
@@ -36,12 +37,11 @@ pub fn create_board(
     let (logical_world, change_log) = CreationParameters {
         board_size: instructions.board_size.ring_count(),
         player_count: player_names.len() as u8,
-        all_cards: core_game_logic::logical_testing_assets::LOGICAL_CARDS_FOR_TESTING.into(),
-        all_markets: core_game_logic::logical_testing_assets::LOGICAL_MARKETS_FOR_TESTING.into(),
-        starting_cards: core_game_logic::logical_testing_assets::STARTING_CARDS_FOR_TESTING.into(),
-        piece_archetypes: core_game_logic::logical_testing_assets::LOGICAL_PIECES_FOR_TESTING
-            .into(),
-        orders: core_game_logic::logical_testing_assets::LOGICAL_ORDERS_FOR_TESTING.into(),
+        all_cards: LOGICAL_CARDS.into(),
+        all_markets: LOGICAL_MARKETS.into(),
+        starting_cards: STARTING_CARDS.into(),
+        piece_archetypes: LOGICAL_PIECES.into(),
+        orders: LOGICAL_ORDERS.into(),
     }
     .create_logical_world();
 
@@ -110,60 +110,21 @@ pub fn create_board(
 
     commands.insert_resource(VisCardDirectory(Box::new([
         VisualCard {
-            image: asset_server.load("card_images/placeholder_orange.png"),
-            name: "Elixer of Youth".into(),
-            tooltip: "Command Z! command Zeee!!".into(),
-        },
-        VisualCard {
-            image: asset_server.load("card_images/placeholdder_blue.png"),
-            name: "Corruptor".into(),
-            tooltip: "Realestate is my specialty!".into(),
-        },
-        VisualCard {
             image: asset_server.load("card_images/spawn_tower.png"),
-            name: "Tower Genesis".into(),
-            tooltip: "Enjoy your very own piece".into(),
+            name: "Obelisk Genesis".into(),
+            tooltip: "Wait, its really this easy to start a country?".into(),
         },
         VisualCard {
-            image: asset_server.load("card_images/market_1.png"),
-            name: "Investment".into(),
-            tooltip: "All your needed wares sold here!".into(),
-        },
-        VisualCard {
-            image: asset_server.load("card_images/spawn_wizard.png"),
-            name: "Wizard Genesis".into(),
-            tooltip: "Mind ye placement".into(),
-        },
-        VisualCard {
-            image: asset_server.load("card_images/spawn_rover.png"),
-            name: "Rover Genesis".into(),
-            tooltip: "Something witty about this piece will be established later.".into(),
+            image: asset_server.load("card_images/spawn_drill.png"),
+            name: "Gold Mine Genesis".into(),
+            tooltip: "Behold! The mighty pickaxe!".into(),
         },
     ])));
 
-    commands.insert_resource(VisMarketDirectory(Box::new([
-        VisMarket {
-            model: asset_server
-                .load(GltfAssetLabel::Scene(0).from_asset("market_models/gray_yellow_market.glb")),
-            name: "Tarmart".into(),
-            description: "Basic supplies sold here!".into(),
-        },
-        VisMarket {
-            model: asset_server
-                .load(GltfAssetLabel::Scene(0).from_asset("market_models/purple_market.glb")),
-            name: "The Stalls of Angora".into(),
-            description: "Only the finest wares.".into(),
-        },
-    ])));
+    commands.insert_resource(VisMarketDirectory(Box::new([])));
 
     commands.insert_resource(
         crate::vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory::new(&[
-            VisualPieceArchetype {
-                model: asset_server.load(
-                    GltfAssetLabel::Scene(0).from_asset("piece_models/Magnetic Hockey Rover.glb"),
-                ),
-                name: "Jupiter Rover".into(),
-            },
             VisualPieceArchetype {
                 model: asset_server
                     .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Obelisk.glb")),
@@ -171,30 +132,18 @@ pub fn create_board(
             },
             VisualPieceArchetype {
                 model: asset_server
-                    .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Wizard Hat.glb")),
-                name: "Mage of Terolark".into(),
+                    .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Drill.glb")),
+                name: "Gold Mine".into(),
             },
         ]),
     );
 
     commands.insert_resource(VisOrderDirectory(
-        [
-            VisOrder {
-                image: asset_server.load("order_icons/Knife.png"),
-                name: "The Exemplifier".into(),
-                tooltip: "A lovely example which does absolutely nothing.".into(),
-            },
-            VisOrder {
-                image: asset_server.load("order_icons/crossed_dagger.png"),
-                name: "Stabby stabby".into(),
-                tooltip: "Is this thing sharp?".into(),
-            },
-            VisOrder {
-                image: asset_server.load("order_icons/single_dagger.png"),
-                name: "Corrupter".into(),
-                tooltip: "Triplets of darkness".into(),
-            },
-        ]
+        [VisOrder {
+            image: asset_server.load("order_icons/crossed_dagger.png"),
+            name: "Drill!".into(),
+            tooltip: "There's nothing foolish coming out of here".into(),
+        }]
         .into(),
     ));
     commands.run_schedule(SetUpBoard);
@@ -273,3 +222,55 @@ impl VisMarketDirectory {
         self.0.get(id.0 as usize).ok_or(VisInvaildMarketIdErr(id))
     }
 }
+
+pub const LOGICAL_CARDS: [LogicalCard; 2] = [
+    // Spawn tower
+    LogicalCard {
+        functionality: core_game_logic::cards::CardFunction::SpawnPiece {
+            selection_bounds: 1..1,
+            piece_archetype: core_game_logic::pieces::ArchetypeId(0),
+            restrictions:
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::TowerSpawns,
+        },
+    },
+    // Spawn drill
+    LogicalCard {
+        functionality: core_game_logic::cards::CardFunction::SpawnPiece {
+            selection_bounds: 1..1,
+            piece_archetype: core_game_logic::pieces::ArchetypeId(1),
+            restrictions:
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
+        },
+    },
+];
+
+pub const LOGICAL_MARKETS: [LogicalMarket; 0] = [];
+
+pub const STARTING_CARDS: [CardId; 2] = [CardId(0), CardId(1)];
+
+pub const LOGICAL_PIECES: [LogicalPieceArchetype; 2] = [
+    //tower
+    LogicalPieceArchetype {
+        max_health: 250,
+        orders_per_round: 0,
+        orders: Orders([None; 5]),
+        gives_extra_player_order: true,
+        default_monetary_value: 10,
+        is_win_condition: true,
+        is_spawnpoint: true,
+    },
+    //drill
+    LogicalPieceArchetype {
+        max_health: 25,
+        orders_per_round: 1,
+        orders: Orders([Some(OrderId(0)), None, None, None, None]),
+        gives_extra_player_order: false,
+        default_monetary_value: 2,
+        is_win_condition: false,
+        is_spawnpoint: false,
+    },
+];
+
+pub const LOGICAL_ORDERS: [LogicalOrder; 1] = [LogicalOrder {
+    functionality: core_game_logic::orders::OrderFunction::GiveOwnedCurrency { ammount: 3 },
+}];

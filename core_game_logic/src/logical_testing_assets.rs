@@ -6,7 +6,6 @@ use crate::{
     tile_based_actions::{move_piece::MovementMethod, spawn_pieces::SpawningRestrictions},
     tiles::TileType,
 };
-
 // only used in testing
 #[allow(unused)]
 pub const LOGICAL_CARDS_FOR_TESTING: [LogicalCard; 6] = [
@@ -73,7 +72,7 @@ pub const STARTING_CARDS_FOR_TESTING: [CardId; 4] = [CardId(5), CardId(4), CardI
 pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] = [
     LogicalPieceArchetype {
         max_health: 23,
-        starting_orders_per_round: 1,
+        orders_per_round: 1,
         orders: Orders([
             Some(OrderId(0)),
             Some(OrderId(2)),
@@ -88,7 +87,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
     },
     LogicalPieceArchetype {
         max_health: 45,
-        starting_orders_per_round: 2,
+        orders_per_round: 2,
         orders: Orders([
             Some(OrderId(1)),
             Some(OrderId(0)),
@@ -103,7 +102,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
     },
     LogicalPieceArchetype {
         max_health: 12,
-        starting_orders_per_round: 1,
+        orders_per_round: 1,
         orders: Orders([Some(OrderId(1)), None, None, None, None]),
         gives_extra_player_order: true,
         default_monetary_value: 8,

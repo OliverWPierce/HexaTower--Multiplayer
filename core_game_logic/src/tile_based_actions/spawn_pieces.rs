@@ -63,7 +63,7 @@ impl TileActionFunctionality for SpawnPieces {
                 PieceOwnedByPlayer(player_entity),
                 OccupiesTile(tile_entity),
                 OrdersReceivable {
-                    per_round: blueprint.starting_orders_per_round,
+                    per_round: blueprint.orders_per_round,
                     currently: 0,
                     tier: 1,
                 },
