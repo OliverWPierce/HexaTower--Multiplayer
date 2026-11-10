@@ -140,9 +140,9 @@ pub fn create_board(
 
     commands.insert_resource(VisOrderDirectory(
         [VisOrder {
-            image: asset_server.load("order_icons/crossed_dagger.png"),
+            image: asset_server.load("order_icons/Pickaxe.png"),
             name: "Drill!".into(),
-            tooltip: "There's nothing foolish coming out of here".into(),
+            tooltip: "The glimmering abyss calls to us".into(),
         }]
         .into(),
     ));
