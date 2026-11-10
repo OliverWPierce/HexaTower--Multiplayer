@@ -9,9 +9,10 @@ use core_game_logic::{
     CreationParameters,
     cards::{CardId, LogicalCard},
     markets::{LogicalMarket, MarketId},
-    orders::{LogicalOrder, OrderId},
+    orders::{LogicalOrder, OrderFunction, OrderId},
     pieces::{LogicalPieceArchetype, Orders},
     players::{ActivePlayer, PlayerData},
+    tile_based_actions::move_piece::MovementMethod,
 };
 use thiserror::Error;
 
@@ -119,6 +120,11 @@ pub fn create_board(
             name: "Gold Mine Genesis".into(),
             tooltip: "Behold! The mighty pickaxe!".into(),
         },
+        VisualCard {
+            image: asset_server.load("card_images/spawn_spaceship.png"),
+            name: "Photon Cruiser Genesis".into(),
+            tooltip: "Are we ther... oh we're here.".into(),
+        },
     ])));
 
     commands.insert_resource(VisMarketDirectory(Box::new([])));
@@ -135,6 +141,11 @@ pub fn create_board(
                     .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Drill.glb")),
                 name: "Gold Mine".into(),
             },
+            VisualPieceArchetype {
+                model: asset_server
+                    .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Spaceship.glb")),
+                name: "Photon Cruiser".into(),
+            },
         ]),
     );
 
@@ -148,7 +159,22 @@ pub fn create_board(
             VisOrder {
                 image: asset_server.load("order_icons/rotate.png"),
                 name: "Rotate!".into(),
-                tooltip: "We all have a joyful little ballerina inside -- too tu".into(),
+                tooltip: "We all have a joyful little ballerina inside -- Too Tzu".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/adjacent_move.png"),
+                name: "March!".into(),
+                tooltip: "One step at a time".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/dash.png"),
+                name: "Dash!".into(),
+                tooltip: "Please remain seated while spacehip is in motion".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/sword.png"),
+                name: "Decimator!".into(),
+                tooltip: "Caution: serious injury or death will occur if used correctly".into(),
             },
         ]
         .into(),
@@ -230,7 +256,7 @@ impl VisMarketDirectory {
     }
 }
 
-pub const LOGICAL_CARDS: [LogicalCard; 2] = [
+pub const LOGICAL_CARDS: [LogicalCard; 3] = [
     // Spawn tower
     LogicalCard {
         functionality: core_game_logic::cards::CardFunction::SpawnPiece {
@@ -249,13 +275,22 @@ pub const LOGICAL_CARDS: [LogicalCard; 2] = [
                 core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
         },
     },
+    // Spawn spaceship
+    LogicalCard {
+        functionality: core_game_logic::cards::CardFunction::SpawnPiece {
+            selection_bounds: 1..1,
+            piece_archetype: core_game_logic::pieces::ArchetypeId(2),
+            restrictions:
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
+        },
+    },
 ];
 
 pub const LOGICAL_MARKETS: [LogicalMarket; 0] = [];
 
 pub const STARTING_CARDS: [CardId; 2] = [CardId(0), CardId(1)];
 
-pub const LOGICAL_PIECES: [LogicalPieceArchetype; 2] = [
+pub const LOGICAL_PIECES: [LogicalPieceArchetype; 3] = [
     //tower
     LogicalPieceArchetype {
         max_health: 250,
@@ -276,13 +311,42 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 2] = [
         is_win_condition: false,
         is_spawnpoint: false,
     },
+    //spaceship
+    LogicalPieceArchetype {
+        max_health: 30,
+        orders_per_round: 1,
+        orders: Orders([
+            Some(OrderId(1)),
+            Some(OrderId(2)),
+            Some(OrderId(3)),
+            Some(OrderId(4)),
+            None,
+        ]),
+        gives_extra_player_order: false,
+        default_monetary_value: 4,
+        is_win_condition: false,
+        is_spawnpoint: false,
+    },
 ];
 
-pub const LOGICAL_ORDERS: [LogicalOrder; 2] = [
+pub const LOGICAL_ORDERS: [LogicalOrder; 5] = [
     LogicalOrder {
-        functionality: core_game_logic::orders::OrderFunction::GiveOwnedCurrency { ammount: 3 },
+        functionality: OrderFunction::GiveOwnedCurrency { ammount: 3 },
     },
     LogicalOrder {
-        functionality: core_game_logic::orders::OrderFunction::Rotate,
+        functionality: OrderFunction::Rotate,
+    },
+    LogicalOrder {
+        functionality: OrderFunction::BasicMovement(MovementMethod::Adjacent { depth: 1 }),
+    },
+    LogicalOrder {
+        functionality: OrderFunction::BasicMovement(MovementMethod::Forward { depth: 2 }),
+    },
+    LogicalOrder {
+        functionality: OrderFunction::DamageAdjacent {
+            depth: 1,
+            selection_range: 1..1,
+            damage: 30,
+        },
     },
 ];
