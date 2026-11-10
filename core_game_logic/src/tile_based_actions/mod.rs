@@ -24,6 +24,7 @@ pub mod damage_piece;
 pub mod give_self_coins;
 pub mod make_market_tile;
 pub mod move_piece;
+pub mod rotate_a_piece;
 mod selection_mechanics;
 pub mod spawn_pieces;
 

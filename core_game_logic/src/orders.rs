@@ -12,6 +12,7 @@ use crate::{
         damage_piece::PieceAttacksAdjacent,
         give_self_coins::GiveOwnerCoins,
         move_piece::{MovePiece, MovementMethod},
+        rotate_a_piece::RotatePiece,
     },
     tile_mapping::TileId,
     tiles::TileType,
@@ -31,6 +32,7 @@ pub enum OrderFunction {
     GiveOwnedCurrency {
         ammount: u32,
     },
+    Rotate,
 }
 
 #[derive(Debug, Error)]
@@ -96,6 +98,17 @@ impl OrderFunction {
                         GiveOwnerCoins {
                             tile_of_piece: piece_occupies_tile,
                             ammount: *ammount,
+                        },
+                        1..1,
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::Rotate => Ok(ActionProcessCache::TileAction(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        RotatePiece {
+                            piece_on_tile: piece_occupies_tile,
                         },
                         1..1,
                     )?,

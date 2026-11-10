@@ -139,11 +139,18 @@ pub fn create_board(
     );
 
     commands.insert_resource(VisOrderDirectory(
-        [VisOrder {
-            image: asset_server.load("order_icons/Pickaxe.png"),
-            name: "Drill!".into(),
-            tooltip: "The glimmering abyss calls to us".into(),
-        }]
+        [
+            VisOrder {
+                image: asset_server.load("order_icons/Pickaxe.png"),
+                name: "Drill!".into(),
+                tooltip: "The glimmering abyss calls to us".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/rotate.png"),
+                name: "Rotate!".into(),
+                tooltip: "We all have a joyful little ballerina inside -- too tu".into(),
+            },
+        ]
         .into(),
     ));
     commands.run_schedule(SetUpBoard);
@@ -271,6 +278,11 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 2] = [
     },
 ];
 
-pub const LOGICAL_ORDERS: [LogicalOrder; 1] = [LogicalOrder {
-    functionality: core_game_logic::orders::OrderFunction::GiveOwnedCurrency { ammount: 3 },
-}];
+pub const LOGICAL_ORDERS: [LogicalOrder; 2] = [
+    LogicalOrder {
+        functionality: core_game_logic::orders::OrderFunction::GiveOwnedCurrency { ammount: 3 },
+    },
+    LogicalOrder {
+        functionality: core_game_logic::orders::OrderFunction::Rotate,
+    },
+];
