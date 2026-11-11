@@ -135,6 +135,11 @@ pub fn create_board(
             name: "Agora Emporion".into(),
             tooltip: "The foundational industry of society. Occupy it!".into(),
         },
+        VisualCard {
+            image: asset_server.load("card_images/spawn_rover.png"),
+            name: "Rolling Saucer Genesis".into(),
+            tooltip: "Alien tech, grounded, and manned by knights. Logically...".into(),
+        },
     ])));
 
     commands.insert_resource(VisMarketDirectory(Box::new([VisMarket {
@@ -165,6 +170,12 @@ pub fn create_board(
                 model: asset_server
                     .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Cannon Car.glb")),
                 name: "Cannon Car".into(),
+            },
+            VisualPieceArchetype {
+                model: asset_server.load(
+                    GltfAssetLabel::Scene(0).from_asset("piece_models/Magnetic Hockey Rover.glb"),
+                ),
+                name: "Rolling Saucer".into(),
             },
         ]),
     );
@@ -200,6 +211,16 @@ pub fn create_board(
                 image: asset_server.load("order_icons/flint_arrow.png"),
                 name: "Cannon!".into(),
                 tooltip: "Cannon + car = vroom + boom. Awesome.".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/rover_move.png"),
+                name: "Advance!".into(),
+                tooltip: "Hustle not included.".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/battering_ram.png"),
+                name: "Battering Ram!".into(),
+                tooltip: "It is advised to stand clear".into(),
             },
         ]
         .into(),
@@ -281,7 +302,7 @@ impl VisMarketDirectory {
     }
 }
 
-pub const LOGICAL_CARDS: [LogicalCard; 5] = [
+pub const LOGICAL_CARDS: [LogicalCard; 6] = [
     // Spawn tower
     LogicalCard {
         functionality: core_game_logic::cards::CardFunction::SpawnPiece {
@@ -320,6 +341,14 @@ pub const LOGICAL_CARDS: [LogicalCard; 5] = [
     LogicalCard {
         functionality: core_game_logic::cards::CardFunction::SpawnMarket { selection_bounds: 1..1, market: MarketId(0) },
     },
+    LogicalCard {
+        functionality: core_game_logic::cards::CardFunction::SpawnPiece {
+            selection_bounds: 1..1,
+            piece_archetype: core_game_logic::pieces::ArchetypeId(4),
+            restrictions:
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
+        },
+    },
 ];
 
 pub const LOGICAL_MARKETS: [LogicalMarket; 1] = [LogicalMarket([
@@ -330,7 +359,7 @@ pub const LOGICAL_MARKETS: [LogicalMarket; 1] = [LogicalMarket([
 
 pub const STARTING_CARDS: [CardId; 3] = [CardId(0), CardId(1), CardId(4)];
 
-pub const LOGICAL_PIECES: [LogicalPieceArchetype; 4] = [
+pub const LOGICAL_PIECES: [LogicalPieceArchetype; 5] = [
     //tower
     LogicalPieceArchetype {
         max_health: 250,
@@ -383,9 +412,25 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 4] = [
         is_win_condition: false,
         is_spawnpoint: false,
     },
+    //Rover
+    LogicalPieceArchetype {
+        max_health: 50,
+        orders_per_round: 1,
+        orders: Orders([
+            Some(OrderId(1)),
+            Some(OrderId(6)),
+            Some(OrderId(7)),
+            None,
+            None,
+        ]),
+        gives_extra_player_order: false,
+        default_monetary_value: 3,
+        is_win_condition: false,
+        is_spawnpoint: false,
+    },
 ];
 
-pub const LOGICAL_ORDERS: [LogicalOrder; 6] = [
+pub const LOGICAL_ORDERS: [LogicalOrder; 8] = [
     LogicalOrder {
         functionality: OrderFunction::GiveOwnedCurrency { ammount: 3 },
     },
@@ -410,6 +455,16 @@ pub const LOGICAL_ORDERS: [LogicalOrder; 6] = [
             depth: 2,
             selection_range: 1..1,
             damage: 20,
+        },
+    },
+    LogicalOrder {
+        functionality: OrderFunction::BasicMovement(MovementMethod::Forward { depth: 2 }),
+    },
+    LogicalOrder {
+        functionality: OrderFunction::DamageForward {
+            depth: 2,
+            selection_range: 1..1,
+            damage: 60,
         },
     },
 ];
