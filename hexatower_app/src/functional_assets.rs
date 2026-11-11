@@ -8,7 +8,7 @@ use bevy::{
 use core_game_logic::{
     CreationParameters,
     cards::{CardId, LogicalCard},
-    markets::{LogicalMarket, MarketId},
+    markets::{CardPrice, LogicalMarket, MarketId},
     orders::{LogicalOrder, OrderFunction, OrderId},
     pieces::{LogicalPieceArchetype, Orders},
     players::{ActivePlayer, PlayerData},
@@ -130,9 +130,19 @@ pub fn create_board(
             name: "Cannon Car Genesis".into(),
             tooltip: "Cannon + car = vroom + boom. Awesome.".into(),
         },
+        VisualCard {
+            image: asset_server.load("card_images/market_1.png"),
+            name: "Agora Emporion".into(),
+            tooltip: "The foundational industry of society. Occupy it!".into(),
+        },
     ])));
 
-    commands.insert_resource(VisMarketDirectory(Box::new([])));
+    commands.insert_resource(VisMarketDirectory(Box::new([VisMarket {
+        model: asset_server
+            .load(GltfAssetLabel::Scene(0).from_asset("piece_models/gray_yellow_market.glb")),
+        name: "The Agora".into(),
+        description: "All the essentials for civilizations at war".into(),
+    }])));
 
     commands.insert_resource(
         crate::vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory::new(&[
@@ -271,7 +281,7 @@ impl VisMarketDirectory {
     }
 }
 
-pub const LOGICAL_CARDS: [LogicalCard; 4] = [
+pub const LOGICAL_CARDS: [LogicalCard; 5] = [
     // Spawn tower
     LogicalCard {
         functionality: core_game_logic::cards::CardFunction::SpawnPiece {
@@ -307,11 +317,18 @@ pub const LOGICAL_CARDS: [LogicalCard; 4] = [
                 core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
         },
     },
+    LogicalCard {
+        functionality: core_game_logic::cards::CardFunction::SpawnMarket { selection_bounds: 1..1, market: MarketId(0) },
+    },
 ];
 
-pub const LOGICAL_MARKETS: [LogicalMarket; 0] = [];
+pub const LOGICAL_MARKETS: [LogicalMarket; 1] = [LogicalMarket([
+    (CardId(1), CardPrice(7)),
+    (CardId(2), CardPrice(5)),
+    (CardId(3), CardPrice(4)),
+])];
 
-pub const STARTING_CARDS: [CardId; 2] = [CardId(0), CardId(1)];
+pub const STARTING_CARDS: [CardId; 3] = [CardId(0), CardId(1), CardId(4)];
 
 pub const LOGICAL_PIECES: [LogicalPieceArchetype; 4] = [
     //tower
