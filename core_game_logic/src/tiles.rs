@@ -32,14 +32,17 @@ impl IndexingId for TileId {}
 pub struct TileDirectory(Box<[Entity]>);
 
 impl TileDirectory {
+    #[inline]
     pub fn get_entity(&self, tile: TileId) -> Entity {
         self.0[tile.id() as usize]
     }
 
+    #[inline]
     pub fn tile_entities(&self) -> &[Entity] {
         &self.0
     }
 
+    #[inline]
     pub fn id_entity_pairs(&self) -> impl Iterator<Item = (TileId, Entity)> {
         let server = TileIdServer {
             total_tiles_on_board: self.0.len() as u32,

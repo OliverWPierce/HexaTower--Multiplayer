@@ -125,6 +125,11 @@ pub fn create_board(
             name: "Photon Cruiser Genesis".into(),
             tooltip: "Are we ther... oh we're here.".into(),
         },
+        VisualCard {
+            image: asset_server.load("card_images/spawn_cannon_car.png"),
+            name: "Cannon Car Genesis".into(),
+            tooltip: "Cannon + car = vroom + boom. Awesome.".into(),
+        },
     ])));
 
     commands.insert_resource(VisMarketDirectory(Box::new([])));
@@ -145,6 +150,11 @@ pub fn create_board(
                 model: asset_server
                     .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Spaceship.glb")),
                 name: "Photon Cruiser".into(),
+            },
+            VisualPieceArchetype {
+                model: asset_server
+                    .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Cannon Car.glb")),
+                name: "Cannon Car".into(),
             },
         ]),
     );
@@ -175,6 +185,11 @@ pub fn create_board(
                 image: asset_server.load("order_icons/sword.png"),
                 name: "Decimator!".into(),
                 tooltip: "Caution: serious injury or death will occur if used correctly".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/flint_arrow.png"),
+                name: "Cannon!".into(),
+                tooltip: "Cannon + car = vroom + boom. Awesome.".into(),
             },
         ]
         .into(),
@@ -256,7 +271,7 @@ impl VisMarketDirectory {
     }
 }
 
-pub const LOGICAL_CARDS: [LogicalCard; 3] = [
+pub const LOGICAL_CARDS: [LogicalCard; 4] = [
     // Spawn tower
     LogicalCard {
         functionality: core_game_logic::cards::CardFunction::SpawnPiece {
@@ -284,13 +299,21 @@ pub const LOGICAL_CARDS: [LogicalCard; 3] = [
                 core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
         },
     },
+    LogicalCard {
+        functionality: core_game_logic::cards::CardFunction::SpawnPiece {
+            selection_bounds: 1..1,
+            piece_archetype: core_game_logic::pieces::ArchetypeId(3),
+            restrictions:
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
+        },
+    },
 ];
 
 pub const LOGICAL_MARKETS: [LogicalMarket; 0] = [];
 
 pub const STARTING_CARDS: [CardId; 2] = [CardId(0), CardId(1)];
 
-pub const LOGICAL_PIECES: [LogicalPieceArchetype; 3] = [
+pub const LOGICAL_PIECES: [LogicalPieceArchetype; 4] = [
     //tower
     LogicalPieceArchetype {
         max_health: 250,
@@ -327,9 +350,25 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 3] = [
         is_win_condition: false,
         is_spawnpoint: false,
     },
+    //cannon car
+    LogicalPieceArchetype {
+        max_health: 35,
+        orders_per_round: 1,
+        orders: Orders([
+            Some(OrderId(1)),
+            Some(OrderId(2)),
+            Some(OrderId(5)),
+            None,
+            None,
+        ]),
+        gives_extra_player_order: false,
+        default_monetary_value: 3,
+        is_win_condition: false,
+        is_spawnpoint: false,
+    },
 ];
 
-pub const LOGICAL_ORDERS: [LogicalOrder; 5] = [
+pub const LOGICAL_ORDERS: [LogicalOrder; 6] = [
     LogicalOrder {
         functionality: OrderFunction::GiveOwnedCurrency { ammount: 3 },
     },
@@ -347,6 +386,13 @@ pub const LOGICAL_ORDERS: [LogicalOrder; 5] = [
             depth: 1,
             selection_range: 1..1,
             damage: 30,
+        },
+    },
+    LogicalOrder {
+        functionality: OrderFunction::DamageForward {
+            depth: 2,
+            selection_range: 1..1,
+            damage: 20,
         },
     },
 ];

@@ -9,6 +9,7 @@ use crate::{
     tile_based_actions::{
         TileAction, TileActionProcessCache,
         change_tile_type::{AdjecentRestriction, ConvertTileTo},
+        damage_forward::PieceAttacksForward,
         damage_piece::PieceAttacksAdjacent,
         give_self_coins::GiveOwnerCoins,
         move_piece::{MovePiece, MovementMethod},
@@ -33,6 +34,11 @@ pub enum OrderFunction {
         ammount: u32,
     },
     Rotate,
+    DamageForward {
+        depth: u8,
+        selection_range: Range<usize>,
+        damage: u32,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -111,6 +117,23 @@ impl OrderFunction {
                             piece_on_tile: piece_occupies_tile,
                         },
                         1..1,
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::DamageForward {
+                depth,
+                selection_range,
+                damage,
+            } => Ok(ActionProcessCache::from(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        PieceAttacksForward {
+                            attacker_occupies_tile: piece_occupies_tile,
+                            damage: *damage,
+                            depth: *depth,
+                        },
+                        selection_range.clone(),
                     )?,
                     world,
                 ),

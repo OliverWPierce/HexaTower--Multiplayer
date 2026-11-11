@@ -176,6 +176,7 @@ pub enum FacingHexDirection {
 }
 
 impl From<FacingHexDirection> for HexVector2d {
+    #[inline]
     fn from(direction: FacingHexDirection) -> Self {
         match direction {
             FacingHexDirection::NorthEast => NORTH_EAST,
