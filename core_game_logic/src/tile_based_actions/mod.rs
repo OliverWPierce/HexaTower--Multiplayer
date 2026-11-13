@@ -15,7 +15,7 @@ use thiserror::Error;
 use crate::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     requests::ChangeLog,
-    tile_based_actions::selection_mechanics::{InvalidSelection, SelectionData},
+    tile_based_actions::selection_mechanics::SelectionData,
     tile_mapping::{TileId, TileIdServer},
 };
 
@@ -29,6 +29,7 @@ pub mod rotate_a_piece;
 mod selection_mechanics;
 pub mod spawn_pieces;
 
+pub use selection_mechanics::InvalidSelection;
 pub use selection_mechanics::SelectedTile;
 pub use selection_mechanics::State;
 

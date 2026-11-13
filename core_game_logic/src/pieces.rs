@@ -164,7 +164,9 @@ pub fn damage_and_maybe_kill_piece(
 #[derive(Debug, Component)]
 pub struct IsWinCondition;
 
-#[derive(Debug, Default, Component, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(
+    Debug, Default, Component, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord,
+)]
 pub enum FacingHexDirection {
     #[default]
     North,

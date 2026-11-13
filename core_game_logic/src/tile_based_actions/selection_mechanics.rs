@@ -21,7 +21,7 @@ pub struct SelectionData {
     ordered_selections: Vec<SelectedTile>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Ord)]
 pub struct SelectedTile {
     pub id: TileId,
     pub direction: FacingHexDirection,
@@ -29,7 +29,7 @@ pub struct SelectedTile {
 
 #[derive(Debug, Error)]
 #[error("Tried to select {0:?} which was not elligible by the current cache state.")]
-pub struct InvalidSelection(TileId);
+pub struct InvalidSelection(pub TileId);
 
 impl SelectionData {
     pub fn new(total_tile_count: TileIdServer) -> Self {

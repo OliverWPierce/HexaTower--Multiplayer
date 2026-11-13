@@ -14,7 +14,9 @@ use crate::{
         self, ActivePlayer, Coins, InventoryIndex, LifeState, PlayerCardInventory, PlayerDirectory,
         PlayerId, PlayerOrdersRemaining, apply_start_turn_effects, compute_player_state,
     },
-    tile_based_actions::{SelectedTile, TileActionProcessCache},
+    tile_based_actions::{
+        InvalidSelection, SelectedTile, SelectedTooFewTiles, TileActionProcessCache,
+    },
     tile_mapping::TileId,
     tiles::{MarketTile, TileDirectory, TileType},
 };
@@ -421,9 +423,29 @@ pub fn try_consume_request(
                         return Result::Err(UnexpectedInputType.into());
                     };
 
-                    for tile in selections {
+                    let mut i = 0;
+                    loop {
+                        if let Some(cache_selected) =
+                            tile_action_process_cache.selected_tiles().get(i)
+                        {
+                            if let Some(user_selected) = selections.get(i) {
+                                if user_selected == cache_selected {
+                                    i += 1;
+                                    continue;
+                                }
+                                return Err(InvalidSelection(user_selected.id).into());
+                            } else {
+                                return Err(SelectedTooFewTiles.into());
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+
+                    while let Some(user_selected) = selections.get(i) {
+                        i += 1;
                         tile_action_process_cache
-                            .try_select_tile_and_update_elligibility(tile, world)?
+                            .try_select_tile_and_update_elligibility(*user_selected, world)?
                     }
 
                     tile_action_process_cache.try_execute(world)?
@@ -567,9 +589,29 @@ pub fn try_consume_request(
                         return Err(UnexpectedInputType.into());
                     };
 
-                    for id in tiles_to_use_order_on {
+                    let mut i = 0;
+                    loop {
+                        if let Some(cache_selected) =
+                            tile_action_process_cache.selected_tiles().get(i)
+                        {
+                            if let Some(user_selected) = tiles_to_use_order_on.get(i) {
+                                if user_selected == cache_selected {
+                                    i += 1;
+                                    continue;
+                                }
+                                return Err(InvalidSelection(user_selected.id).into());
+                            } else {
+                                return Err(SelectedTooFewTiles.into());
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+
+                    while let Some(user_selected) = tiles_to_use_order_on.get(i) {
+                        i += 1;
                         tile_action_process_cache
-                            .try_select_tile_and_update_elligibility(id, world)?
+                            .try_select_tile_and_update_elligibility(*user_selected, world)?
                     }
 
                     change_log.append(&mut tile_action_process_cache.try_execute(world)?);
@@ -652,6 +694,7 @@ pub fn try_consume_request(
 }
 
 /// Note, if no players are viable to take over the turn, the turn will logically remain the current player's; this indicates that the game should end.
+#[inline]
 fn start_next_turn(world: &mut World, log: &mut ChangeLog) {
     let exiting_player = world.resource::<ActivePlayer>().0;
 
@@ -691,3 +734,34 @@ fn start_next_turn(world: &mut World, log: &mut ChangeLog) {
         "No viable candidate found to replace the active player. The game should be ending during the changelog of this request."
     )
 }
+
+// fn maybe_validate_selections(
+//     cache: &mut TileActionProcessCache,
+//     user_selections: &[SelectedTile],
+// ) -> Result<(), anyhow::Error> {
+//     let mut i = 0;
+//     let selected_tiles = cache.selected_tiles();
+
+//     loop {
+//         if let Some(cache_selected) = cache.selected_tiles().get(i) {
+//             if let Some(user_selected) = user_selections.get(i) {
+//                 if user_selected == cache_selected {
+//                     i += 1;
+//                     continue;
+//                 }
+//                 return Err(InvalidSelection(user_selected.id).into());
+//             } else {
+//                 return Err(SelectedTooFewTiles.into());
+//             }
+//         } else {
+//             break;
+//         }
+//     }
+
+//     while let Some(user_selected) = user_selections.get(i) {
+//         i += 1;
+//         cache.try_select_tile_and_update_elligibility(*user_selected, world)?
+//     }
+
+//     Ok(())
+// }
