@@ -12,6 +12,7 @@ use crate::{
         damage_forward::PieceAttacksForward,
         damage_piece::PieceAttacksAdjacent,
         give_self_coins::GiveOwnerCoins,
+        heal_pieces::PieceHealsAdjacent,
         move_piece::{MovePiece, MovementMethod},
         rotate_a_piece::RotatePiece,
     },
@@ -38,6 +39,12 @@ pub enum OrderFunction {
         depth: u8,
         selection_range: Range<usize>,
         damage: u32,
+    },
+    HealAdjacentAndSelf {
+        amount: u32,
+        allow_self: bool,
+        selection_range: Range<usize>,
+        selection_depth: u8,
     },
 }
 
@@ -132,6 +139,25 @@ impl OrderFunction {
                             attacker_occupies_tile: piece_occupies_tile,
                             damage: *damage,
                             depth: *depth,
+                        },
+                        selection_range.clone(),
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::HealAdjacentAndSelf {
+                amount,
+                allow_self,
+                selection_depth,
+                selection_range,
+            } => Ok(ActionProcessCache::from(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        PieceHealsAdjacent {
+                            allow_self: *allow_self,
+                            healer_occupies_tile: piece_occupies_tile,
+                            heal: *amount,
+                            adjacency_depth: *selection_depth,
                         },
                         selection_range.clone(),
                     )?,

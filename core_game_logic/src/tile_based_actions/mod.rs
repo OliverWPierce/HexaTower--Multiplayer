@@ -23,6 +23,7 @@ pub mod change_tile_type;
 pub mod damage_forward;
 pub mod damage_piece;
 pub mod give_self_coins;
+pub mod heal_pieces;
 pub mod make_market_tile;
 pub mod move_piece;
 pub mod rotate_a_piece;

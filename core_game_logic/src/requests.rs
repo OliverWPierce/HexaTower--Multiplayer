@@ -249,18 +249,20 @@ impl ForensicDescribe for ActionEffect {
 pub struct ChangeLog(Vec<ActionEffect>);
 
 impl ChangeLog {
+    #[inline]
     pub fn read(&self) -> &[ActionEffect] {
         &self.0
     }
-
+    #[inline]
     pub fn write(&mut self, effect: ActionEffect) {
         self.0.push(effect);
     }
 
+    #[inline]
     pub fn append(&mut self, second_log: &mut ChangeLog) {
         self.0.append(&mut second_log.0);
     }
-
+    #[inline]
     pub fn inner(self) -> Vec<ActionEffect> {
         self.0
     }

@@ -99,6 +99,22 @@ pub struct Health {
     pub tier: u8,
 }
 
+#[inline]
+pub fn heal(piece: Entity, amount: u32, world: &mut World, piece_on_tile: TileId) -> ChangeLog {
+    let mut hp = world
+        .get_mut::<Health>(piece)
+        .expect("all pieces have info about their health.");
+    hp.current = std::cmp::min(hp.current + amount, hp.max);
+
+    let mut log = ChangeLog::default();
+    log.write(ActionEffect::HealedPiece {
+        on_tile: piece_on_tile,
+        hp_added: amount,
+    });
+
+    log
+}
+
 #[derive(Debug, Component, Clone)]
 pub struct Orders(pub [Option<OrderId>; 5]);
 
