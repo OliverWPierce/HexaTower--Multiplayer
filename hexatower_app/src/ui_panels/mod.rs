@@ -536,9 +536,12 @@ mod execution_button {
         logical_world: &LogicalWorld,
         operating_player: &OperatingPlayer,
     ) -> Result<Option<Blocker>, BevyError> {
-        let action = action_manager.loaded_action().ok_or(
-            "Tried to calculate action execution blockers, but there was no loaded action",
-        )?;
+        let Some(action) = action_manager.loaded_action() else {
+            #[cfg(debug_assertions)]
+            warn!("Tried to calculate action execution blockers, but there was no loaded action");
+
+            return Ok(Some(Blocker("No action is loaded.".into())));
+        };
 
         if let Some(cache) = {
             match action {
