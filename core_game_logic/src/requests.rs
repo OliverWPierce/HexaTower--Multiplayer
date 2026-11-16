@@ -426,21 +426,18 @@ pub fn try_consume_request(
                     };
 
                     let mut i = 0;
-                    loop {
-                        if let Some(cache_selected) =
-                            tile_action_process_cache.selected_tiles().get(i)
-                        {
-                            if let Some(user_selected) = selections.get(i) {
-                                if user_selected == cache_selected {
-                                    i += 1;
-                                    continue;
-                                }
-                                return Err(InvalidSelection(user_selected.id).into());
-                            } else {
-                                return Err(SelectedTooFewTiles.into());
+
+                    while let Some(cache_selected) =
+                        tile_action_process_cache.selected_tiles().get(i)
+                    {
+                        if let Some(user_selected) = selections.get(i) {
+                            if user_selected == cache_selected {
+                                i += 1;
+                                continue;
                             }
+                            return Err(InvalidSelection(user_selected.id).into());
                         } else {
-                            break;
+                            return Err(SelectedTooFewTiles.into());
                         }
                     }
 
@@ -592,21 +589,18 @@ pub fn try_consume_request(
                     };
 
                     let mut i = 0;
-                    loop {
-                        if let Some(cache_selected) =
-                            tile_action_process_cache.selected_tiles().get(i)
-                        {
-                            if let Some(user_selected) = tiles_to_use_order_on.get(i) {
-                                if user_selected == cache_selected {
-                                    i += 1;
-                                    continue;
-                                }
-                                return Err(InvalidSelection(user_selected.id).into());
-                            } else {
-                                return Err(SelectedTooFewTiles.into());
+
+                    while let Some(cache_selected) =
+                        tile_action_process_cache.selected_tiles().get(i)
+                    {
+                        if let Some(user_selected) = tiles_to_use_order_on.get(i) {
+                            if user_selected == cache_selected {
+                                i += 1;
+                                continue;
                             }
+                            return Err(InvalidSelection(user_selected.id).into());
                         } else {
-                            break;
+                            return Err(SelectedTooFewTiles.into());
                         }
                     }
 

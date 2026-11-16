@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    markets::MarketId,
     orders::OrderId,
     players::{Coins, PlayerDirectory, PlayerId, PlayerOrdersRemaining},
     requests::{ActionEffect, ChangeLog},
@@ -41,6 +42,7 @@ pub struct LogicalPieceArchetype {
     pub default_monetary_value: u32,
     pub is_win_condition: bool,
     pub is_spawnpoint: bool,
+    pub creates_market: Option<MarketId>,
 }
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

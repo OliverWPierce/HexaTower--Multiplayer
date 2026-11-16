@@ -38,14 +38,14 @@ pub const LOGICAL_CARDS_FOR_TESTING: [LogicalCard; 6] = [
         functionality: CardFunction::SpawnPiece {
             selection_bounds: 1..1,
             piece_archetype: ArchetypeId(2),
-            restrictions: SpawningRestrictions::StandardRestrictions,
+            restrictions: SpawningRestrictions::StandardRestrictions { depth: 1 },
         },
     },
     LogicalCard {
         functionality: CardFunction::SpawnPiece {
             selection_bounds: 1..1,
             piece_archetype: ArchetypeId(0),
-            restrictions: SpawningRestrictions::StandardRestrictions,
+            restrictions: SpawningRestrictions::StandardRestrictions { depth: 1 },
         },
     },
 ];
@@ -84,6 +84,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
         default_monetary_value: 5,
         is_win_condition: false,
         is_spawnpoint: false,
+        creates_market: None,
     },
     LogicalPieceArchetype {
         max_health: 45,
@@ -99,6 +100,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
         default_monetary_value: 4,
         is_win_condition: true,
         is_spawnpoint: true,
+        creates_market: None,
     },
     LogicalPieceArchetype {
         max_health: 12,
@@ -108,6 +110,7 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
         default_monetary_value: 8,
         is_win_condition: false,
         is_spawnpoint: false,
+        creates_market: None,
     },
 ];
 

@@ -340,7 +340,7 @@ pub const LOGICAL_CARDS: [LogicalCard; 7] = [
             selection_bounds: 1..1,
             piece_archetype: core_game_logic::pieces::ArchetypeId(1),
             restrictions:
-                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions {depth: 1},
         },
     },
     // Spawn spaceship
@@ -349,7 +349,7 @@ pub const LOGICAL_CARDS: [LogicalCard; 7] = [
             selection_bounds: 1..1,
             piece_archetype: core_game_logic::pieces::ArchetypeId(2),
             restrictions:
-                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions {depth: 1},
         },
     },
     LogicalCard {
@@ -357,7 +357,7 @@ pub const LOGICAL_CARDS: [LogicalCard; 7] = [
             selection_bounds: 1..1,
             piece_archetype: core_game_logic::pieces::ArchetypeId(3),
             restrictions:
-                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions {depth: 1},
         },
     },
     LogicalCard {
@@ -368,7 +368,7 @@ pub const LOGICAL_CARDS: [LogicalCard; 7] = [
             selection_bounds: 1..1,
             piece_archetype: core_game_logic::pieces::ArchetypeId(4),
             restrictions:
-                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions {depth: 1},
         },
     },
     LogicalCard {
@@ -376,7 +376,7 @@ pub const LOGICAL_CARDS: [LogicalCard; 7] = [
             selection_bounds: 1..1,
             piece_archetype: core_game_logic::pieces::ArchetypeId(5),
             restrictions:
-                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions,
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions {depth: 2},
         },
     },
 ];
@@ -387,7 +387,7 @@ pub const LOGICAL_MARKETS: [LogicalMarket; 1] = [LogicalMarket([
     (CardId(3), CardPrice(4)),
 ])];
 
-pub const STARTING_CARDS: [CardId; 4] = [CardId(0), CardId(1), CardId(4), CardId(6)];
+pub const STARTING_CARDS: [CardId; 1] = [CardId(0)];
 
 pub const LOGICAL_PIECES: [LogicalPieceArchetype; 6] = [
     //tower
@@ -399,6 +399,7 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 6] = [
         default_monetary_value: 10,
         is_win_condition: true,
         is_spawnpoint: true,
+        creates_market: Some(MarketId(0)),
     },
     //drill
     LogicalPieceArchetype {
@@ -409,6 +410,7 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 6] = [
         default_monetary_value: 2,
         is_win_condition: false,
         is_spawnpoint: false,
+        creates_market: None,
     },
     //spaceship
     LogicalPieceArchetype {
@@ -425,6 +427,7 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 6] = [
         default_monetary_value: 4,
         is_win_condition: false,
         is_spawnpoint: false,
+        creates_market: None,
     },
     //cannon car
     LogicalPieceArchetype {
@@ -441,6 +444,7 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 6] = [
         default_monetary_value: 3,
         is_win_condition: false,
         is_spawnpoint: false,
+        creates_market: None,
     },
     //Rover
     LogicalPieceArchetype {
@@ -457,6 +461,7 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 6] = [
         default_monetary_value: 3,
         is_win_condition: false,
         is_spawnpoint: false,
+        creates_market: None,
     },
     //Space Station
     LogicalPieceArchetype {
@@ -467,6 +472,7 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 6] = [
         default_monetary_value: 6,
         is_win_condition: false,
         is_spawnpoint: true,
+        creates_market: None,
     },
 ];
 
