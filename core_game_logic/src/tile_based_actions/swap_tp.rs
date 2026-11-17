@@ -12,7 +12,7 @@ pub struct SwapPiecesWithFriendly {
 }
 
 impl TileActionFunctionalityCapabilityConstants for SwapPiecesWithFriendly {
-    const ACCEPTABLE_SELECTION_COUNTS: std::ops::Range<usize> = 2..2;
+    const ACCEPTABLE_SELECTION_COUNTS: std::ops::Range<usize> = 1..1;
 }
 
 impl TileActionFunctionality for SwapPiecesWithFriendly {
@@ -24,8 +24,8 @@ impl TileActionFunctionality for SwapPiecesWithFriendly {
         let mut log = ChangeLog::default();
 
         let tiles = world.resource::<TileDirectory>();
-        let tile1 = tiles.get_entity(validated_selections.first().unwrap().id);
-        let tile2 = tiles.get_entity(validated_selections.last().unwrap().id);
+        let tile1 = tiles.get_entity(self.acting_piece_on_tile);
+        let tile2 = tiles.get_entity(validated_selections.first().unwrap().id);
 
         let p1 = world.get::<OccupiedByPiece>(tile1).unwrap().piece();
         let p2 = world.get::<OccupiedByPiece>(tile2).unwrap().piece();
@@ -35,8 +35,8 @@ impl TileActionFunctionality for SwapPiecesWithFriendly {
         world.entity_mut(p1).insert(OccupiesTile(tile2));
 
         log.write(ActionEffect::PiecesSwapped(
+            self.acting_piece_on_tile,
             validated_selections.first().unwrap().id,
-            validated_selections.last().unwrap().id,
         ));
 
         log
@@ -77,7 +77,7 @@ impl TileActionFunctionality for SwapPiecesWithFriendly {
 impl ForensicDescribe for SwapPiecesWithFriendly {
     fn forensic_description(&self) -> Box<[TextSnippet]> {
         Box::new([TextSnippet::new_basic_text(
-            "No description implemented yet.",
+            "Swap this piece's location with one of it's friends.",
         )])
     }
 }

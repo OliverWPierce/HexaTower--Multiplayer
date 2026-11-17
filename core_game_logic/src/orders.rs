@@ -172,7 +172,7 @@ impl OrderFunction {
                         SwapPiecesWithFriendly {
                             acting_piece_on_tile: piece_occupies_tile,
                         },
-                        2..2,
+                        1..1,
                     )?,
                     world,
                 ),
