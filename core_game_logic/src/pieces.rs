@@ -196,6 +196,32 @@ pub enum FacingHexDirection {
     SouthEast,
 }
 
+impl FacingHexDirection {
+    #[inline]
+    pub fn left(self) -> Self {
+        match self {
+            FacingHexDirection::North => FacingHexDirection::NorthWest,
+            FacingHexDirection::NorthEast => FacingHexDirection::North,
+            FacingHexDirection::NorthWest => FacingHexDirection::SouthWest,
+            FacingHexDirection::SouthWest => FacingHexDirection::South,
+            FacingHexDirection::South => FacingHexDirection::SouthEast,
+            FacingHexDirection::SouthEast => Self::NorthEast,
+        }
+    }
+
+    #[inline]
+    pub fn right(self) -> Self {
+        match self {
+            FacingHexDirection::North => FacingHexDirection::NorthEast,
+            FacingHexDirection::NorthEast => FacingHexDirection::SouthEast,
+            FacingHexDirection::NorthWest => FacingHexDirection::North,
+            FacingHexDirection::SouthWest => FacingHexDirection::NorthWest,
+            FacingHexDirection::South => FacingHexDirection::SouthWest,
+            FacingHexDirection::SouthEast => Self::South,
+        }
+    }
+}
+
 impl From<FacingHexDirection> for HexVector2d {
     #[inline]
     fn from(direction: FacingHexDirection) -> Self {

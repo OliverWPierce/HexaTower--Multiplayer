@@ -20,6 +20,7 @@ use crate::{
 };
 
 pub mod change_tile_type;
+pub mod damage_3fan;
 pub mod damage_adjacent;
 pub mod damage_forward;
 pub mod give_self_coins;

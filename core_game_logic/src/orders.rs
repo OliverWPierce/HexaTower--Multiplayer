@@ -9,6 +9,7 @@ use crate::{
     tile_based_actions::{
         TileAction, TileActionProcessCache,
         change_tile_type::{AdjecentRestriction, ConvertTileTo},
+        damage_3fan::PieceAttacks3Fan,
         damage_adjacent::PieceAttacksAdjacent,
         damage_forward::PieceAttacksForward,
         give_self_coins::GiveOwnerCoins,
@@ -48,6 +49,10 @@ pub enum OrderFunction {
         selection_depth: u8,
     },
     SwapSelf,
+    Attack3Fan {
+        damage: u32,
+        selection_range: Range<usize>,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -173,6 +178,21 @@ impl OrderFunction {
                             acting_piece_on_tile: piece_occupies_tile,
                         },
                         1..1,
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::Attack3Fan {
+                damage,
+                selection_range,
+            } => Ok(ActionProcessCache::from(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        PieceAttacks3Fan {
+                            attacker_occupies_tile: piece_occupies_tile,
+                            damage: *damage,
+                        },
+                        selection_range.clone(),
                     )?,
                     world,
                 ),

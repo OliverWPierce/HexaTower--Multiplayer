@@ -145,6 +145,11 @@ pub fn create_board(
             name: "Command Point Alpha Genesis".into(),
             tooltip: "A forward base, complete with a hospital".into(),
         },
+        VisualCard {
+            image: asset_server.load("card_images/spawn_cannon_car.png"),
+            name: "Mage Genesis".into(),
+            tooltip: "He seems... otherworldly. Also, he likes shrimp tacos.".into(),
+        },
     ])));
 
     commands.insert_resource(VisMarketDirectory(Box::new([VisMarket {
@@ -188,6 +193,11 @@ pub fn create_board(
                         .from_asset("piece_models/Cosmic Cargo Space Station.glb"),
                 ),
                 name: "Command Point Alpha".into(),
+            },
+            VisualPieceArchetype {
+                model: asset_server
+                    .load(GltfAssetLabel::Scene(0).from_asset("piece_models/Wizard Hat.glb")),
+                name: "Mage of Terolark".into(),
             },
         ]),
     );
@@ -242,7 +252,22 @@ pub fn create_board(
             VisOrder {
                 image: asset_server.load("order_icons/two_hearts.png"),
                 name: "Crash Cart!".into(),
-                tooltip: "TODO".into(),
+                tooltip: "Quickly now... and don't run anyone over.".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/yellow_wand.png"),
+                name: "Droblus' Draft!".into(),
+                tooltip: "No one knows what its made of, but it seems to help.".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/magic_dagger.png"),
+                name: "Sheen of Dusk!".into(),
+                tooltip: "Some question if a shadow is an effective weapon choice.".into(),
+            },
+            VisOrder {
+                image: asset_server.load("order_icons/magic_staff.png"),
+                name: "Poof!".into(),
+                tooltip: "Didn't see that coming, did you?".into(),
             },
         ]
         .into(),
@@ -324,7 +349,7 @@ impl VisMarketDirectory {
     }
 }
 
-pub const LOGICAL_CARDS: [LogicalCard; 7] = [
+pub const LOGICAL_CARDS: [LogicalCard; 8] = [
     // Spawn tower
     LogicalCard {
         functionality: core_game_logic::cards::CardFunction::SpawnPiece {
@@ -379,6 +404,14 @@ pub const LOGICAL_CARDS: [LogicalCard; 7] = [
                 core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions {depth: 2},
         },
     },
+    LogicalCard {
+        functionality: core_game_logic::cards::CardFunction::SpawnPiece {
+            selection_bounds: 1..1,
+            piece_archetype: core_game_logic::pieces::ArchetypeId(6),
+            restrictions:
+                core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions {depth: 1},
+        },
+    },
 ];
 
 pub const LOGICAL_MARKETS: [LogicalMarket; 1] = [LogicalMarket([
@@ -389,7 +422,7 @@ pub const LOGICAL_MARKETS: [LogicalMarket; 1] = [LogicalMarket([
 
 pub const STARTING_CARDS: [CardId; 1] = [CardId(0)];
 
-pub const LOGICAL_PIECES: [LogicalPieceArchetype; 6] = [
+pub const LOGICAL_PIECES: [LogicalPieceArchetype; 7] = [
     //tower
     LogicalPieceArchetype {
         max_health: 250,
@@ -474,9 +507,26 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 6] = [
         is_spawnpoint: true,
         creates_market: None,
     },
+    //wizard
+    LogicalPieceArchetype {
+        max_health: 30,
+        orders_per_round: 1,
+        orders: Orders([
+            Some(OrderId(1)),
+            Some(OrderId(2)),
+            Some(OrderId(10)),
+            Some(OrderId(11)),
+            Some(OrderId(12)),
+        ]),
+        gives_extra_player_order: false,
+        default_monetary_value: 6,
+        is_win_condition: false,
+        is_spawnpoint: false,
+        creates_market: None,
+    },
 ];
 
-pub const LOGICAL_ORDERS: [LogicalOrder; 10] = [
+pub const LOGICAL_ORDERS: [LogicalOrder; 12] = [
     LogicalOrder {
         functionality: OrderFunction::GiveOwnedCurrency { ammount: 3 },
     },
@@ -528,5 +578,14 @@ pub const LOGICAL_ORDERS: [LogicalOrder; 10] = [
             selection_range: 1..1,
             selection_depth: 1,
         },
+    },
+    LogicalOrder {
+        functionality: OrderFunction::Attack3Fan {
+            damage: 20,
+            selection_range: 1..1,
+        },
+    },
+    LogicalOrder {
+        functionality: OrderFunction::SwapSelf,
     },
 ];
