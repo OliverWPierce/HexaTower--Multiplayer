@@ -9,12 +9,13 @@ use crate::{
     tile_based_actions::{
         TileAction, TileActionProcessCache,
         change_tile_type::{AdjecentRestriction, ConvertTileTo},
+        damage_adjacent::PieceAttacksAdjacent,
         damage_forward::PieceAttacksForward,
-        damage_piece::PieceAttacksAdjacent,
         give_self_coins::GiveOwnerCoins,
         heal_pieces::PieceHealsAdjacent,
         move_piece::{MovePiece, MovementMethod},
         rotate_a_piece::RotatePiece,
+        swap_tp::SwapPiecesWithFriendly,
     },
     tile_mapping::TileId,
     tiles::TileType,
@@ -46,6 +47,7 @@ pub enum OrderFunction {
         selection_range: Range<usize>,
         selection_depth: u8,
     },
+    SwapSelf,
 }
 
 #[derive(Debug, Error)]
@@ -160,6 +162,17 @@ impl OrderFunction {
                             adjacency_depth: *selection_depth,
                         },
                         selection_range.clone(),
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::SwapSelf => Ok(ActionProcessCache::from(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        SwapPiecesWithFriendly {
+                            acting_piece_on_tile: piece_occupies_tile,
+                        },
+                        2..2,
                     )?,
                     world,
                 ),

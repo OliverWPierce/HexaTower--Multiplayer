@@ -87,6 +87,7 @@ pub enum ActionEffect {
         to_tile: TileId,
     },
     PlayerDied(PlayerId),
+    PiecesSwapped(TileId, TileId),
 }
 
 impl ForensicDescribe for ActionEffect {
@@ -241,6 +242,14 @@ impl ForensicDescribe for ActionEffect {
                 },
             ]
             .into(),
+            ActionEffect::PiecesSwapped(tile_id1, tile_id2) => {
+                [TextSnippet::new_basic_text(format!(
+                    "Pieces on tiles {} and {} swapped places.",
+                    tile_id1.id(),
+                    tile_id2.id(),
+                ))]
+                .into()
+            }
         }
     }
 }

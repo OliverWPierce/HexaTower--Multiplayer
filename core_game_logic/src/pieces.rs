@@ -74,6 +74,7 @@ pub struct OccupiesTile(pub Entity);
 pub struct OccupiedByPiece(Entity);
 
 impl OccupiedByPiece {
+    #[inline]
     pub fn piece(&self) -> Entity {
         self.0
     }
