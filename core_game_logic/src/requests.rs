@@ -88,6 +88,8 @@ pub enum ActionEffect {
     },
     PlayerDied(PlayerId),
     PiecesSwapped(TileId, TileId),
+    UpgradeMaxHealth(TileId, u32),
+    UpgradeOrdersPerRound(TileId),
 }
 
 impl ForensicDescribe for ActionEffect {
@@ -250,6 +252,22 @@ impl ForensicDescribe for ActionEffect {
                 ))]
                 .into()
             }
+            ActionEffect::UpgradeMaxHealth(tile_id, hp_increase) => [
+                TextSnippet::new_basic_text(format!(
+                    "Increased max health of piece on tile {} by",
+                    tile_id.id()
+                )),
+                TextSnippet::PlainText {
+                    text: format!(" {}.", hp_increase),
+                    color: Some(ColorIndicators::Health),
+                },
+            ]
+            .into(),
+            ActionEffect::UpgradeOrdersPerRound(tile_id) => [TextSnippet::new_basic_text(format!(
+                "Increased max orders of piece on tile {}.",
+                tile_id.id()
+            ))]
+            .into(),
         }
     }
 }

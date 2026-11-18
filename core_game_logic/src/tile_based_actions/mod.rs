@@ -31,6 +31,7 @@ pub mod rotate_a_piece;
 mod selection_mechanics;
 pub mod spawn_pieces;
 pub mod swap_tp;
+pub mod upgrade_health;
 
 pub use selection_mechanics::InvalidSelection;
 pub use selection_mechanics::SelectedTile;
