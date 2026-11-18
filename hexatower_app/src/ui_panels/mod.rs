@@ -261,7 +261,7 @@ mod display_themes {
     pub fn name_for_tile_type_under_default_theme(tile_type: &TileType) -> String {
         match tile_type {
             TileType::Basic => "Basic".into(),
-            TileType::Gold => "Corrupted".into(),
+            TileType::Gold => "Troves".into(),
         }
     }
 }
