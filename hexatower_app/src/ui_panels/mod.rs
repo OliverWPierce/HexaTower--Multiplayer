@@ -254,14 +254,14 @@ mod display_themes {
     pub fn color_for_tile_type_under_default_theme(tile_type: &TileType) -> Color {
         match tile_type {
             TileType::Basic => SLATE_500.into(),
-            TileType::Ex1 => PURPLE_400.into(),
+            TileType::Gold => PURPLE_400.into(),
         }
     }
 
     pub fn name_for_tile_type_under_default_theme(tile_type: &TileType) -> String {
         match tile_type {
             TileType::Basic => "Basic".into(),
-            TileType::Ex1 => "Corrupted".into(),
+            TileType::Gold => "Corrupted".into(),
         }
     }
 }

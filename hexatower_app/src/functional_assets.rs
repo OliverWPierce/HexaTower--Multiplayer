@@ -160,6 +160,11 @@ pub fn create_board(
             name: "Bigger Mailbox".into(),
             tooltip: "Do I actually have to read all of these?".into(),
         },
+        VisualCard {
+            image: asset_server.load("card_images/gold_tile.png"),
+            name: "Troves Constructor".into(),
+            tooltip: "Money doesn't grow on trees, it grows underground.".into(),
+        },
     ])));
 
     commands.insert_resource(VisMarketDirectory(Box::new([VisMarket {
@@ -359,7 +364,7 @@ impl VisMarketDirectory {
     }
 }
 
-pub const LOGICAL_CARDS: [LogicalCard; 10] = [
+pub const LOGICAL_CARDS: [LogicalCard; 11] = [
     // Spawn tower
     LogicalCard {
         functionality: core_game_logic::cards::CardFunction::SpawnPiece {
@@ -424,6 +429,7 @@ pub const LOGICAL_CARDS: [LogicalCard; 10] = [
     },
     LogicalCard { functionality: core_game_logic::cards::CardFunction::UpgradeHealth { selection_bounds: 1..2 } },
     LogicalCard { functionality: core_game_logic::cards::CardFunction::UpgradePieceOrdersPerRound { selection_bounds: 1..1 } },
+    LogicalCard { functionality: core_game_logic::cards::CardFunction::TileConversionToSingleType { selection_bounds: 1..1, target_type: core_game_logic::tiles::TileType::Gold }},
 ];
 
 pub const LOGICAL_MARKETS: [LogicalMarket; 1] = [LogicalMarket([

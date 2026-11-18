@@ -54,7 +54,7 @@ struct VisualTileDirectory(Box<[Entity]>);
 #[derive(Debug, Resource, Clone)]
 struct TileModels {
     basic: Handle<WorldAsset>,
-    ex1: Handle<WorldAsset>,
+    gold: Handle<WorldAsset>,
 }
 
 fn spawn_tiles_and_initialize_inficators(
@@ -65,7 +65,7 @@ fn spawn_tiles_and_initialize_inficators(
 ) {
     let tile_models = TileModels {
         basic: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/basic_tile.glb")),
-        ex1: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/example_tile.glb")),
+        gold: asset_server.load(GltfAssetLabel::Scene(0).from_asset("tile_models/gold_tile.glb")),
     };
 
     let selected_indicator_mesh: Handle<WorldAsset> =
@@ -157,7 +157,7 @@ fn swap_tile_mesh(
     commands.spawn((
         WorldAssetRoot(match new_type {
             TileType::Basic => models.basic.clone(),
-            TileType::Ex1 => models.ex1.clone(),
+            TileType::Gold => models.gold.clone(),
         }),
         ChildOf(*parent),
     ));

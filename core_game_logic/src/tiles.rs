@@ -58,7 +58,7 @@ impl TileDirectory {
 #[derive(Debug, Component, Clone, PartialEq)]
 pub enum TileType {
     Basic,
-    Ex1,
+    Gold,
 }
 
 #[derive(Debug, Component)]

@@ -18,7 +18,7 @@ pub const LOGICAL_CARDS_FOR_TESTING: [LogicalCard; 6] = [
     LogicalCard {
         functionality: CardFunction::TileConversionToSingleType {
             selection_bounds: 1..1,
-            target_type: TileType::Ex1,
+            target_type: TileType::Gold,
         },
     },
     LogicalCard {
@@ -130,7 +130,7 @@ pub const LOGICAL_ORDERS_FOR_TESTING: [LogicalOrder; 3] = [
     LogicalOrder {
         functionality: crate::orders::OrderFunction::ConvertAdjacentTiles {
             selection_range: 1..3,
-            target_type: TileType::Ex1,
+            target_type: TileType::Gold,
         },
     },
 ];
