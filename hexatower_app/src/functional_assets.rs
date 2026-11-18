@@ -167,12 +167,26 @@ pub fn create_board(
         },
     ])));
 
-    commands.insert_resource(VisMarketDirectory(Box::new([VisMarket {
-        model: asset_server
-            .load(GltfAssetLabel::Scene(0).from_asset("market_models/gray_yellow_market.glb")),
-        name: "The Agora".into(),
-        description: "All the essentials for civilizations at war".into(),
-    }])));
+    commands.insert_resource(VisMarketDirectory(Box::new([
+        VisMarket {
+            model: asset_server
+                .load(GltfAssetLabel::Scene(0).from_asset("market_models/purple_yellow.glb")),
+            name: "The Agora".into(),
+            description: "All the essentials for civilizations at war".into(),
+        },
+        VisMarket {
+            model: asset_server
+                .load(GltfAssetLabel::Scene(0).from_asset("market_models/maroon_teal.glb")),
+            name: "The Armory".into(),
+            description: "Our values: Integrity. Industry. Backstabbing".into(),
+        },
+        VisMarket {
+            model: asset_server
+                .load(GltfAssetLabel::Scene(0).from_asset("market_models/green_purple.glb")),
+            name: "Hermit's Haunt".into(),
+            description: "Most struggle to describe the wares shold here.".into(),
+        },
+    ])));
 
     commands.insert_resource(
         crate::vis_pieces::visual_piece_archetypes_storage::VisualPieceArchetypeDirectory::new(&[
@@ -432,11 +446,23 @@ pub const LOGICAL_CARDS: [LogicalCard; 11] = [
     LogicalCard { functionality: core_game_logic::cards::CardFunction::TileConversionToSingleType { selection_bounds: 1..1, target_type: core_game_logic::tiles::TileType::Gold }},
 ];
 
-pub const LOGICAL_MARKETS: [LogicalMarket; 1] = [LogicalMarket([
-    (CardId(1), CardPrice(7)),
-    (CardId(2), CardPrice(5)),
-    (CardId(3), CardPrice(4)),
-])];
+pub const LOGICAL_MARKETS: [LogicalMarket; 3] = [
+    LogicalMarket([
+        (CardId(1), CardPrice(7)),
+        (CardId(2), CardPrice(5)),
+        (CardId(3), CardPrice(4)),
+    ]),
+    LogicalMarket([
+        (CardId(6), CardPrice(10)),
+        (CardId(9), CardPrice(6)),
+        (CardId(10), CardPrice(5)),
+    ]),
+    LogicalMarket([
+        (CardId(7), CardPrice(7)),
+        (CardId(8), CardPrice(6)),
+        (CardId(5), CardPrice(4)),
+    ]),
+];
 
 pub const STARTING_CARDS: [CardId; 1] = [CardId(0)];
 
