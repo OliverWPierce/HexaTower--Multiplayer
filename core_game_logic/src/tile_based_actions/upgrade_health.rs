@@ -66,7 +66,7 @@ impl TileActionFunctionality for UpgradeHealth {
 impl ForensicDescribe for UpgradeHealth {
     fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
         ([
-            TextSnippet::new_basic_text("Increase max health of selected pieces by"),
+            TextSnippet::new_basic_text("Permanently increase max health of selected pieces by"),
             TextSnippet::PlainText {
                 text: format!(" {}.", UPGRADE_AMOUNT),
                 color: Some(crate::forensic_action_descriptions::ColorIndicators::Health),

@@ -32,6 +32,7 @@ mod selection_mechanics;
 pub mod spawn_pieces;
 pub mod swap_tp;
 pub mod upgrade_health;
+pub mod upgrade_piece_orders;
 
 pub use selection_mechanics::InvalidSelection;
 pub use selection_mechanics::SelectedTile;

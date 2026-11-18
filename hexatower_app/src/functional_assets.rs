@@ -146,9 +146,19 @@ pub fn create_board(
             tooltip: "A forward base, complete with a hospital".into(),
         },
         VisualCard {
-            image: asset_server.load("card_images/spawn_cannon_car.png"),
+            image: asset_server.load("card_images/spawn_wizard.png"),
             name: "Mage Genesis".into(),
             tooltip: "He seems... otherworldly. Also, he likes shrimp tacos.".into(),
+        },
+        VisualCard {
+            image: asset_server.load("card_images/health_upgrade.png"),
+            name: "Weights".into(),
+            tooltip: "You do actually have to use them.".into(),
+        },
+        VisualCard {
+            image: asset_server.load("card_images/orders_upgrade.png"),
+            name: "Bigger Mailbox".into(),
+            tooltip: "Do I actually have to read all of these?".into(),
         },
     ])));
 
@@ -349,7 +359,7 @@ impl VisMarketDirectory {
     }
 }
 
-pub const LOGICAL_CARDS: [LogicalCard; 8] = [
+pub const LOGICAL_CARDS: [LogicalCard; 10] = [
     // Spawn tower
     LogicalCard {
         functionality: core_game_logic::cards::CardFunction::SpawnPiece {
@@ -412,6 +422,8 @@ pub const LOGICAL_CARDS: [LogicalCard; 8] = [
                 core_game_logic::tile_based_actions::spawn_pieces::SpawningRestrictions::StandardRestrictions {depth: 1},
         },
     },
+    LogicalCard { functionality: core_game_logic::cards::CardFunction::UpgradeHealth { selection_bounds: 1..2 } },
+    LogicalCard { functionality: core_game_logic::cards::CardFunction::UpgradePieceOrdersPerRound { selection_bounds: 1..1 } },
 ];
 
 pub const LOGICAL_MARKETS: [LogicalMarket; 1] = [LogicalMarket([
