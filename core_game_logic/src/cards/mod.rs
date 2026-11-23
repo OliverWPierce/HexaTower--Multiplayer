@@ -17,6 +17,7 @@ use crate::{
         make_market_tile::MakeMarketTile,
         spawn_pieces::{SpawnPieces, SpawningRestrictions},
         upgrade_health::UpgradeHealth,
+        upgrade_piece_orders::UpgradePieceOrders,
     },
     tiles::TileType,
 };
@@ -104,7 +105,13 @@ impl CardFunction {
                 world,
             )
             .into(),
-            CardFunction::UpgradePieceOrdersPerRound { selection_bounds } => todo!(),
+            CardFunction::UpgradePieceOrdersPerRound { selection_bounds } => {
+                TileActionProcessCache::initialize(
+                    TileAction::new(UpgradePieceOrders, selection_bounds.clone())?,
+                    world,
+                )
+                .into()
+            }
         };
 
         Ok(cache)

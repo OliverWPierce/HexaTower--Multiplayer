@@ -1,4 +1,5 @@
 use bevy::ecs::{component::Component, entity::Entity, resource::Resource, world::World};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     IndexingId,
@@ -55,7 +56,7 @@ impl TileDirectory {
     }
 }
 
-#[derive(Debug, Component, Clone, PartialEq)]
+#[derive(Debug, Component, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TileType {
     Basic,
     Gold,

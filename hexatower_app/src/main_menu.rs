@@ -13,12 +13,15 @@ use bevy_renet::netcode::{
 use bevy_renet::renet::{ConnectionConfig, DefaultChannel};
 use bevy_renet::{RenetClient, RenetServer};
 use core_game_logic::players::PlayerData;
+use core_game_logic::tile_mapping::tiles_on_board;
+use core_game_logic::tiles::TileType;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
-use crate::VERSION_NUMBER;
+use crate::{VERSION_NUMBER, functional_assets};
 
 use crate::cameras::{MainMenuCam, spawn_main_menu_cam};
-use crate::functional_assets::create_board;
+use crate::functional_assets::{LOGICAL_MARKETS, create_board};
 use crate::inputs_interface::{HOST_CLIENT_ID, NetworkTransmission};
 use crate::{
     AppState,
@@ -653,6 +656,7 @@ pub enum PresetBoardSizes {
 }
 
 impl PresetBoardSizes {
+    #[inline]
     pub fn ring_count(&self) -> u32 {
         match self {
             PresetBoardSizes::Small => 3,
@@ -897,6 +901,8 @@ fn render_pregame_if_server(
                     let player_names = player_names.into_boxed_slice();
                     let player_client_ids = player_client_ids.into_boxed_slice();
 
+                    let random_board_generation_info = RandomBoardFeatures::new(*board_size);
+
                     for client in server.clients_id() {
                         let start_game_transmission =
                             NetworkTransmission::StartGame(BoardSetupInstructions {
@@ -907,6 +913,12 @@ fn render_pregame_if_server(
                                     .enumerate()
                                     .find(|(_, client_id)| client == **client_id)
                                     .map(|(index, _)| index as u8),
+                                initial_market_tiles: random_board_generation_info
+                                    .initial_market_tiles
+                                    .clone(),
+                                initial_special_tiles: random_board_generation_info
+                                    .initial_special_tiles
+                                    .clone(),
                             });
 
                         server.send_message(
@@ -1036,4 +1048,53 @@ pub struct BoardSetupInstructions {
     pub board_size: PresetBoardSizes,
     pub player_names: Box<[String]>,
     pub you_are_player: Option<u8>,
+    pub initial_market_tiles: [Box<[u32]>; functional_assets::LOGICAL_MARKETS.len()],
+    pub initial_special_tiles: Box<[(Box<[u32]>, TileType)]>,
+}
+
+struct RandomBoardFeatures {
+    pub initial_market_tiles: [Box<[u32]>; functional_assets::LOGICAL_MARKETS.len()],
+    pub initial_special_tiles: Box<[(Box<[u32]>, TileType)]>,
+}
+
+impl RandomBoardFeatures {
+    #[inline]
+    fn new(board_size: PresetBoardSizes) -> Self {
+        let mut availible_tiles = (0..tiles_on_board(board_size.ring_count())).collect::<Vec<_>>();
+        let mut rng = rand::rng();
+
+        let instances_of_each_market = match board_size {
+            PresetBoardSizes::Small => 1,
+            PresetBoardSizes::Regular => 2,
+            PresetBoardSizes::Large => 4,
+        };
+
+        let market_tiles = LOGICAL_MARKETS.map(|_| {
+            (0..instances_of_each_market)
+                .map(|_| {
+                    let index = rng.random_range(0..availible_tiles.len());
+                    availible_tiles.swap_remove(index)
+                })
+                .collect::<Box<[_]>>()
+        });
+
+        let gold_tiles = (
+            (0..match board_size {
+                PresetBoardSizes::Small => 3,
+                PresetBoardSizes::Regular => 5,
+                PresetBoardSizes::Large => 10,
+            })
+                .map(|_| {
+                    let index = rng.random_range(0..availible_tiles.len());
+                    availible_tiles.swap_remove(index)
+                })
+                .collect::<Box<[_]>>(),
+            TileType::Gold,
+        );
+
+        RandomBoardFeatures {
+            initial_market_tiles: market_tiles,
+            initial_special_tiles: Box::new([gold_tiles]),
+        }
+    }
 }

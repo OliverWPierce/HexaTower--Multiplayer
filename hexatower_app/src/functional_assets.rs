@@ -39,10 +39,15 @@ pub fn create_board(
         board_size: instructions.board_size.ring_count(),
         player_count: player_names.len() as u8,
         all_cards: LOGICAL_CARDS.into(),
-        all_markets: LOGICAL_MARKETS.into(),
+        all_markets: LOGICAL_MARKETS
+            .iter()
+            .copied()
+            .zip(instructions.initial_market_tiles)
+            .collect::<Box<_>>(),
         starting_cards: STARTING_CARDS.into(),
         piece_archetypes: LOGICAL_PIECES.into(),
         orders: LOGICAL_ORDERS.into(),
+        initial_special_tiles: instructions.initial_special_tiles,
     }
     .create_logical_world();
 
@@ -570,7 +575,7 @@ pub const LOGICAL_PIECES: [LogicalPieceArchetype; 7] = [
     },
 ];
 
-pub const LOGICAL_ORDERS: [LogicalOrder; 12] = [
+pub const LOGICAL_ORDERS: [LogicalOrder; 13] = [
     LogicalOrder {
         functionality: OrderFunction::GiveOwnedCurrency { ammount: 3 },
     },
@@ -598,7 +603,7 @@ pub const LOGICAL_ORDERS: [LogicalOrder; 12] = [
         },
     },
     LogicalOrder {
-        functionality: OrderFunction::BasicMovement(MovementMethod::Forward { depth: 2 }),
+        functionality: OrderFunction::BasicMovement(MovementMethod::Forward { depth: 1 }),
     },
     LogicalOrder {
         functionality: OrderFunction::DamageForward {
@@ -613,6 +618,14 @@ pub const LOGICAL_ORDERS: [LogicalOrder; 12] = [
             allow_self: true,
             selection_range: 1..1,
             selection_depth: 0,
+        },
+    },
+    LogicalOrder {
+        functionality: OrderFunction::HealAdjacentAndSelf {
+            amount: 5,
+            allow_self: true,
+            selection_range: 1..1,
+            selection_depth: 1,
         },
     },
     LogicalOrder {
