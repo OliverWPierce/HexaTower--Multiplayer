@@ -25,6 +25,7 @@ impl Plugin for VisPiecesPlugin {
                 update_backend_rotation_changes,
                 start_piece_move,
                 despawn_piece,
+                teleport_piece,
             )
                 .distributive_run_if(resource_exists_and_changed::<EffectToDisplay>),
         );
@@ -213,4 +214,29 @@ fn despawn_piece(
         ),
         true,
     ));
+}
+
+fn teleport_piece(effect: Res<EffectToDisplay>, pieces: Query<(&mut Transform, &mut VisOccupies)>) {
+    let ActionEffect::PiecesSwapped(tile1, tile2) = effect.0 else {
+        return;
+    };
+
+    let mut tile1_found = false;
+
+    for (mut transform, mut occupies) in pieces {
+        if !tile1_found && occupies.0 == tile1 {
+            let horizontal_location: Vec2 =
+                core_game_logic::tile_mapping::HexVector2d::from(tile2).into();
+            transform.translation.x = horizontal_location.x;
+            transform.translation.z = horizontal_location.y;
+            tile1_found = true;
+            occupies.0 = tile2;
+        } else if occupies.0 == tile2 {
+            let horizontal_location: Vec2 =
+                core_game_logic::tile_mapping::HexVector2d::from(tile1).into();
+            transform.translation.x = horizontal_location.x;
+            transform.translation.z = horizontal_location.y;
+            occupies.0 = tile1;
+        }
+    }
 }

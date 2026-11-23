@@ -29,6 +29,13 @@ pub fn piece_damage_or_heal(
             ),
             hp_added,
         ),
+        ActionEffect::UpgradeMaxHealth(on_tile, max_hp_added) => (
+            on_tile,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/upgrade.glb"),
+            ),
+            max_hp_added,
+        ),
         _ => return,
     };
 

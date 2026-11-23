@@ -1,10 +1,10 @@
-use bevy::ecs::query::With;
+use bevy::{ecs::query::With, log::warn};
 
 use crate::{
     forensic_action_descriptions::{ForensicDescribe, LinkedGamplayElement, TextSnippet},
     pieces::{
-        self, GivesExtraPlayerOrder, Health, IsSpawnPoint, IsWinCondition, MonetaryValue,
-        OccupiedByPiece, OccupiesTile, OrdersReceivable, PieceOwnedByPlayer,
+        self, ArchetypeDirectory, GivesExtraPlayerOrder, Health, IsSpawnPoint, IsWinCondition,
+        MonetaryValue, OccupiedByPiece, OccupiesTile, OrdersReceivable, PieceOwnedByPlayer,
     },
     players::{HasNoWinCondtionYet, PlayerDirectory, PlayerId},
     requests::{ActionEffect, ChangeLog},
@@ -13,7 +13,7 @@ use crate::{
         selection_mechanics::SelectedTile,
     },
     tile_mapping::{HexVector2d, TileId, TileIdServer},
-    tiles::TileDirectory,
+    tiles::{MarketTile, TileDirectory},
 };
 #[derive(Debug)]
 pub struct SpawnPieces {
@@ -24,7 +24,7 @@ pub struct SpawnPieces {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SpawningRestrictions {
     Anywhere,
-    StandardRestrictions,
+    StandardRestrictions { depth: u8 },
     TowerSpawns,
 }
 
@@ -63,7 +63,7 @@ impl TileActionFunctionality for SpawnPieces {
                 PieceOwnedByPlayer(player_entity),
                 OccupiesTile(tile_entity),
                 OrdersReceivable {
-                    per_round: blueprint.starting_orders_per_round,
+                    per_round: blueprint.orders_per_round,
                     currently: 0,
                     tier: 1,
                 },
@@ -85,6 +85,14 @@ impl TileActionFunctionality for SpawnPieces {
                 world
                     .entity_mut(player_entity)
                     .remove::<HasNoWinCondtionYet>();
+            }
+
+            if let Some(market) = blueprint.creates_market {
+                world.entity_mut(tile_entity).insert(MarketTile(market));
+                log.write(ActionEffect::SpawnedNewMarket {
+                    tile: selection.id,
+                    market,
+                });
             }
 
             log.write(ActionEffect::SpawnedPiece {
@@ -115,7 +123,7 @@ impl TileActionFunctionality for SpawnPieces {
                     // unwrap is fine, since we're not trying to select anything and we already know the tile ids are within the game's bounds.
                 }
             }
-            SpawningRestrictions::StandardRestrictions => {
+            SpawningRestrictions::StandardRestrictions { depth } => {
                 selection_status.set_all_possible_inelligible();
 
                 let friendly_player = *world.resource::<PlayerDirectory>().get(self.owner);
@@ -132,17 +140,13 @@ impl TileActionFunctionality for SpawnPieces {
                 {
                     if owner.0 == friendly_player {
                         for tile in HexVector2d::from(*world.get::<TileId>(spawnpoint.0).unwrap())
-                            .adjacencies()
-                            .iter()
-                            .filter_map(|vector| vector.to_valid_tile_id(tile_server))
+                            .adjacent_ids_with_depth(depth, tile_server)
                         {
                             tiles_adjacent_to_friendly_spawnpoints.push(tile);
                         }
                     } else {
                         for tile in HexVector2d::from(*world.get::<TileId>(spawnpoint.0).unwrap())
-                            .adjacencies()
-                            .iter()
-                            .filter_map(|vector| vector.to_valid_tile_id(tile_server))
+                            .adjacent_ids_with_depth(1, tile_server)
                         {
                             tiles_adjacent_to_enemy_spawnpoints.push(tile);
                         }
@@ -193,6 +197,22 @@ impl TileActionFunctionality for SpawnPieces {
                 }
             }
         }
+
+        if let Ok(arc) = world
+            .resource::<ArchetypeDirectory>()
+            .get_archetype(self.archetype)
+        {
+            if arc.creates_market.is_some() {
+                for (tile, ent) in world.resource::<TileDirectory>().id_entity_pairs() {
+                    if world.get::<MarketTile>(ent).is_some() {
+                        selection_status.maybe_set_inelligible(tile);
+                    }
+                }
+            }
+        } else {
+            selection_status.set_all_possible_inelligible();
+            warn!("Piece archetype not found.")
+        }
     }
 }
 
@@ -203,16 +223,23 @@ impl ForensicDescribe for SpawnPieces {
             TextSnippet::Link(LinkedGamplayElement::Piece(self.archetype)),
             TextSnippet::new_basic_text(" on selected tiles."),
             TextSnippet::Link(LinkedGamplayElement::Player(self.owner)),
-            TextSnippet::new_basic_text(" will own and command this piece."),
+            TextSnippet::new_basic_text(" will own and command this piece. "),
         ];
 
         match self.restrictions {
             SpawningRestrictions::Anywhere => (),
-            SpawningRestrictions::StandardRestrictions => text_fragments.push(TextSnippet::new_basic_text(
-                "Piece must be spawned next to a friendly spawnpoint and away from an enemy spawnpoint.",
-            )),
+            SpawningRestrictions::StandardRestrictions { depth } => {
+                text_fragments.push(TextSnippet::new_basic_text("Can select tiles up to "));
+                text_fragments.push(TextSnippet::PlainText {
+                    text: format!("{:?}", depth),
+                    color: Some(
+                        crate::forensic_action_descriptions::ColorIndicators::GeneralHighlight,
+                    ),
+                });
+                text_fragments.push(TextSnippet::new_basic_text(" away from friendly spawnpoints. Cannot select tiles next to enemy spawnpoints."));
+            }
             SpawningRestrictions::TowerSpawns => text_fragments.push(TextSnippet::new_basic_text(
-                "Piece can be spawned anywhere, except next to enemy spawnpoints.",
+                "Cannot spawn next to enemy spawnpoints.",
             )),
         }
 

@@ -12,7 +12,7 @@ use rand::rngs::ThreadRng;
 mod banners;
 mod coin_flying;
 mod item_purchased;
-mod piece_damage;
+mod piece_damage_and_heal;
 mod piece_orders;
 mod player_orders;
 
@@ -36,7 +36,7 @@ impl Plugin for VisEffectReactions {
                 player_orders::player_order_change,
                 item_purchased::purchase_item,
                 piece_orders::piece_orders,
-                piece_damage::piece_damage_or_heal,
+                piece_damage_and_heal::piece_damage_or_heal,
                 banners::banners,
             )
                 .distributive_run_if(resource_exists_and_changed::<EffectToDisplay>),

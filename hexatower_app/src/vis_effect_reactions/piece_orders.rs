@@ -24,6 +24,12 @@ pub fn piece_orders(
                 GltfAssetLabel::Scene(0).from_asset("particles_and_effects/red_minus.glb"),
             ),
         ),
+        ActionEffect::UpgradeOrdersPerRound(tile) => (
+            tile,
+            asset_server.load::<WorldAsset>(
+                GltfAssetLabel::Scene(0).from_asset("particles_and_effects/upgrade.glb"),
+            ),
+        ),
         _ => return,
     };
 

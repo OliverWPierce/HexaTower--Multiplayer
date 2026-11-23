@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    markets::MarketId,
     orders::OrderId,
     players::{Coins, PlayerDirectory, PlayerId, PlayerOrdersRemaining},
     requests::{ActionEffect, ChangeLog},
@@ -35,12 +36,13 @@ pub fn initialize_pieces(world: &mut World, piece_archetypes: Box<[LogicalPieceA
 #[derive(Debug, Clone)]
 pub struct LogicalPieceArchetype {
     pub max_health: u32,
-    pub starting_orders_per_round: u8,
+    pub orders_per_round: u8,
     pub orders: Orders,
     pub gives_extra_player_order: bool,
     pub default_monetary_value: u32,
     pub is_win_condition: bool,
     pub is_spawnpoint: bool,
+    pub creates_market: Option<MarketId>,
 }
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -72,6 +74,7 @@ pub struct OccupiesTile(pub Entity);
 pub struct OccupiedByPiece(Entity);
 
 impl OccupiedByPiece {
+    #[inline]
     pub fn piece(&self) -> Entity {
         self.0
     }
@@ -97,6 +100,22 @@ pub struct Health {
     pub max: u32,
     pub current: u32,
     pub tier: u8,
+}
+
+#[inline]
+pub fn heal(piece: Entity, amount: u32, world: &mut World, piece_on_tile: TileId) -> ChangeLog {
+    let mut hp = world
+        .get_mut::<Health>(piece)
+        .expect("all pieces have info about their health.");
+    hp.current = std::cmp::min(hp.current + amount, hp.max);
+
+    let mut log = ChangeLog::default();
+    log.write(ActionEffect::HealedPiece {
+        on_tile: piece_on_tile,
+        hp_added: amount,
+    });
+
+    log
 }
 
 #[derive(Debug, Component, Clone)]
@@ -164,7 +183,9 @@ pub fn damage_and_maybe_kill_piece(
 #[derive(Debug, Component)]
 pub struct IsWinCondition;
 
-#[derive(Debug, Default, Component, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(
+    Debug, Default, Component, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord,
+)]
 pub enum FacingHexDirection {
     #[default]
     North,
@@ -175,7 +196,34 @@ pub enum FacingHexDirection {
     SouthEast,
 }
 
+impl FacingHexDirection {
+    #[inline]
+    pub fn left(self) -> Self {
+        match self {
+            FacingHexDirection::North => FacingHexDirection::NorthWest,
+            FacingHexDirection::NorthEast => FacingHexDirection::North,
+            FacingHexDirection::NorthWest => FacingHexDirection::SouthWest,
+            FacingHexDirection::SouthWest => FacingHexDirection::South,
+            FacingHexDirection::South => FacingHexDirection::SouthEast,
+            FacingHexDirection::SouthEast => Self::NorthEast,
+        }
+    }
+
+    #[inline]
+    pub fn right(self) -> Self {
+        match self {
+            FacingHexDirection::North => FacingHexDirection::NorthEast,
+            FacingHexDirection::NorthEast => FacingHexDirection::SouthEast,
+            FacingHexDirection::NorthWest => FacingHexDirection::North,
+            FacingHexDirection::SouthWest => FacingHexDirection::NorthWest,
+            FacingHexDirection::South => FacingHexDirection::SouthWest,
+            FacingHexDirection::SouthEast => Self::South,
+        }
+    }
+}
+
 impl From<FacingHexDirection> for HexVector2d {
+    #[inline]
     fn from(direction: FacingHexDirection) -> Self {
         match direction {
             FacingHexDirection::NorthEast => NORTH_EAST,

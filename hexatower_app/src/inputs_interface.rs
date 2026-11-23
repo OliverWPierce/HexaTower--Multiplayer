@@ -238,29 +238,34 @@ fn try_execute_loaded_action(
         }
     };
 
-    if let Ok(change_log) = try_consume_request(
+    match try_consume_request(
         BackendRequest {
             acting_player: acting_player.0,
             request: request.clone(),
         },
         &mut logical_world.0,
     ) {
-        action_manager.try_load_action(None)?;
+        Ok(change_log) => {
+            action_manager.try_load_action(None)?;
 
-        if let Some(mut client) = client {
-            client.send_message(
-                DefaultChannel::ReliableOrdered,
-                postcard::to_stdvec(&NetworkTransmission::ActionDone(BackendRequest {
-                    acting_player: acting_player.0,
-                    request: request.clone(),
-                }))
-                .unwrap(),
-            );
+            if let Some(mut client) = client {
+                client.send_message(
+                    DefaultChannel::ReliableOrdered,
+                    postcard::to_stdvec(&NetworkTransmission::ActionDone(BackendRequest {
+                        acting_player: acting_player.0,
+                        request: request.clone(),
+                    }))
+                    .unwrap(),
+                );
+            }
+
+            effects_queue
+                .0
+                .append(&mut VecDeque::from(change_log.inner()));
         }
-
-        effects_queue
-            .0
-            .append(&mut VecDeque::from(change_log.inner()));
+        Err(e) => {
+            warn!("{}", e);
+        }
     }
 
     Ok(())

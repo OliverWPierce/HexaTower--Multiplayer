@@ -13,7 +13,7 @@ use crate::{
     vis_pieces::VisPiecesPlugin, vis_tiles::VisTilesPlugin,
 };
 
-const VERSION_NUMBER: u64 = 0;
+const VERSION_NUMBER: u64 = 1;
 
 mod cameras;
 mod functional_assets;

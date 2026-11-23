@@ -16,6 +16,8 @@ use crate::{
         change_tile_type::ConvertTileTo,
         make_market_tile::MakeMarketTile,
         spawn_pieces::{SpawnPieces, SpawningRestrictions},
+        upgrade_health::UpgradeHealth,
+        upgrade_piece_orders::UpgradePieceOrders,
     },
     tiles::TileType,
 };
@@ -34,6 +36,12 @@ pub enum CardFunction {
     SpawnMarket {
         selection_bounds: Range<usize>,
         market: MarketId,
+    },
+    UpgradeHealth {
+        selection_bounds: Range<usize>,
+    },
+    UpgradePieceOrdersPerRound {
+        selection_bounds: Range<usize>,
     },
 }
 
@@ -92,6 +100,18 @@ impl CardFunction {
                 world,
             )
             .into(),
+            CardFunction::UpgradeHealth { selection_bounds } => TileActionProcessCache::initialize(
+                TileAction::new(UpgradeHealth, selection_bounds.clone())?,
+                world,
+            )
+            .into(),
+            CardFunction::UpgradePieceOrdersPerRound { selection_bounds } => {
+                TileActionProcessCache::initialize(
+                    TileAction::new(UpgradePieceOrders, selection_bounds.clone())?,
+                    world,
+                )
+                .into()
+            }
         };
 
         Ok(cache)

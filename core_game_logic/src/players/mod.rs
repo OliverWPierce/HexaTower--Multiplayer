@@ -10,6 +10,7 @@ use crate::{
     pieces::{GivesExtraPlayerOrder, IsWinCondition, OccupiesTile, OrdersReceivable, OwnsPieces},
     requests::{ActionEffect, ChangeLog},
     tile_mapping::TileId,
+    tiles::TileType,
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deserialize, Serialize, Component)]
@@ -178,6 +179,8 @@ pub fn apply_start_turn_effects(world: &mut World, player: PlayerId) -> ChangeLo
     log
 }
 
+pub const GOLD_TILE_COIN_YEILD: u32 = 1;
+
 /// Note that the player may have no pieces at this stage!
 pub fn apply_end_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog {
     let player_ent = *world.resource::<PlayerDirectory>().get(player);
@@ -195,14 +198,25 @@ pub fn apply_end_turn_effects(world: &mut World, player: PlayerId) -> ChangeLog 
 
     if let Some(owned_pieces) = world.get::<OwnsPieces>(player_ent) {
         for piece in owned_pieces.list().iter().copied().collect::<Box<[_]>>() {
+            let tile_entity = world
+                .get::<OccupiesTile>(piece)
+                .expect("all pieces should have an id.")
+                .0;
+
             let tile_id = *world
-                .get::<TileId>(
-                    world
-                        .get::<OccupiesTile>(piece)
-                        .expect("all pieces should have an id.")
-                        .0,
-                )
+                .get::<TileId>(tile_entity)
                 .expect("all tile entities must have a TileId");
+
+            if let Some(TileType::Gold) = world.get::<TileType>(tile_entity)
+                && let Some(mut coins) = world.get_mut::<Coins>(player_ent)
+            {
+                coins.0 += GOLD_TILE_COIN_YEILD;
+                log.write(ActionEffect::AlteredCoins {
+                    player,
+                    delta_coins: GOLD_TILE_COIN_YEILD as i32,
+                    from_tile: Some(tile_id),
+                });
+            }
 
             let mut order_information = world.get_mut::<OrdersReceivable>(piece).expect(
                 "Pieces should always have information about how many orders they can use.",

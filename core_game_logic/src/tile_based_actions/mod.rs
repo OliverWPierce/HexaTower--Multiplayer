@@ -15,17 +15,26 @@ use thiserror::Error;
 use crate::{
     forensic_action_descriptions::{ForensicDescribe, TextSnippet},
     requests::ChangeLog,
-    tile_based_actions::selection_mechanics::{InvalidSelection, SelectionData},
+    tile_based_actions::selection_mechanics::SelectionData,
     tile_mapping::{TileId, TileIdServer},
 };
 
 pub mod change_tile_type;
-pub mod damage_piece;
+pub mod damage_3fan;
+pub mod damage_adjacent;
+pub mod damage_forward;
+pub mod give_self_coins;
+pub mod heal_pieces;
 pub mod make_market_tile;
 pub mod move_piece;
+pub mod rotate_a_piece;
 mod selection_mechanics;
 pub mod spawn_pieces;
+pub mod swap_tp;
+pub mod upgrade_health;
+pub mod upgrade_piece_orders;
 
+pub use selection_mechanics::InvalidSelection;
 pub use selection_mechanics::SelectedTile;
 pub use selection_mechanics::State;
 

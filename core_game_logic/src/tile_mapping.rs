@@ -58,6 +58,7 @@ impl TileIdServer {
 pub const SQRT_3: f32 = 1.7320508;
 
 /// The total number of tiles on the board, including the tile with id zero. This is based on the number of rings the board was created with, with tile zero counted as ring zero. (ie. the first ring to actually look like a ring is ring 1.)
+#[inline]
 pub fn tiles_on_board(rings_on_board: u32) -> u32 {
     (3 * (rings_on_board + 1) * rings_on_board) + 1
 }
@@ -78,6 +79,7 @@ pub const SOUTH_WEST: HexVector2d = HexVector2d { a: 0, b: -1 };
 impl Mul<i32> for HexVector2d {
     type Output = Self;
 
+    #[inline]
     fn mul(self, rhs: i32) -> Self::Output {
         HexVector2d {
             a: self.a * rhs,
@@ -89,6 +91,7 @@ impl Mul<i32> for HexVector2d {
 impl Add for HexVector2d {
     type Output = Self;
 
+    #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         HexVector2d {
             a: self.a + rhs.a,
@@ -100,6 +103,7 @@ impl Add for HexVector2d {
 impl Sub for HexVector2d {
     type Output = Self;
 
+    #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         HexVector2d {
             a: self.a - rhs.a,
@@ -225,7 +229,6 @@ impl HexVector2d {
             self + SOUTH_WEST,
         ]
     }
-
     pub fn adjacent_ids_with_depth(self, depth: u8, server: &TileIdServer) -> Box<[TileId]> {
         let mut found_ids = Vec::new();
 
@@ -236,6 +239,26 @@ impl HexVector2d {
         }
 
         found_ids.into_boxed_slice()
+    }
+
+    #[inline]
+    pub fn ids_in_direction(
+        self,
+        direction: HexVector2d,
+        depth: u8,
+        server: &TileIdServer,
+    ) -> Box<[TileId]> {
+        let mut ids = Vec::new();
+
+        for i in 1..=depth {
+            let Some(id) = (self + direction.mul(i as i32)).to_valid_tile_id(server) else {
+                continue;
+            };
+
+            ids.push(id);
+        }
+
+        ids.into()
     }
 }
 

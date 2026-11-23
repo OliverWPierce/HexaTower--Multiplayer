@@ -254,14 +254,14 @@ mod display_themes {
     pub fn color_for_tile_type_under_default_theme(tile_type: &TileType) -> Color {
         match tile_type {
             TileType::Basic => SLATE_500.into(),
-            TileType::Ex1 => PURPLE_400.into(),
+            TileType::Gold => PURPLE_400.into(),
         }
     }
 
     pub fn name_for_tile_type_under_default_theme(tile_type: &TileType) -> String {
         match tile_type {
             TileType::Basic => "Basic".into(),
-            TileType::Ex1 => "Corrupted".into(),
+            TileType::Gold => "Troves".into(),
         }
     }
 }
@@ -536,9 +536,12 @@ mod execution_button {
         logical_world: &LogicalWorld,
         operating_player: &OperatingPlayer,
     ) -> Result<Option<Blocker>, BevyError> {
-        let action = action_manager.loaded_action().ok_or(
-            "Tried to calculate action execution blockers, but there was no loaded action",
-        )?;
+        let Some(action) = action_manager.loaded_action() else {
+            #[cfg(debug_assertions)]
+            warn!("Tried to calculate action execution blockers, but there was no loaded action");
+
+            return Ok(Some(Blocker("No action is loaded.".into())));
+        };
 
         if let Some(cache) = {
             match action {

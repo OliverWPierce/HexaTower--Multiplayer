@@ -18,7 +18,7 @@ pub const LOGICAL_CARDS_FOR_TESTING: [LogicalCard; 6] = [
     LogicalCard {
         functionality: CardFunction::TileConversionToSingleType {
             selection_bounds: 1..1,
-            target_type: TileType::Ex1,
+            target_type: TileType::Gold,
         },
     },
     LogicalCard {
@@ -38,14 +38,14 @@ pub const LOGICAL_CARDS_FOR_TESTING: [LogicalCard; 6] = [
         functionality: CardFunction::SpawnPiece {
             selection_bounds: 1..1,
             piece_archetype: ArchetypeId(2),
-            restrictions: SpawningRestrictions::StandardRestrictions,
+            restrictions: SpawningRestrictions::StandardRestrictions { depth: 1 },
         },
     },
     LogicalCard {
         functionality: CardFunction::SpawnPiece {
             selection_bounds: 1..1,
             piece_archetype: ArchetypeId(0),
-            restrictions: SpawningRestrictions::StandardRestrictions,
+            restrictions: SpawningRestrictions::StandardRestrictions { depth: 1 },
         },
     },
 ];
@@ -72,7 +72,7 @@ pub const STARTING_CARDS_FOR_TESTING: [CardId; 4] = [CardId(5), CardId(4), CardI
 pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] = [
     LogicalPieceArchetype {
         max_health: 23,
-        starting_orders_per_round: 1,
+        orders_per_round: 1,
         orders: Orders([
             Some(OrderId(0)),
             Some(OrderId(2)),
@@ -84,10 +84,11 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
         default_monetary_value: 5,
         is_win_condition: false,
         is_spawnpoint: false,
+        creates_market: None,
     },
     LogicalPieceArchetype {
         max_health: 45,
-        starting_orders_per_round: 2,
+        orders_per_round: 2,
         orders: Orders([
             Some(OrderId(1)),
             Some(OrderId(0)),
@@ -99,15 +100,17 @@ pub const LOGICAL_PIECES_FOR_TESTING: [crate::pieces::LogicalPieceArchetype; 3] 
         default_monetary_value: 4,
         is_win_condition: true,
         is_spawnpoint: true,
+        creates_market: None,
     },
     LogicalPieceArchetype {
         max_health: 12,
-        starting_orders_per_round: 1,
+        orders_per_round: 1,
         orders: Orders([Some(OrderId(1)), None, None, None, None]),
         gives_extra_player_order: true,
         default_monetary_value: 8,
         is_win_condition: false,
         is_spawnpoint: false,
+        creates_market: None,
     },
 ];
 
@@ -127,7 +130,7 @@ pub const LOGICAL_ORDERS_FOR_TESTING: [LogicalOrder; 3] = [
     LogicalOrder {
         functionality: crate::orders::OrderFunction::ConvertAdjacentTiles {
             selection_range: 1..3,
-            target_type: TileType::Ex1,
+            target_type: TileType::Gold,
         },
     },
 ];

@@ -9,8 +9,14 @@ use crate::{
     tile_based_actions::{
         TileAction, TileActionProcessCache,
         change_tile_type::{AdjecentRestriction, ConvertTileTo},
-        damage_piece::PieceAttacksAdjacent,
+        damage_3fan::PieceAttacks3Fan,
+        damage_adjacent::PieceAttacksAdjacent,
+        damage_forward::PieceAttacksForward,
+        give_self_coins::GiveOwnerCoins,
+        heal_pieces::PieceHealsAdjacent,
         move_piece::{MovePiece, MovementMethod},
+        rotate_a_piece::RotatePiece,
+        swap_tp::SwapPiecesWithFriendly,
     },
     tile_mapping::TileId,
     tiles::TileType,
@@ -26,6 +32,26 @@ pub enum OrderFunction {
         depth: u8,
         selection_range: Range<usize>,
         damage: u32,
+    },
+    GiveOwnedCurrency {
+        ammount: u32,
+    },
+    Rotate,
+    DamageForward {
+        depth: u8,
+        selection_range: Range<usize>,
+        damage: u32,
+    },
+    HealAdjacentAndSelf {
+        amount: u32,
+        allow_self: bool,
+        selection_range: Range<usize>,
+        selection_depth: u8,
+    },
+    SwapSelf,
+    Attack3Fan {
+        damage: u32,
+        selection_range: Range<usize>,
     },
 }
 
@@ -80,6 +106,91 @@ impl OrderFunction {
                             attacker_occupies_tile: piece_occupies_tile,
                             damage: *damage,
                             adjacency_depth: *depth,
+                        },
+                        selection_range.clone(),
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::GiveOwnedCurrency { ammount } => Ok(ActionProcessCache::TileAction(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        GiveOwnerCoins {
+                            tile_of_piece: piece_occupies_tile,
+                            ammount: *ammount,
+                        },
+                        1..1,
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::Rotate => Ok(ActionProcessCache::TileAction(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        RotatePiece {
+                            piece_on_tile: piece_occupies_tile,
+                        },
+                        1..1,
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::DamageForward {
+                depth,
+                selection_range,
+                damage,
+            } => Ok(ActionProcessCache::from(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        PieceAttacksForward {
+                            attacker_occupies_tile: piece_occupies_tile,
+                            damage: *damage,
+                            depth: *depth,
+                        },
+                        selection_range.clone(),
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::HealAdjacentAndSelf {
+                amount,
+                allow_self,
+                selection_depth,
+                selection_range,
+            } => Ok(ActionProcessCache::from(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        PieceHealsAdjacent {
+                            allow_self: *allow_self,
+                            healer_occupies_tile: piece_occupies_tile,
+                            heal: *amount,
+                            adjacency_depth: *selection_depth,
+                        },
+                        selection_range.clone(),
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::SwapSelf => Ok(ActionProcessCache::from(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        SwapPiecesWithFriendly {
+                            acting_piece_on_tile: piece_occupies_tile,
+                        },
+                        1..1,
+                    )?,
+                    world,
+                ),
+            )),
+            OrderFunction::Attack3Fan {
+                damage,
+                selection_range,
+            } => Ok(ActionProcessCache::from(
+                TileActionProcessCache::initialize(
+                    TileAction::new(
+                        PieceAttacks3Fan {
+                            attacker_occupies_tile: piece_occupies_tile,
+                            damage: *damage,
                         },
                         selection_range.clone(),
                     )?,
