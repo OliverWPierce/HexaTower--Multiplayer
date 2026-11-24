@@ -13,7 +13,8 @@ use crate::{
     vis_pieces::VisPiecesPlugin, vis_tiles::VisTilesPlugin,
 };
 
-const VERSION_NUMBER: u64 = 1;
+pub const VERSION_NUMBER: u64 = 1;
+pub const HEXATOWER_APP_ID_FOR_STEAM: u32 = 480;
 
 mod cameras;
 mod functional_assets;

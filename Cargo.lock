@@ -3094,6 +3094,7 @@ dependencies = [
  "core_game_logic",
  "postcard",
  "rand",
+ "renet_steam",
  "roman-numerals",
  "ron",
  "serde",
@@ -4230,6 +4231,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "paste"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4595,9 +4602,9 @@ checksum = "19b30a45b0cd0bcca8037f3d0dc3421eaf95327a17cad11964fb8179b4fc4832"
 
 [[package]]
 name = "renet"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8535f2f4b5afe5e31fc37be4b8a1f167e61177f356b1c6ee8456b7045d6c74c0"
+checksum = "4ff4fbced648dbc74405b8aa88a95e8392c83ce7585ce74a8b3e140a0cf6f27a"
 dependencies = [
  "bytes",
  "log",
@@ -4613,6 +4620,17 @@ dependencies = [
  "log",
  "renet",
  "renetcode",
+]
+
+[[package]]
+name = "renet_steam"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35a1688bfa8eeddcf20c1c7f61bb8c03cf4636822c4a6c956de837987db981d9"
+dependencies = [
+ "log",
+ "renet",
+ "steamworks",
 ]
 
 [[package]]
@@ -4953,6 +4971,24 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "steamworks"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ff29921f6a7e8c85b0c971ec3c42002b9f535e3b8f4358cb22911d43709739a"
+dependencies = [
+ "bitflags 2.13.0",
+ "paste",
+ "steamworks-sys",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "steamworks-sys"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae139f051204a4af015d4f0ed3a1f7a51020d03a44c7cf249168c543d88131e9"
 
 [[package]]
 name = "strict-num"
