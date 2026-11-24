@@ -1,11 +1,16 @@
 use std::marker::PhantomData;
+use std::net::{SocketAddr, UdpSocket};
 use std::time::SystemTime;
 
 use bevy::ecs::component::Mutable;
-use bevy::ecs::storage::Column;
 use bevy::prelude::*;
 use bevy::text::EditableText;
 use bevy::{color::palettes::tailwind::*, text::TextCursorStyle};
+use bevy_renet::netcode::{
+    ClientAuthentication, NetcodeClientTransport, NetcodeServerTransport, ServerAuthentication,
+    ServerConfig,
+};
+use bevy_renet::renet::{ConnectionConfig, DefaultChannel};
 use bevy_renet::{RenetClient, RenetServer};
 use core_game_logic::players::PlayerData;
 use core_game_logic::tile_mapping::tiles_on_board;
@@ -13,7 +18,7 @@ use core_game_logic::tiles::TileType;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
-use crate::{HEXATOWER_APP_ID_FOR_STEAM, VERSION_NUMBER, functional_assets};
+use crate::{VERSION_NUMBER, functional_assets};
 
 use crate::cameras::{MainMenuCam, spawn_main_menu_cam};
 use crate::functional_assets::{LOGICAL_MARKETS, create_board};
@@ -32,6 +37,606 @@ impl Plugin for MainMenuAndLobbyPluggin {
             OnEnter(AppState::MainMenu),
             render_main_menu.after(spawn_main_menu_cam),
         );
+        app.add_systems(
+            OnEnter(AppState::ParametersScreen),
+            render_parameters_screen,
+        );
+        app.add_systems(
+            OnEnter(AppState::PreGame),
+            render_pregame_if_server.run_if(
+                resource_exists::<RenetServer>
+                    .and_then(resource_exists_and_changed::<InfoForConnectedClients>),
+            ),
+        );
+
+        app.add_systems(
+            OnEnter(AppState::PreGame),
+            render_pre_game_if_client.run_if(resource_exists_and_equals(
+                MultiplayerNetworkingMode::Client,
+            )),
+        );
+
+        app.add_systems(
+            Update,
+            render_client_connection_status_during_pregame.run_if(
+                in_state(AppState::PreGame).and_then(resource_exists_and_changed::<RenetClient>),
+            ),
+        );
+
+        app.add_systems(
+            Update,
+            render_pregame_if_server.run_if(
+                in_state(AppState::PreGame).and_then(
+                    resource_exists::<RenetServer>
+                        .and_then(resource_exists_and_changed::<InfoForConnectedClients>),
+                ),
+            ),
+        );
+
+        app.add_systems(
+            Update,
+            get_client_info.run_if(
+                in_state(AppState::PreGame).and_then(resource_exists_and_changed::<RenetServer>),
+            ),
+        );
+    }
+}
+
+const HEADER_SIZE: FontSize = FontSize::Vh(6.0);
+
+const BUTTON_TEXT_SIZE: FontSize = FontSize::Vh(6.0);
+const BUTTON_HEIGHT: Val = Val::Vh(10.0);
+
+fn render_main_menu(mut commands: Commands, camera: Single<Entity, With<MainMenuCam>>) {
+    let source_node = commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceAround,
+                ..default()
+            },
+            BackgroundColor(UNIVERSAL_BACKGROUND),
+            MenusBackgroundNode,
+            UiTargetCamera(camera.entity()),
+        ))
+        .id();
+
+    commands.spawn((
+        ChildOf(source_node),
+        Text::new("Hexatower"),
+        TextFont::from_font_size(HEADER_SIZE),
+    ));
+
+    let button_bundle = (
+        ChildOf(source_node),
+        Node {
+            width: Val::Percent(60.0),
+            height: BUTTON_HEIGHT,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+            border_radius: BorderRadius::all(Val::Px(6.0)),
+            ..default()
+        },
+        ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+            BorderColor::all(SLATE_800),
+            BackgroundColor(SLATE_700.into()),
+            BorderColor::all(SLATE_500),
+            BackgroundColor(SLATE_600.into()),
+        ),
+    );
+
+    commands
+        .spawn((
+            button_bundle.clone(),
+            children![(
+                Text::new("Join Game"),
+                TextFont::from_font_size(BUTTON_TEXT_SIZE),
+            )],
+        ))
+        .observe(
+            |_: On<Pointer<Click>>,
+             mut commands: Commands,
+             mut state: ResMut<NextState<AppState>>| {
+                commands.insert_resource(MultiplayerNetworkingMode::Client);
+                state.set(AppState::ParametersScreen);
+            },
+        );
+
+    commands
+        .spawn((
+            button_bundle.clone(),
+            children![(
+                Text::new("Host and Play"),
+                TextFont::from_font_size(BUTTON_TEXT_SIZE),
+            )],
+        ))
+        .observe(
+            |_: On<Pointer<Click>>,
+             mut commands: Commands,
+             mut state: ResMut<NextState<AppState>>| {
+                commands.insert_resource(MultiplayerNetworkingMode::Host);
+                state.set(AppState::ParametersScreen);
+            },
+        );
+
+    commands
+        .spawn((
+            button_bundle.clone(),
+            children![(
+                Text::new("Exit"),
+                TextFont::from_font_size(BUTTON_TEXT_SIZE),
+            )],
+        ))
+        .observe(|_: On<Pointer<Click>>, mut commands: Commands| {
+            commands.write_message(AppExit::Success);
+        });
+}
+
+#[derive(Debug, Component)]
+struct MenusBackgroundNode;
+
+fn render_parameters_screen(
+    networking_mode: Res<MultiplayerNetworkingMode>,
+    background_node: Single<Entity, With<MenusBackgroundNode>>,
+    mut commands: Commands,
+) {
+    commands.entity(background_node.entity()).despawn_children();
+
+    #[derive(Debug, Component)]
+    struct ServerIpAdressCollectionNode;
+    #[derive(Debug, Component)]
+    struct GamertagCollectionNode;
+    #[derive(Debug, Component)]
+    struct ClientIpAdressCollectionNode;
+
+    match *networking_mode {
+        MultiplayerNetworkingMode::SingleDevice => todo!(),
+        MultiplayerNetworkingMode::Host => {
+            commands.spawn((
+                ChildOf(background_node.entity()),
+                Text::new("Host Game"),
+                TextFont::from_font_size(HEADER_SIZE),
+            ));
+
+            commands.spawn((
+                Node {
+                    width: Val::Percent(25.0),
+                    height: Val::Vh(7.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ChildOf(background_node.entity()),
+                children![
+                    (
+                        Text::new("IP address and port of server:"),
+                        TextFont::from_font_size(FontSize::Vh(2.0)),
+                    ),
+                    (
+                        Node {
+                            width: Val::Percent(100.0),
+                            border: px(2).all(),
+                            ..Default::default()
+                        },
+                        ServerIpAdressCollectionNode,
+                        BorderColor::from(Color::from(SLATE_700)),
+                        EditableText {
+                            visible_width: Some(10.),
+                            allow_newlines: false,
+                            max_characters: Some(25),
+                            ..Default::default()
+                        },
+                        TextLayout::no_wrap(),
+                        TextFont {
+                            font_size: FontSize::Vh(4.0),
+                            ..default()
+                        },
+                        TextCursorStyle::default(),
+                        BackgroundColor(SLATE_800.into()),
+                    )
+                ],
+            ));
+
+            commands.spawn((
+                Node {
+                    width: Val::Percent(25.0),
+                    height: Val::Vh(7.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ChildOf(background_node.entity()),
+                children![
+                    (
+                        Text::new("IP address and port to receive client messages on:"),
+                        TextFont::from_font_size(FontSize::Vh(2.0)),
+                    ),
+                    (
+                        Node {
+                            width: Val::Percent(100.0),
+                            border: px(2).all(),
+                            ..Default::default()
+                        },
+                        ClientIpAdressCollectionNode,
+                        BorderColor::from(Color::from(SLATE_700)),
+                        EditableText {
+                            visible_width: Some(10.),
+                            allow_newlines: false,
+                            max_characters: Some(25),
+                            ..Default::default()
+                        },
+                        TextLayout::no_wrap(),
+                        TextFont {
+                            font_size: FontSize::Vh(4.0),
+                            ..default()
+                        },
+                        TextCursorStyle::default(),
+                        BackgroundColor(SLATE_800.into()),
+                    )
+                ],
+            ));
+
+            commands.spawn((
+                Node {
+                    width: Val::Percent(25.0),
+                    height: Val::Vh(7.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ChildOf(background_node.entity()),
+                children![
+                    (
+                        Text::new("Display name. Enter a title fit for a king."),
+                        TextFont::from_font_size(FontSize::Vh(2.0)),
+                    ),
+                    (
+                        Node {
+                            width: Val::Percent(100.0),
+                            border: px(2).all(),
+                            ..Default::default()
+                        },
+                        GamertagCollectionNode,
+                        BorderColor::from(Color::from(SLATE_700)),
+                        EditableText {
+                            visible_width: Some(10.),
+                            allow_newlines: false,
+                            max_characters: Some(15),
+                            ..Default::default()
+                        },
+                        TextLayout::no_wrap(),
+                        TextFont {
+                            font_size: FontSize::Vh(4.0),
+                            ..default()
+                        },
+                        TextCursorStyle::default(),
+                        BackgroundColor(SLATE_800.into()),
+                    )
+                ],
+            ));
+
+            let board_size_ui = display_clickthrough_selectors::<PresetBoardSizes>(&mut commands);
+
+            commands
+                .entity(background_node.entity())
+                .add_child(board_size_ui);
+
+            commands
+                .spawn((
+                    ChildOf(background_node.entity()),
+                    Node {
+                        width: Val::Percent(60.0),
+                        height: BUTTON_HEIGHT,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
+                        ..default()
+                    },
+                    ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+                        BorderColor::all(SLATE_800),
+                        BackgroundColor(SLATE_700.into()),
+                        BorderColor::all(SLATE_500),
+                        BackgroundColor(SLATE_600.into()),
+                    ),
+                    children![(
+                        Text::new("Start Server"),
+                        TextFont::from_font_size(BUTTON_TEXT_SIZE),
+                    )],
+                ))
+                .observe(
+                    |_: On<Pointer<Click>>,
+                     mut commands: Commands,
+                     server_adress: Single<&EditableText, With<ServerIpAdressCollectionNode>>,
+                     name: Single<&EditableText, With<GamertagCollectionNode>>,
+                     client_address: Single<&EditableText, With<ClientIpAdressCollectionNode>>,
+                     mut state: ResMut<NextState<AppState>>| {
+                        let Ok(server_addr) = server_adress.value().to_string().parse() else {
+                            warn!("Invalid server IP adress");
+                            return;
+                        };
+
+                        let Ok(client_addr) =
+                            client_address.value().to_string().parse::<SocketAddr>()
+                        else {
+                            warn!("Invalid client IP adress");
+                            return;
+                        };
+
+                        if name.value().into_iter().len() > 15 {
+                            warn!("Client's name is too long.");
+                            return;
+                        }
+
+                        let Ok(initial_message) = postcard::to_stdvec::<NetworkTransmission>(
+                            &NetworkTransmission::InitialConnectionMessage {
+                                name: name.value().to_string(),
+                                is_spectator: false,
+                            },
+                        ) else {
+                            warn!("Could not serialize the clients name.");
+                            return;
+                        };
+
+                        let socket = UdpSocket::bind(server_addr).unwrap();
+                        let server_config = ServerConfig {
+                            current_time: SystemTime::now()
+                                .duration_since(SystemTime::UNIX_EPOCH)
+                                .unwrap(),
+                            max_clients: 64,
+                            protocol_id: VERSION_NUMBER,
+                            public_addresses: vec![server_addr],
+                            authentication: ServerAuthentication::Unsecure,
+                        };
+
+                        let host_server = RenetServer::new(ConnectionConfig::default());
+                        commands.insert_resource(host_server);
+                        let server_transport =
+                            NetcodeServerTransport::new(server_config, socket).unwrap();
+                        commands.insert_resource(server_transport);
+
+                        let socket = UdpSocket::bind(client_addr).unwrap();
+                        let current_time = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
+                        let authentication = ClientAuthentication::Unsecure {
+                            server_addr,
+                            client_id: HOST_CLIENT_ID,
+                            user_data: None,
+                            protocol_id: VERSION_NUMBER,
+                        };
+
+                        let client_transport =
+                            NetcodeClientTransport::new(current_time, authentication, socket)
+                                .unwrap();
+
+                        commands.insert_resource(client_transport);
+
+                        let mut client = RenetClient::new(ConnectionConfig::default());
+                        client.0.send_message(
+                            DefaultChannel::ReliableOrdered,
+                            initial_message.into_boxed_slice(),
+                        );
+                        commands.insert_resource(client);
+
+                        commands.insert_resource(InfoForConnectedClients(Vec::new()));
+
+                        state.set(AppState::PreGame);
+                    },
+                );
+        }
+        MultiplayerNetworkingMode::Client => {
+            commands.spawn((
+                ChildOf(background_node.entity()),
+                Text::new("Join Game"),
+                TextFont::from_font_size(HEADER_SIZE),
+            ));
+
+            commands.spawn((
+                Node {
+                    width: Val::Percent(25.0),
+                    height: Val::Vh(7.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ChildOf(background_node.entity()),
+                children![
+                    (
+                        Text::new("IP address and port of host:"),
+                        TextFont::from_font_size(FontSize::Vh(2.0)),
+                    ),
+                    (
+                        Node {
+                            width: Val::Percent(100.0),
+                            border: px(2).all(),
+                            ..Default::default()
+                        },
+                        ServerIpAdressCollectionNode,
+                        BorderColor::from(Color::from(SLATE_700)),
+                        EditableText {
+                            visible_width: Some(10.),
+                            allow_newlines: false,
+                            max_characters: Some(25),
+                            ..Default::default()
+                        },
+                        TextLayout::no_wrap(),
+                        TextFont {
+                            font_size: FontSize::Vh(4.0),
+                            ..default()
+                        },
+                        TextCursorStyle::default(),
+                        BackgroundColor(SLATE_800.into()),
+                    )
+                ],
+            ));
+
+            commands.spawn((
+                Node {
+                    width: Val::Percent(25.0),
+                    height: Val::Vh(7.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ChildOf(background_node.entity()),
+                children![
+                    (
+                        Text::new("IP address and port to receive client messages on:"),
+                        TextFont::from_font_size(FontSize::Vh(2.0)),
+                    ),
+                    (
+                        Node {
+                            width: Val::Percent(100.0),
+                            border: px(2).all(),
+                            ..Default::default()
+                        },
+                        ClientIpAdressCollectionNode,
+                        BorderColor::from(Color::from(SLATE_700)),
+                        EditableText {
+                            visible_width: Some(10.),
+                            allow_newlines: false,
+                            max_characters: Some(25),
+                            ..Default::default()
+                        },
+                        TextLayout::no_wrap(),
+                        TextFont {
+                            font_size: FontSize::Vh(4.0),
+                            ..default()
+                        },
+                        TextCursorStyle::default(),
+                        BackgroundColor(SLATE_800.into()),
+                    )
+                ],
+            ));
+
+            commands.spawn((
+                Node {
+                    width: Val::Percent(25.0),
+                    height: Val::Vh(7.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ChildOf(background_node.entity()),
+                children![
+                    (
+                        Text::new("Display name. Enter a title fit for a king."),
+                        TextFont::from_font_size(FontSize::Vh(2.0)),
+                    ),
+                    (
+                        Node {
+                            width: Val::Percent(100.0),
+                            border: px(2).all(),
+                            ..Default::default()
+                        },
+                        GamertagCollectionNode,
+                        BorderColor::from(Color::from(SLATE_700)),
+                        EditableText {
+                            visible_width: Some(10.),
+                            allow_newlines: false,
+                            max_characters: Some(15),
+                            ..Default::default()
+                        },
+                        TextLayout::no_wrap(),
+                        TextFont {
+                            font_size: FontSize::Vh(4.0),
+                            ..default()
+                        },
+                        TextCursorStyle::default(),
+                        BackgroundColor(SLATE_800.into()),
+                    )
+                ],
+            ));
+
+            commands
+                .spawn((
+                    ChildOf(background_node.entity()),
+                    Node {
+                        width: Val::Percent(60.0),
+                        height: BUTTON_HEIGHT,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
+                        ..default()
+                    },
+                    ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+                        BorderColor::all(SLATE_800),
+                        BackgroundColor(SLATE_700.into()),
+                        BorderColor::all(SLATE_500),
+                        BackgroundColor(SLATE_600.into()),
+                    ),
+                    children![(
+                        Text::new("Join"),
+                        TextFont::from_font_size(BUTTON_TEXT_SIZE),
+                    )],
+                ))
+                .observe(
+                    |_: On<Pointer<Click>>,
+                     mut commands: Commands,
+                     server_address: Single<&EditableText, With<ServerIpAdressCollectionNode>>,
+                     name: Single<&EditableText, With<GamertagCollectionNode>>,
+                     client_address: Single<&EditableText, With<ClientIpAdressCollectionNode>>,
+                     mut state: ResMut<NextState<AppState>>| {
+                        if name.value().into_iter().len() > 15 {
+                            warn!("Client's name is too long.");
+                            return;
+                        }
+
+                        let Ok(initial_message) =
+                            postcard::to_stdvec(&NetworkTransmission::InitialConnectionMessage {
+                                name: name.value().to_string(),
+                                is_spectator: false,
+                            })
+                        else {
+                            warn!("Could not serialize the clients name.");
+                            return;
+                        };
+
+                        let Ok(server_addr) = server_address.value().to_string().parse() else {
+                            warn!("Invalid IP adress");
+                            return;
+                        };
+
+                        let Ok(client_addr) =
+                            client_address.value().to_string().parse::<SocketAddr>()
+                        else {
+                            warn!("Invalid client IP adress");
+                            return;
+                        };
+
+                        let mut client = RenetClient::new(ConnectionConfig::default());
+
+                        let time = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
+
+                        let authentication = ClientAuthentication::Unsecure {
+                            server_addr,
+                            client_id: rand::random::<u64>(),
+                            user_data: None,
+                            protocol_id: VERSION_NUMBER,
+                        };
+
+                        let socket = UdpSocket::bind(client_addr).unwrap();
+                        let current_time = time;
+
+                        let transport =
+                            NetcodeClientTransport::new(current_time, authentication, socket)
+                                .unwrap();
+
+                        commands.insert_resource(transport);
+
+                        state.set(AppState::PreGame);
+
+                        client.0.send_message(
+                            DefaultChannel::ReliableOrdered,
+                            initial_message.into_boxed_slice(),
+                        );
+
+                        commands.insert_resource(client);
+                    },
+                );
+        }
     }
 }
 
@@ -181,230 +786,6 @@ pub fn display_clickthrough_selectors<C: ClickThroughSelector>(commands: &mut Co
     overall_box
 }
 
-const HEADER_SIZE: FontSize = FontSize::Vh(6.0);
-const BUTTON_TEXT_SIZE: FontSize = FontSize::Vh(6.0);
-const BUTTON_HEIGHT: Val = Val::Vh(10.0);
-
-fn render_main_menu(mut commands: Commands, camera: Single<Entity, With<MainMenuCam>>) {
-    let source_node = commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceAround,
-                ..default()
-            },
-            BackgroundColor(UNIVERSAL_BACKGROUND),
-            MenusBackgroundNode,
-            UiTargetCamera(camera.entity()),
-        ))
-        .id();
-
-    commands.spawn((
-        ChildOf(source_node),
-        Text::new("Hexatower"),
-        TextFont::from_font_size(HEADER_SIZE),
-    ));
-
-    let button_bundle = (
-        ChildOf(source_node),
-        Node {
-            width: Val::Percent(60.0),
-            height: BUTTON_HEIGHT,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-            border_radius: BorderRadius::all(Val::Px(6.0)),
-            ..default()
-        },
-        ui_panels::hoverable_elements::create_hoverable_ui_bundle(
-            BorderColor::all(SLATE_800),
-            BackgroundColor(SLATE_700.into()),
-            BorderColor::all(SLATE_500),
-            BackgroundColor(SLATE_600.into()),
-        ),
-    );
-
-    commands
-        .spawn((
-            button_bundle.clone(),
-            children![(
-                Text::new("Join Game"),
-                TextFont::from_font_size(BUTTON_TEXT_SIZE),
-            )],
-        ))
-        .observe(
-            |_: On<Pointer<Click>>,
-             mut commands: Commands,
-             mut state: ResMut<NextState<AppState>>| {
-                commands.insert_resource(MultiplayerNetworkingMode::Client);
-                state.set(AppState::ParametersScreen);
-            },
-        );
-
-    commands
-        .spawn((
-            button_bundle.clone(),
-            children![(
-                Text::new("Host and Play"),
-                TextFont::from_font_size(BUTTON_TEXT_SIZE),
-            )],
-        ))
-        .observe(
-            |_: On<Pointer<Click>>,
-             mut commands: Commands,
-             mut state: ResMut<NextState<AppState>>| {
-                commands.insert_resource(MultiplayerNetworkingMode::Host);
-                state.set(AppState::ParametersScreen);
-            },
-        );
-
-    commands
-        .spawn((
-            button_bundle.clone(),
-            children![(
-                Text::new("Party Mode"),
-                TextFont::from_font_size(BUTTON_TEXT_SIZE),
-            )],
-        ))
-        .observe(
-            |_: On<Pointer<Click>>,
-             mut commands: Commands,
-             mut state: ResMut<NextState<AppState>>| {
-                commands.insert_resource(MultiplayerNetworkingMode::SingleDevice);
-                state.set(AppState::ParametersScreen);
-            },
-        );
-
-    commands
-        .spawn((
-            button_bundle.clone(),
-            children![(
-                Text::new("Exit"),
-                TextFont::from_font_size(BUTTON_TEXT_SIZE),
-            )],
-        ))
-        .observe(|_: On<Pointer<Click>>, mut commands: Commands| {
-            commands.write_message(AppExit::Success);
-        });
-}
-
-#[derive(Resource)]
-struct SteamPlayerInfo(renet_steam::steamworks::Client);
-
-fn render_parameters(
-    networking_mode: Res<MultiplayerNetworkingMode>,
-    mut commands: Commands,
-    menu_background: Single<Entity, With<MenusBackgroundNode>>,
-) {
-    commands.spawn((
-        ChildOf(menu_background.entity()),
-        Text::new(match *networking_mode {
-            MultiplayerNetworkingMode::SingleDevice => "Party Mode",
-            MultiplayerNetworkingMode::Host => "Local Host",
-            MultiplayerNetworkingMode::Client => "Join Game",
-        }),
-        TextFont::from_font_size(HEADER_SIZE),
-    ));
-
-    match *networking_mode {
-        MultiplayerNetworkingMode::Client => {
-            let steam_client =
-                renet_steam::steamworks::Client::init_app(HEXATOWER_APP_ID_FOR_STEAM).unwrap();
-
-            commands.insert_resource(SteamPlayerInfo(
-                renet_steam::steamworks::Client::init_app(HEXATOWER_APP_ID_FOR_STEAM).unwrap(),
-            ));
-
-            commands.spawn((
-                ChildOf(menu_background.entity()),
-                Text::new("Availible Friends"),
-                TextFont::from_font_size(FontSize::Vh(3.0)),
-            ));
-
-            let container_for_name_boxes = commands
-                .spawn((
-                    ChildOf(menu_background.entity()),
-                    Node {
-                        width: Val::Percent(100.0),
-                        height: BUTTON_HEIGHT,
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
-                        border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-                        border_radius: BorderRadius::all(Val::Px(6.0)),
-                        overflow: Overflow::scroll_y(),
-                        ..default()
-                    },
-                    BorderColor::all(SLATE_800),
-                ))
-                .id();
-
-            for friend in steam_client
-                .friends()
-                .get_friends(renet_steam::steamworks::FriendFlags::IMMEDIATE)
-            {
-                let Some(game) = friend.game_played() else {
-                    continue;
-                };
-
-                if game.game.app_id().0 != HEXATOWER_APP_ID_FOR_STEAM {
-                    continue;
-                }
-
-                commands
-                    .spawn((
-                        ChildOf(container_for_name_boxes),
-                        Node {
-                            width: Val::Percent(100.0),
-                            height: Val::Vh(4.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-                            border_radius: BorderRadius::all(Val::Px(6.0)),
-                            ..default()
-                        },
-                        ui_panels::hoverable_elements::create_hoverable_ui_bundle(
-                            BorderColor::all(SLATE_800),
-                            BackgroundColor(SLATE_700.into()),
-                            BorderColor::all(SLATE_500),
-                            BackgroundColor(SLATE_600.into()),
-                        ),
-                        children![(
-                            Text::new(friend.name()),
-                            TextFont::from_font_size(FontSize::Vh(2.0)),
-                        )],
-                    ))
-                    .observe(
-                        |_: On<Pointer<Click>>,
-                         mut commands: Commands,
-                         steam_client: Res<SteamPlayerInfo>| {
-                            steam_client
-                                .0
-                                .networking_utils()
-                                .init_relay_network_access();
-                            let connection_config = bevy_renet::renet::ConnectionConfig::default();
-                            let mut client = RenetClient::new(connection_config);
-
-                            // Create steam transport
-                            let server_steam_id = renet_steam::steamworks::SteamId::from_raw(0); // Here goes the steam id of the host
-                            let mut steam_transport = renet_steam::SteamClientTransport::new(
-                                steam_client.0.clone(),
-                                &server_steam_id,
-                            )
-                            .unwrap();
-                        },
-                    );
-            }
-        }
-        _ => todo!(), // render actual parameters,
-    }
-}
-
-#[derive(Debug, Component)]
-struct MenusBackgroundNode;
-
 #[derive(Debug)]
 struct FullyConnectedClient {
     name: String,
@@ -414,7 +795,253 @@ struct FullyConnectedClient {
 #[derive(Debug, Resource)]
 struct InfoForConnectedClients(Vec<FullyConnectedClient>);
 
-type PlayerClientIds = PlayerData<u64>;
+fn render_pregame_if_server(
+    mut commands: Commands,
+    client_info: Res<InfoForConnectedClients>,
+    background_node: Single<Entity, With<MenusBackgroundNode>>,
+) {
+    commands.entity(background_node.entity()).despawn_children();
+
+    commands.spawn((
+        ChildOf(background_node.entity()),
+        Text::new("Fully Connected Players"),
+        TextFont::from_font_size(HEADER_SIZE),
+    ));
+
+    let player_name_displaybox = commands
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            ChildOf(background_node.entity()),
+        ))
+        .id();
+
+    commands.spawn((
+        ChildOf(background_node.entity()),
+        Text::new("Fully Connected Spectators"),
+        TextFont::from_font_size(HEADER_SIZE),
+    ));
+
+    let spectator_name_displaybox = commands
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            ChildOf(background_node.entity()),
+        ))
+        .id();
+
+    let fully_connected_clients = client_info.0.iter();
+
+    let mut player_count = 0;
+
+    for FullyConnectedClient {
+        name, is_spectator, ..
+    } in fully_connected_clients
+    {
+        commands.spawn((
+            ChildOf(if *is_spectator {
+                spectator_name_displaybox
+            } else {
+                player_count += 1;
+                player_name_displaybox
+            }),
+            Text::new(name.clone()),
+        ));
+    }
+
+    if player_count > 1 {
+        commands
+            .spawn((
+                ChildOf(background_node.entity()),
+                Node {
+                    width: Val::Percent(60.0),
+                    height: BUTTON_HEIGHT,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                    border_radius: BorderRadius::all(Val::Px(6.0)),
+                    ..default()
+                },
+                ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+                    BorderColor::all(SLATE_800),
+                    BackgroundColor(SLATE_700.into()),
+                    BorderColor::all(SLATE_500),
+                    BackgroundColor(SLATE_600.into()),
+                ),
+                children![(
+                    Text::new("Start Match"),
+                    TextFont::from_font_size(BUTTON_TEXT_SIZE),
+                )],
+            ))
+            .observe(
+                |_: On<Pointer<Click>>,
+                 mut server: ResMut<RenetServer>,
+                 client_info: Res<InfoForConnectedClients>,
+                 board_size: Res<PresetBoardSizes>,
+                 mut commands: Commands| {
+                    let mut player_names = Vec::new();
+                    let mut player_client_ids = Vec::new();
+
+                    for FullyConnectedClient {
+                        name,
+                        client_id,
+                        is_spectator,
+                    } in client_info.0.iter()
+                    {
+                        if !is_spectator {
+                            player_names.push(name.clone());
+                            player_client_ids.push(*client_id);
+                        }
+                    }
+
+                    let player_names = player_names.into_boxed_slice();
+                    let player_client_ids = player_client_ids.into_boxed_slice();
+
+                    let random_board_generation_info = RandomBoardFeatures::new(*board_size);
+
+                    for client in server.clients_id() {
+                        let start_game_transmission =
+                            NetworkTransmission::StartGame(BoardSetupInstructions {
+                                board_size: *board_size,
+                                player_names: player_names.clone(),
+                                you_are_player: player_client_ids
+                                    .iter()
+                                    .enumerate()
+                                    .find(|(_, client_id)| client == **client_id)
+                                    .map(|(index, _)| index as u8),
+                                initial_market_tiles: random_board_generation_info
+                                    .initial_market_tiles
+                                    .clone(),
+                                initial_special_tiles: random_board_generation_info
+                                    .initial_special_tiles
+                                    .clone(),
+                            });
+
+                        server.send_message(
+                            client,
+                            DefaultChannel::ReliableOrdered,
+                            postcard::to_stdvec(&start_game_transmission).unwrap(),
+                        );
+                    }
+
+                    commands.insert_resource(PlayerClientIds::new(player_client_ids));
+                },
+            );
+    } else {
+        commands.spawn((
+            ChildOf(background_node.entity()),
+            Text::new("Register at least two players to start the game."),
+            TextFont::from_font_size(HEADER_SIZE),
+        ));
+    }
+}
+
+pub type PlayerClientIds = PlayerData<u64>;
+
+fn get_client_info(
+    mut server: ResMut<RenetServer>,
+    mut fully_connected_clients: ResMut<InfoForConnectedClients>,
+) {
+    for client_id in server.clients_id() {
+        if fully_connected_clients
+            .0
+            .iter()
+            .find(
+                |FullyConnectedClient {
+                     client_id: connected_client_id,
+                     ..
+                 }| *connected_client_id == client_id,
+            )
+            .is_none()
+        {
+            while let Some(message) =
+                server.receive_message(client_id, DefaultChannel::ReliableOrdered)
+            {
+                let Ok(NetworkTransmission::InitialConnectionMessage { name, is_spectator }) =
+                    postcard::from_bytes::<NetworkTransmission>(&message)
+                else {
+                    warn!(
+                        "Received unexpected message from client with id {}. Either it could not be deserialized, or it was of an unexpected discriminant for this stage of the app's life.)",
+                        client_id
+                    );
+                    continue;
+                };
+
+                fully_connected_clients.0.push(FullyConnectedClient {
+                    name,
+                    client_id,
+                    is_spectator,
+                });
+
+                let confirmation_message =
+                    postcard::to_stdvec(&NetworkTransmission::ConnectionConfirmationMessage)
+                        .unwrap();
+
+                server.send_message(
+                    client_id,
+                    DefaultChannel::ReliableOrdered,
+                    confirmation_message,
+                );
+            }
+        }
+    }
+}
+
+fn render_pre_game_if_client(
+    mut commands: Commands,
+    background_node: Single<Entity, With<MenusBackgroundNode>>,
+) {
+    commands.entity(background_node.entity()).despawn_children();
+
+    commands.spawn((
+        ChildOf(background_node.entity()),
+        Text::new("Connecting to server..."),
+        TextFont::from_font_size(HEADER_SIZE),
+    ));
+}
+
+fn render_client_connection_status_during_pregame(
+    mut commands: Commands,
+    background_node: Single<Entity, With<MenusBackgroundNode>>,
+    networking_mode: Res<MultiplayerNetworkingMode>,
+    mut client: ResMut<RenetClient>,
+    mut asset_server: ResMut<AssetServer>,
+    mut state: ResMut<NextState<AppState>>,
+) {
+    while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
+        if let Ok(transmission) = postcard::from_bytes::<NetworkTransmission>(&message) {
+            match transmission {
+                NetworkTransmission::ConnectionConfirmationMessage => {
+                    if *networking_mode == MultiplayerNetworkingMode::Host {
+                        println!("Host player/spectator is connected.");
+                        continue;
+                    }
+
+                    commands.entity(background_node.entity()).despawn_children();
+
+                    commands.spawn((
+                        ChildOf(background_node.entity()),
+                        Text::new("Waiting on host to start the game."),
+                        TextFont::from_font_size(HEADER_SIZE),
+                    ));
+                }
+                NetworkTransmission::StartGame(instructions) => {
+                    state.set(AppState::InGame);
+                    commands.entity(background_node.entity()).despawn();
+                    create_board(&mut commands, &mut asset_server, instructions).unwrap()
+                }
+                NetworkTransmission::ActionDone(..) => unreachable!(),
+                NetworkTransmission::InitialConnectionMessage { .. } => {
+                    unreachable!()
+                }
+            }
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BoardSetupInstructions {
