@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 use bevy_obj::ObjPlugin;
-use bevy_renet::{
-    RenetClientPlugin, RenetServerPlugin,
-    netcode::{NetcodeClientPlugin, NetcodeServerPlugin},
-};
+use bevy_renet::{RenetClientPlugin, RenetServerPlugin};
 use core_game_logic::players::PlayerId;
 
 use crate::{
@@ -14,6 +11,9 @@ use crate::{
 };
 
 const VERSION_NUMBER: u64 = 1;
+
+#[cfg(feature = "steam")]
+const STEAM_APP_ID: u32 = 480;
 
 mod cameras;
 mod functional_assets;
@@ -38,11 +38,17 @@ fn main() {
             ObjPlugin,
             VisEffectReactions,
             MainMenuAndLobbyPluggin,
+            CameraManagementPlugin,
             RenetClientPlugin,
             RenetServerPlugin,
-            NetcodeClientPlugin,
-            NetcodeServerPlugin,
-            CameraManagementPlugin,
+            #[cfg(not(feature = "steam"))]
+            bevy_renet::netcode::NetcodeClientPlugin,
+            #[cfg(not(feature = "steam"))]
+            bevy_renet::netcode::NetcodeServerPlugin,
+            #[cfg(feature = "steam")]
+            bevy_renet::steam::SteamClientPlugin,
+            #[cfg(feature = "steam")]
+            bevy_renet::steam::SteamServerPlugin,
         ))
         .init_state::<AppState>()
         .run();

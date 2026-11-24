@@ -179,6 +179,10 @@ fn render_main_menu(mut commands: Commands, camera: Single<Entity, With<MainMenu
 #[derive(Debug, Component)]
 struct MenusBackgroundNode;
 
+#[cfg(feature = "steam")]
+#[derive(Resource)]
+pub struct UserSteamInfo(bevy_renet::steam::steamworks::Client);
+
 fn render_parameters_screen(
     networking_mode: Res<MultiplayerNetworkingMode>,
     background_node: Single<Entity, With<MenusBackgroundNode>>,
@@ -201,7 +205,7 @@ fn render_parameters_screen(
                 Text::new("Host Game"),
                 TextFont::from_font_size(HEADER_SIZE),
             ));
-
+            #[cfg(not(feature = "steam"))]
             commands.spawn((
                 Node {
                     width: Val::Percent(25.0),
@@ -239,7 +243,7 @@ fn render_parameters_screen(
                     )
                 ],
             ));
-
+            #[cfg(not(feature = "steam"))]
             commands.spawn((
                 Node {
                     width: Val::Percent(25.0),
@@ -277,7 +281,7 @@ fn render_parameters_screen(
                     )
                 ],
             ));
-
+            #[cfg(not(feature = "steam"))]
             commands.spawn((
                 Node {
                     width: Val::Percent(25.0),
@@ -322,109 +326,165 @@ fn render_parameters_screen(
                 .entity(background_node.entity())
                 .add_child(board_size_ui);
 
-            commands
-                .spawn((
-                    ChildOf(background_node.entity()),
-                    Node {
-                        width: Val::Percent(60.0),
-                        height: BUTTON_HEIGHT,
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
-                        border_radius: BorderRadius::all(Val::Px(6.0)),
-                        ..default()
-                    },
-                    ui_panels::hoverable_elements::create_hoverable_ui_bundle(
-                        BorderColor::all(SLATE_800),
-                        BackgroundColor(SLATE_700.into()),
-                        BorderColor::all(SLATE_500),
-                        BackgroundColor(SLATE_600.into()),
-                    ),
-                    children![(
-                        Text::new("Start Server"),
-                        TextFont::from_font_size(BUTTON_TEXT_SIZE),
-                    )],
-                ))
-                .observe(
-                    |_: On<Pointer<Click>>,
-                     mut commands: Commands,
-                     server_adress: Single<&EditableText, With<ServerIpAdressCollectionNode>>,
-                     name: Single<&EditableText, With<GamertagCollectionNode>>,
-                     client_address: Single<&EditableText, With<ClientIpAdressCollectionNode>>,
-                     mut state: ResMut<NextState<AppState>>| {
-                        let Ok(server_addr) = server_adress.value().to_string().parse() else {
-                            warn!("Invalid server IP adress");
-                            return;
-                        };
+            let mut start_button = commands.spawn((
+                ChildOf(background_node.entity()),
+                Node {
+                    width: Val::Percent(60.0),
+                    height: BUTTON_HEIGHT,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                    border_radius: BorderRadius::all(Val::Px(6.0)),
+                    ..default()
+                },
+                ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+                    BorderColor::all(SLATE_800),
+                    BackgroundColor(SLATE_700.into()),
+                    BorderColor::all(SLATE_500),
+                    BackgroundColor(SLATE_600.into()),
+                ),
+                children![(
+                    Text::new("Start Server"),
+                    TextFont::from_font_size(BUTTON_TEXT_SIZE),
+                )],
+            ));
 
-                        let Ok(client_addr) =
-                            client_address.value().to_string().parse::<SocketAddr>()
-                        else {
-                            warn!("Invalid client IP adress");
-                            return;
-                        };
+            #[cfg(not(feature = "steam"))]
+            start_button.observe(
+                |_: On<Pointer<Click>>,
+                 mut commands: Commands,
+                 server_adress: Single<&EditableText, With<ServerIpAdressCollectionNode>>,
+                 name: Single<&EditableText, With<GamertagCollectionNode>>,
+                 client_address: Single<&EditableText, With<ClientIpAdressCollectionNode>>,
+                 mut state: ResMut<NextState<AppState>>| {
+                    let Ok(server_addr) = server_adress.value().to_string().parse() else {
+                        warn!("Invalid server IP adress");
+                        return;
+                    };
 
-                        if name.value().into_iter().len() > 15 {
-                            warn!("Client's name is too long.");
-                            return;
-                        }
+                    let Ok(client_addr) = client_address.value().to_string().parse::<SocketAddr>()
+                    else {
+                        warn!("Invalid client IP adress");
+                        return;
+                    };
 
-                        let Ok(initial_message) = postcard::to_stdvec::<NetworkTransmission>(
-                            &NetworkTransmission::InitialConnectionMessage {
-                                name: name.value().to_string(),
-                                is_spectator: false,
-                            },
-                        ) else {
-                            warn!("Could not serialize the clients name.");
-                            return;
-                        };
+                    if name.value().into_iter().len() > 15 {
+                        warn!("Client's name is too long.");
+                        return;
+                    }
 
-                        let socket = UdpSocket::bind(server_addr).unwrap();
-                        let server_config = ServerConfig {
-                            current_time: SystemTime::now()
-                                .duration_since(SystemTime::UNIX_EPOCH)
-                                .unwrap(),
-                            max_clients: 64,
-                            protocol_id: VERSION_NUMBER,
-                            public_addresses: vec![server_addr],
-                            authentication: ServerAuthentication::Unsecure,
-                        };
+                    let Ok(initial_message) = postcard::to_stdvec::<NetworkTransmission>(
+                        &NetworkTransmission::InitialConnectionMessage {
+                            name: name.value().to_string(),
+                            is_spectator: false,
+                        },
+                    ) else {
+                        warn!("Could not serialize the clients name.");
+                        return;
+                    };
 
-                        let host_server = RenetServer::new(ConnectionConfig::default());
-                        commands.insert_resource(host_server);
-                        let server_transport =
-                            NetcodeServerTransport::new(server_config, socket).unwrap();
-                        commands.insert_resource(server_transport);
-
-                        let socket = UdpSocket::bind(client_addr).unwrap();
-                        let current_time = SystemTime::now()
+                    let socket = UdpSocket::bind(server_addr).unwrap();
+                    let server_config = ServerConfig {
+                        current_time: SystemTime::now()
                             .duration_since(SystemTime::UNIX_EPOCH)
-                            .unwrap();
-                        let authentication = ClientAuthentication::Unsecure {
-                            server_addr,
-                            client_id: HOST_CLIENT_ID,
-                            user_data: None,
-                            protocol_id: VERSION_NUMBER,
-                        };
+                            .unwrap(),
+                        max_clients: 64,
+                        protocol_id: VERSION_NUMBER,
+                        public_addresses: vec![server_addr],
+                        authentication: ServerAuthentication::Unsecure,
+                    };
 
-                        let client_transport =
-                            NetcodeClientTransport::new(current_time, authentication, socket)
-                                .unwrap();
+                    let host_server = RenetServer::new(ConnectionConfig::default());
+                    commands.insert_resource(host_server);
+                    let server_transport =
+                        NetcodeServerTransport::new(server_config, socket).unwrap();
+                    commands.insert_resource(server_transport);
 
-                        commands.insert_resource(client_transport);
+                    let socket = UdpSocket::bind(client_addr).unwrap();
+                    let current_time = SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap();
+                    let authentication = ClientAuthentication::Unsecure {
+                        server_addr,
+                        client_id: HOST_CLIENT_ID,
+                        user_data: None,
+                        protocol_id: VERSION_NUMBER,
+                    };
 
-                        let mut client = RenetClient::new(ConnectionConfig::default());
-                        client.0.send_message(
-                            DefaultChannel::ReliableOrdered,
-                            initial_message.into_boxed_slice(),
-                        );
-                        commands.insert_resource(client);
+                    let client_transport =
+                        NetcodeClientTransport::new(current_time, authentication, socket).unwrap();
 
-                        commands.insert_resource(InfoForConnectedClients(Vec::new()));
+                    commands.insert_resource(client_transport);
 
-                        state.set(AppState::PreGame);
-                    },
-                );
+                    let mut client = RenetClient::new(ConnectionConfig::default());
+                    client.0.send_message(
+                        DefaultChannel::ReliableOrdered,
+                        initial_message.into_boxed_slice(),
+                    );
+                    commands.insert_resource(client);
+
+                    commands.insert_resource(InfoForConnectedClients(Vec::new()));
+
+                    state.set(AppState::PreGame);
+                },
+            );
+
+            #[cfg(feature = "steam")]
+            start_button.observe(
+                |_: On<Pointer<Click>>,
+                 mut commands: Commands,
+                 mut state: ResMut<NextState<AppState>>| {
+                    use bevy_renet::steam::{SteamClientTransport, SteamServerConfig};
+
+                    use crate::functional_assets::MAX_VISUAL_PLAYERS;
+
+                    let user_info =
+                        bevy_renet::steam::steamworks::Client::init_app(crate::STEAM_APP_ID)
+                            .unwrap_or_else(|_| todo!());
+
+                    let Ok(initial_message) = postcard::to_stdvec::<NetworkTransmission>(
+                        &NetworkTransmission::InitialConnectionMessage {
+                            name: user_info.friends().name(),
+                            is_spectator: false,
+                        },
+                    ) else {
+                        warn!("Could not serialize the clients name.");
+                        return;
+                    };
+
+                    commands.insert_resource(UserSteamInfo(user_info.clone()));
+
+                    let host_server = RenetServer::new(ConnectionConfig::default());
+                    commands.insert_resource(host_server);
+
+                    let server_transport = bevy_renet::steam::SteamServerTransport::new(
+                        user_info.clone(),
+                        SteamServerConfig {
+                            max_clients: MAX_VISUAL_PLAYERS as usize,
+                            access_permission: bevy_renet::steam::AccessPermission::FriendsOnly,
+                        },
+                    )
+                    .unwrap();
+                    commands.insert_resource(server_transport);
+
+                    let user_id = user_info.user().steam_id();
+
+                    let client_transport = SteamClientTransport::new(user_info, &user_id).unwrap();
+
+                    commands.insert_resource(client_transport);
+
+                    let mut client = RenetClient::new(ConnectionConfig::default());
+                    client.0.send_message(
+                        DefaultChannel::ReliableOrdered,
+                        initial_message.into_boxed_slice(),
+                    );
+                    commands.insert_resource(client);
+
+                    commands.insert_resource(InfoForConnectedClients(Vec::new()));
+
+                    state.set(AppState::PreGame);
+                },
+            );
         }
         MultiplayerNetworkingMode::Client => {
             commands.spawn((
@@ -433,6 +493,7 @@ fn render_parameters_screen(
                 TextFont::from_font_size(HEADER_SIZE),
             ));
 
+            #[cfg(not(feature = "steam"))]
             commands.spawn((
                 Node {
                     width: Val::Percent(25.0),
@@ -471,6 +532,7 @@ fn render_parameters_screen(
                 ],
             ));
 
+            #[cfg(not(feature = "steam"))]
             commands.spawn((
                 Node {
                     width: Val::Percent(25.0),
@@ -508,7 +570,7 @@ fn render_parameters_screen(
                     )
                 ],
             ));
-
+            #[cfg(not(feature = "steam"))]
             commands.spawn((
                 Node {
                     width: Val::Percent(25.0),
@@ -546,7 +608,7 @@ fn render_parameters_screen(
                     )
                 ],
             ));
-
+            #[cfg(not(feature = "steam"))]
             commands
                 .spawn((
                     ChildOf(background_node.entity()),
@@ -636,6 +698,111 @@ fn render_parameters_screen(
                         commands.insert_resource(client);
                     },
                 );
+
+            #[cfg(feature = "steam")]
+            {
+                commands.spawn((
+                    ChildOf(background_node.entity()),
+                    Text::new("Availible Friends"),
+                    TextFont::from_font_size(FontSize::Vh(3.0)),
+                ));
+
+                let container_for_name_boxes = commands
+                    .spawn((
+                        ChildOf(background_node.entity()),
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: BUTTON_HEIGHT,
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center,
+                            border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                            border_radius: BorderRadius::all(Val::Px(6.0)),
+                            overflow: Overflow::scroll_y(),
+                            ..default()
+                        },
+                        BorderColor::all(SLATE_800),
+                    ))
+                    .id();
+
+                let user_info =
+                    bevy_renet::steam::steamworks::Client::init_app(crate::STEAM_APP_ID)
+                        .unwrap_or_else(|_| todo!());
+
+                commands.insert_resource(UserSteamInfo(user_info.clone()));
+
+                for friend in user_info
+                    .friends()
+                    .get_friends(bevy_renet::steam::steamworks::FriendFlags::IMMEDIATE)
+                {
+                    use crate::STEAM_APP_ID;
+
+                    let Some(game) = friend.game_played() else {
+                        continue;
+                    };
+                    if game.game.app_id().0 != STEAM_APP_ID {
+                        continue;
+                    }
+                    let friend_id = friend.id();
+
+                    commands
+                        .spawn((
+                            ChildOf(container_for_name_boxes),
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Vh(4.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                                border_radius: BorderRadius::all(Val::Px(6.0)),
+                                ..default()
+                            },
+                            ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+                                BorderColor::all(SLATE_800),
+                                BackgroundColor(SLATE_700.into()),
+                                BorderColor::all(SLATE_500),
+                                BackgroundColor(SLATE_600.into()),
+                            ),
+                            children![(
+                                Text::new(friend.name()),
+                                TextFont::from_font_size(FontSize::Vh(2.0)),
+                            )],
+                        ))
+                        .observe(
+                            move |_: On<Pointer<Click>>,
+                             mut commands: Commands,
+                             user_info: Res<UserSteamInfo>,
+                             mut state: ResMut<NextState<AppState>>| {
+                                use bevy_renet::steam::SteamClientTransport;
+
+                                let Ok(initial_message) = postcard::to_stdvec(
+                                    &NetworkTransmission::InitialConnectionMessage {
+                                        name: user_info.0.friends().name(),
+                                        is_spectator: false,
+                                    },
+                                ) else {
+                                    warn!("Could not serialize the clients name.");
+                                    return;
+                                };
+
+                                let mut client = RenetClient::new(ConnectionConfig::default());
+
+                                let transport =
+                                    SteamClientTransport::new(user_info.0.clone(), &friend_id).unwrap();
+
+                                commands.insert_resource(transport);
+
+                                state.set(AppState::PreGame);
+
+                                client.0.send_message(
+                                    DefaultChannel::ReliableOrdered,
+                                    initial_message.into_boxed_slice(),
+                                );
+
+                                commands.insert_resource(client);
+                            },
+                        );
+                }
+            }
         }
     }
 }

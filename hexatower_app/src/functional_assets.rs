@@ -23,6 +23,8 @@ use crate::{
     vis_pieces::visual_piece_archetypes_storage::{BasePlatesDirectory, VisualPieceArchetype},
 };
 
+pub const MAX_VISUAL_PLAYERS: u8 = 6;
+
 #[derive(Debug, ScheduleLabel, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SetUpBoard;
 
