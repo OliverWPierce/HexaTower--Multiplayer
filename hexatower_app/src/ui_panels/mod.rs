@@ -757,7 +757,7 @@ fn add_description(
                 core_game_logic::forensic_action_descriptions::LinkedGamplayElement::Tile(
                     tile_type,
                 ) => {
-                    let tile_type = tile_type.clone();
+                    let tile_type = *tile_type;
 
                     commands
                         .spawn((

@@ -97,7 +97,7 @@ impl ForensicDescribe for ActionEffect {
         match self {
             ActionEffect::ConvertedTileType { tile, new_type } => [
                 TextSnippet::new_basic_text(format!("Converted tile {:?}", tile.id())),
-                TextSnippet::Link(LinkedGamplayElement::Tile(new_type.clone())),
+                TextSnippet::Link(LinkedGamplayElement::Tile(*new_type)),
                 TextSnippet::new_basic_text("."),
             ]
             .into(),

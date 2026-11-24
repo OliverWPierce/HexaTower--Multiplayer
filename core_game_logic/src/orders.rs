@@ -74,7 +74,7 @@ impl OrderFunction {
             } => Ok(TileActionProcessCache::initialize(
                 TileAction::new(
                     ConvertTileTo {
-                        target_type: target_type.clone(),
+                        target_type: *target_type,
                         restrictions: Some(AdjecentRestriction {
                             adjacent_to: piece_occupies_tile,
                         }),

@@ -68,7 +68,7 @@ impl CardFunction {
             } => TileActionProcessCache::initialize(
                 TileAction::new(
                     ConvertTileTo {
-                        target_type: target_type.clone(),
+                        target_type: *target_type,
                         restrictions: None,
                     },
                     selection_bounds.clone(),

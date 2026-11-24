@@ -273,7 +273,11 @@ fn try_execute_loaded_action(
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum NetworkTransmission {
-    InitialConnectionMessage { name: String, is_spectator: bool },
+    InitialConnectionMessage {
+        name: String,
+        is_spectator: bool,
+        version_number: u64,
+    },
     ConnectionConfirmationMessage,
     StartGame(BoardSetupInstructions),
     ActionDone(BackendRequest),

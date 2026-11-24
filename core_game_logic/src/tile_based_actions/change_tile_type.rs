@@ -42,10 +42,10 @@ impl TileActionFunctionality for ConvertTileTo {
                 panic!("A tile entity had no component indicating the type of tile it was.")
             };
 
-            *tile_type = self.target_type.clone();
+            *tile_type = self.target_type;
             log.write(ActionEffect::ConvertedTileType {
                 tile: tile.id,
-                new_type: self.target_type.clone(),
+                new_type: self.target_type,
             });
         }
 
@@ -80,7 +80,7 @@ impl ForensicDescribe for ConvertTileTo {
     fn forensic_description(&self) -> Box<[crate::forensic_action_descriptions::TextSnippet]> {
         Box::new([
             TextSnippet::new_basic_text("Convert selected tiles into "),
-            TextSnippet::Link(LinkedGamplayElement::Tile(self.target_type.clone())),
+            TextSnippet::Link(LinkedGamplayElement::Tile(self.target_type)),
             TextSnippet::new_basic_text(" tiles."),
         ])
     }

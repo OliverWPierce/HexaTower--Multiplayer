@@ -1,11 +1,15 @@
 use std::marker::PhantomData;
+#[cfg(not(feature = "steam"))]
 use std::net::{SocketAddr, UdpSocket};
+#[cfg(not(feature = "steam"))]
 use std::time::SystemTime;
 
+use bevy::color::palettes::tailwind::*;
 use bevy::ecs::component::Mutable;
 use bevy::prelude::*;
-use bevy::text::EditableText;
-use bevy::{color::palettes::tailwind::*, text::TextCursorStyle};
+#[cfg(not(feature = "steam"))]
+use bevy::text::{EditableText, TextCursorStyle};
+#[cfg(not(feature = "steam"))]
 use bevy_renet::netcode::{
     ClientAuthentication, NetcodeClientTransport, NetcodeServerTransport, ServerAuthentication,
     ServerConfig,
@@ -22,7 +26,9 @@ use crate::{VERSION_NUMBER, functional_assets};
 
 use crate::cameras::{MainMenuCam, spawn_main_menu_cam};
 use crate::functional_assets::{LOGICAL_MARKETS, create_board};
-use crate::inputs_interface::{HOST_CLIENT_ID, NetworkTransmission};
+#[cfg(not(feature = "steam"))]
+use crate::inputs_interface::HOST_CLIENT_ID;
+use crate::inputs_interface::NetworkTransmission;
 use crate::{
     AppState,
     inputs_interface::MultiplayerNetworkingMode,
@@ -39,7 +45,7 @@ impl Plugin for MainMenuAndLobbyPluggin {
         );
         app.add_systems(
             OnEnter(AppState::ParametersScreen),
-            render_parameters_screen,
+            render_parameters_screen_if_not_joining_game,
         );
         app.add_systems(
             OnEnter(AppState::PreGame),
@@ -183,17 +189,20 @@ struct MenusBackgroundNode;
 #[derive(Resource)]
 pub struct UserSteamInfo(bevy_renet::steam::steamworks::Client);
 
-fn render_parameters_screen(
+fn render_parameters_screen_if_not_joining_game(
     networking_mode: Res<MultiplayerNetworkingMode>,
     background_node: Single<Entity, With<MenusBackgroundNode>>,
     mut commands: Commands,
 ) {
     commands.entity(background_node.entity()).despawn_children();
 
+    #[cfg(not(feature = "steam"))]
     #[derive(Debug, Component)]
     struct ServerIpAdressCollectionNode;
+    #[cfg(not(feature = "steam"))]
     #[derive(Debug, Component)]
     struct GamertagCollectionNode;
+    #[cfg(not(feature = "steam"))]
     #[derive(Debug, Component)]
     struct ClientIpAdressCollectionNode;
 
@@ -377,6 +386,7 @@ fn render_parameters_screen(
                         &NetworkTransmission::InitialConnectionMessage {
                             name: name.value().to_string(),
                             is_spectator: false,
+                            version_number: VERSION_NUMBER,
                         },
                     ) else {
                         warn!("Could not serialize the clients name.");
@@ -446,6 +456,7 @@ fn render_parameters_screen(
                         &NetworkTransmission::InitialConnectionMessage {
                             name: user_info.friends().name(),
                             is_spectator: false,
+                            version_number: VERSION_NUMBER,
                         },
                     ) else {
                         warn!("Could not serialize the clients name.");
@@ -648,6 +659,7 @@ fn render_parameters_screen(
                             postcard::to_stdvec(&NetworkTransmission::InitialConnectionMessage {
                                 name: name.value().to_string(),
                                 is_spectator: false,
+                                version_number: VERSION_NUMBER,
                             })
                         else {
                             warn!("Could not serialize the clients name.");
@@ -730,6 +742,105 @@ fn render_parameters_screen(
 
                 commands.insert_resource(UserSteamInfo(user_info.clone()));
 
+                commands.spawn((
+                    ChildOf(background_node.entity()),
+                    Node {
+                        width: Val::Percent(60.0),
+                        height: BUTTON_HEIGHT,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
+                        ..default()
+                    },
+                    ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+                        BorderColor::all(SLATE_800),
+                        BackgroundColor(SLATE_700.into()),
+                        BorderColor::all(SLATE_500),
+                        BackgroundColor(SLATE_600.into()),
+                    ),
+                    children![(
+                        Text::new("Refresh List of Friends Playing Hexatower"),
+                        TextFont::from_font_size(BUTTON_TEXT_SIZE),
+                    )],
+                )).observe(move |_: On<Pointer<Click>>, user_info: Res<UserSteamInfo>, mut commands: Commands| {
+
+                    commands.entity(container_for_name_boxes).despawn_children();
+
+                    for friend in user_info.0
+                        .friends()
+                        .get_friends(bevy_renet::steam::steamworks::FriendFlags::IMMEDIATE)
+                    {
+                        use crate::STEAM_APP_ID;
+
+                        let Some(game) = friend.game_played() else {
+                            continue;
+                        };
+                        if game.game.app_id().0 != STEAM_APP_ID {
+                            continue;
+                        }
+                        let friend_id = friend.id();
+
+                        commands
+                            .spawn((
+                                ChildOf(container_for_name_boxes),
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Vh(4.0),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    border: UiRect::all(UNIVERSAL_BORDER_WIDTH),
+                                    border_radius: BorderRadius::all(Val::Px(6.0)),
+                                    ..default()
+                                },
+                                ui_panels::hoverable_elements::create_hoverable_ui_bundle(
+                                    BorderColor::all(SLATE_800),
+                                    BackgroundColor(SLATE_700.into()),
+                                    BorderColor::all(SLATE_500),
+                                    BackgroundColor(SLATE_600.into()),
+                                ),
+                                children![(
+                                    Text::new(friend.name()),
+                                    TextFont::from_font_size(FontSize::Vh(2.0)),
+                                )],
+                            ))
+                            .observe(
+                                move |_: On<Pointer<Click>>,
+                                 mut commands: Commands,
+                                 user_info: Res<UserSteamInfo>,
+                                 mut state: ResMut<NextState<AppState>>| {
+                                    use bevy_renet::steam::SteamClientTransport;
+
+                                    let Ok(initial_message) = postcard::to_stdvec(
+                                        &NetworkTransmission::InitialConnectionMessage {
+                                            name: user_info.0.friends().name(),
+                                            is_spectator: false,
+                                            version_number: VERSION_NUMBER,
+                                        },
+                                    ) else {
+                                        warn!("Could not serialize the clients name.");
+                                        return;
+                                    };
+
+                                    let mut client = RenetClient::new(ConnectionConfig::default());
+
+                                    let transport =
+                                        SteamClientTransport::new(user_info.0.clone(), &friend_id).unwrap();
+
+                                    commands.insert_resource(transport);
+
+                                    state.set(AppState::PreGame);
+
+                                    client.0.send_message(
+                                        DefaultChannel::ReliableOrdered,
+                                        initial_message.into_boxed_slice(),
+                                    );
+
+                                    commands.insert_resource(client);
+                                },
+                            );}
+                });
+
                 for friend in user_info
                     .friends()
                     .get_friends(bevy_renet::steam::steamworks::FriendFlags::IMMEDIATE)
@@ -778,6 +889,7 @@ fn render_parameters_screen(
                                     &NetworkTransmission::InitialConnectionMessage {
                                         name: user_info.0.friends().name(),
                                         is_spectator: false,
+                                        version_number: VERSION_NUMBER,
                                     },
                                 ) else {
                                     warn!("Could not serialize the clients name.");
@@ -1128,8 +1240,11 @@ fn get_client_info(
             while let Some(message) =
                 server.receive_message(client_id, DefaultChannel::ReliableOrdered)
             {
-                let Ok(NetworkTransmission::InitialConnectionMessage { name, is_spectator }) =
-                    postcard::from_bytes::<NetworkTransmission>(&message)
+                let Ok(NetworkTransmission::InitialConnectionMessage {
+                    name,
+                    is_spectator,
+                    version_number,
+                }) = postcard::from_bytes::<NetworkTransmission>(&message)
                 else {
                     warn!(
                         "Received unexpected message from client with id {}. Either it could not be deserialized, or it was of an unexpected discriminant for this stage of the app's life.)",
@@ -1137,6 +1252,19 @@ fn get_client_info(
                     );
                     continue;
                 };
+
+                info!(
+                    "Received message from {} with client_id {}",
+                    name, client_id
+                );
+
+                if version_number != VERSION_NUMBER {
+                    warn!(
+                        "Received initial connection message from client with id {}, but they were using a different version of the game.",
+                        client_id
+                    );
+                    todo!()
+                }
 
                 fully_connected_clients.0.push(FullyConnectedClient {
                     name,
