@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy_renet::{RenetClient, RenetServer, renet::DefaultChannel};
 use core_game_logic::{
-    players::ActivePlayer,
+    players::{ActivePlayer, PlayerDirectory},
     requests::{BackendRequest, RequestType, try_consume_request},
 };
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,7 @@ use crate::{
     OperatingPlayer, VERSION_NUMBER,
     functional_assets::LogicalWorld,
     inputs_interface::{ActionInputManager, RequestLog},
+    main_menu::PlayerClientIds,
 };
 
 pub struct MultiplayerPlugin;
@@ -221,7 +222,33 @@ fn hp_server(
     mut request_log: Option<ResMut<RequestLog>>,
     mut effects_queue: ResMut<crate::inputs_interface::EffectsQueue>,
     mut log_world: ResMut<LogicalWorld>,
+    players: Res<PlayerClientIds>,
 ) {
+    while let Some(x) = server.get_event() {
+        match x {
+            bevy_renet::renet::ServerEvent::ClientConnected { .. } => (),
+            bevy_renet::renet::ServerEvent::ClientDisconnected { client_id, .. } => {
+                let Some(player) =
+                    players.find_id(|player_client_id| *player_client_id == client_id)
+                else {
+                    continue;
+                };
+
+                if core_game_logic::players::compute_player_state(
+                    &log_world.0,
+                    *log_world.0.resource::<PlayerDirectory>().get(player),
+                ) == core_game_logic::players::LifeState::Dead
+                {
+                    continue;
+                }
+
+                todo!(
+                    "An actually alive or pre-life player left the game! I must decide what to do in this case."
+                )
+            }
+        }
+    }
+
     for id in server.clients_id() {
         while let Some(message) = server.receive_message(id, DefaultChannel::ReliableOrdered) {
             let Ok(transmission) = postcard::from_bytes::<NetworkTransmission>(&message) else {
@@ -299,9 +326,8 @@ fn hp_server(
                                 "Server/client desync. Client {} requested to accomplish the following action {:?} which the server found to be invalid according to this error {:?}.",
                                 id, backend_request, err
                             );
-
                             #[cfg(not(debug_assertions))]
-                            todo!()
+                            server.disconnect(id);
                         }
                     }
                 }

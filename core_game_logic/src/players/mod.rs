@@ -28,12 +28,15 @@ impl IndexingId for PlayerId {}
 pub struct PlayerData<D: Sized>(Box<[D]>);
 
 impl<D: Sized> PlayerData<D> {
+    #[inline]
     pub fn get(&self, id: PlayerId) -> &D {
         self.0.index(id.0 as usize)
     }
+    #[inline]
     pub fn new(values: Box<[D]>) -> Self {
         Self(values)
     }
+    #[inline]
     pub fn make_id(&self, desired_id: u8) -> Result<PlayerId, InvalidIdErr<PlayerId>> {
         if desired_id < self.0.len() as u8 {
             Ok(PlayerId(desired_id))
@@ -41,9 +44,17 @@ impl<D: Sized> PlayerData<D> {
             Err(InvalidIdErr(PlayerId(desired_id)))
         }
     }
-
+    #[inline]
     pub fn list(&self) -> &[D] {
         &self.0
+    }
+    #[inline]
+    pub fn find_id<F: Fn(&D) -> bool>(&self, f: F) -> Option<PlayerId> {
+        self.0
+            .iter()
+            .enumerate()
+            .find(|(.., d)| f(*d))
+            .map(|(id, ..)| PlayerId(id as u8))
     }
 
     #[allow(clippy::len_without_is_empty)]
