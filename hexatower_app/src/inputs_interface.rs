@@ -1,30 +1,24 @@
 use std::{collections::VecDeque, f32, time::Duration};
 
 use bevy::prelude::*;
-use bevy_renet::{RenetClient, RenetServer, renet::DefaultChannel};
-use core_game_logic::requests::{
-    ActionEffect, ActionProcessCache, BackendRequest, ChangeLog, InputData, RequestType,
-    try_consume_request,
-};
+use core_game_logic::requests::{ActionEffect, ActionProcessCache, BackendRequest, ChangeLog};
 pub use loaded_action_invariance::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    AppState, OperatingPlayer, functional_assets::LogicalWorld, main_menu::BoardSetupInstructions,
-};
+use crate::{AppState, functional_assets::LogicalWorld, main_menu::BoardSetupInstructions};
 
 pub struct InputInterfacePlugin;
 
 impl Plugin for InputInterfacePlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(try_execute_loaded_action.run_if(in_state(AppState::InGame)));
-        app.add_observer(end_turn.run_if(in_state(AppState::InGame)));
+        // app.add_observer(try_execute_loaded_action.run_if(in_state(AppState::InGame)));
+        // app.add_observer(end_turn.run_if(in_state(AppState::InGame)));
 
         app.add_systems(
             Update,
             (
-                client_receive_in_game_message,
-                server_receive_in_game_messages,
+                // client_receive_in_game_message,
+                // server_receive_in_game_messages,
                 maybe_display_effect,
                 cancel_order,
             )
@@ -42,46 +36,49 @@ pub enum MultiplayerNetworkingMode {
 #[derive(Debug, Event)]
 pub struct TryEndTurn;
 
-fn end_turn(
-    _trigger: On<TryEndTurn>,
-    mut logical_world: ResMut<LogicalWorld>,
-    mut action_input_manager: ResMut<ActionInputManager>,
-    acting_player: Res<OperatingPlayer>,
-    client: Option<ResMut<RenetClient>>,
-    mut effects_queue: ResMut<EffectsQueue>,
-) {
-    let request = BackendRequest {
-        acting_player: acting_player.0,
-        request: RequestType::EndTurn,
-    };
+// fn end_turn(
+//     _trigger: On<TryEndTurn>,
+//     mut logical_world: ResMut<LogicalWorld>,
+//     mut action_input_manager: ResMut<ActionInputManager>,
+//     acting_player: Res<OperatingPlayer>,
+//     client: Option<ResMut<RenetClient>>,
+//     mut effects_queue: ResMut<EffectsQueue>,
+// ) {
+//     let request = BackendRequest {
+//         acting_player: acting_player.0,
+//         request: RequestType::EndTurn,
+//     };
 
-    if let Ok(change_log) = try_consume_request(
-        BackendRequest {
-            acting_player: acting_player.0,
-            request: RequestType::EndTurn,
-        },
-        &mut logical_world.0,
-    ) {
-        if let Some(mut client) = client {
-            client.send_message(
-                DefaultChannel::ReliableOrdered,
-                postcard::to_stdvec(&NetworkTransmission::ActionDone(request)).unwrap(),
-            );
-        }
+//     if let Ok(change_log) = try_consume_request(
+//         BackendRequest {
+//             acting_player: acting_player.0,
+//             request: RequestType::EndTurn,
+//         },
+//         &mut logical_world.0,
+//     ) {
+//         if let Some(mut client) = client {
+//             client.send_message(
+//                 DefaultChannel::ReliableOrdered,
+//                 postcard::to_stdvec(&NetworkTransmission::ActionDone(request)).unwrap(),
+//             );
+//         }
 
-        effects_queue
-            .0
-            .append(&mut VecDeque::from(change_log.inner()));
+//         effects_queue
+//             .0
+//             .append(&mut VecDeque::from(change_log.inner()));
 
-        *action_input_manager = ActionInputManager::default();
-    }
-}
+//         *action_input_manager = ActionInputManager::default();
+//     }
+// }
 
 mod loaded_action_invariance {
     use bevy::prelude::Resource;
     use core_game_logic::{
-        markets::SlotInMarket, orders::OrderFunction, players::InventoryIndex,
-        requests::ActionProcessCache, tile_mapping::TileId,
+        markets::SlotInMarket,
+        orders::OrderFunction,
+        players::InventoryIndex,
+        requests::{ActionProcessCache, RequestType},
+        tile_mapping::TileId,
     };
     use thiserror::Error;
 
@@ -164,7 +161,7 @@ mod loaded_action_invariance {
 
             Ok(())
         }
-
+        #[inline]
         pub fn try_load_order(
             &mut self,
             index_in_piece: u8,
@@ -183,6 +180,7 @@ mod loaded_action_invariance {
             Ok(())
         }
 
+        #[inline]
         pub fn set_active_tile(&mut self, tile: Option<TileId>) {
             self.active_tile = tile;
 
@@ -195,9 +193,57 @@ mod loaded_action_invariance {
                 _ => self.loaded_action = None,
             }
         }
-
+        #[inline]
         pub fn loaded_action(&self) -> Option<&FrontendAction> {
             self.loaded_action.as_ref()
+        }
+
+        #[inline]
+        pub fn clear_action(&mut self) {
+            self.loaded_action = None;
+        }
+    }
+
+    impl From<&ActionInputManager> for Option<RequestType> {
+        fn from(manager: &ActionInputManager) -> Self {
+            {
+                let Some(action) = &manager.loaded_action else {
+                    return None;
+                };
+
+                Some(match action {
+                    FrontendAction::UseCard { index, cache } => RequestType::UseCard {
+                        inventory_index: *index,
+                        input: match cache {
+                            ActionProcessCache::TileAction(tile_action_process_cache) => {
+                                core_game_logic::requests::InputData::SelectedTiles(
+                                    tile_action_process_cache.selected_tiles().into(),
+                                )
+                            }
+                            ActionProcessCache::Ex1 => todo!(),
+                        },
+                    },
+                    FrontendAction::UseOrder {
+                        index_of_order_on_active_piece,
+                        cache,
+                    } => RequestType::UseOrder {
+                        tile: manager.active_tile().unwrap(),
+                        index_of_order: *index_of_order_on_active_piece,
+                        input: match cache {
+                            ActionProcessCache::TileAction(tile_action_process_cache) => {
+                                core_game_logic::requests::InputData::SelectedTiles(
+                                    tile_action_process_cache.selected_tiles().into(),
+                                )
+                            }
+                            ActionProcessCache::Ex1 => todo!(),
+                        },
+                    },
+                    FrontendAction::PurchaseCard { slot } => RequestType::PurchaseCard {
+                        market_tile: manager.active_tile().unwrap(),
+                        slot_in_market: *slot,
+                    },
+                })
+            }
         }
     }
 }
@@ -205,71 +251,71 @@ mod loaded_action_invariance {
 #[derive(Event, Debug)]
 pub struct TryExecuteLoadedAction;
 
-fn try_execute_loaded_action(
-    _trigger: On<TryExecuteLoadedAction>,
-    mut action_manager: ResMut<ActionInputManager>,
-    acting_player: Res<OperatingPlayer>,
-    mut logical_world: ResMut<LogicalWorld>,
-    mut effects_queue: ResMut<EffectsQueue>,
-    client: Option<ResMut<RenetClient>>,
-) -> Result<(), BevyError> {
-    let Some(action) = action_manager.loaded_action() else {
-        warn!("tried to execute an action, but there was no action loaded.");
-        return Ok(());
-    };
+// fn try_execute_loaded_action(
+//     _trigger: On<TryExecuteLoadedAction>,
+//     mut action_manager: ResMut<ActionInputManager>,
+//     acting_player: Res<OperatingPlayer>,
+//     mut logical_world: ResMut<LogicalWorld>,
+//     mut effects_queue: ResMut<EffectsQueue>,
+//     client: Option<ResMut<RenetClient>>,
+// ) -> Result<(), BevyError> {
+//     let Some(action) = action_manager.loaded_action() else {
+//         warn!("tried to execute an action, but there was no action loaded.");
+//         return Ok(());
+//     };
 
-    let request = {
-        match action {
-            FrontendAction::UseCard { index, cache } => {
-                RequestType::UseCard { inventory_index: *index, input: match cache {
-                    ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
-                    ActionProcessCache::Ex1 => todo!(),
-                },  }
-            },
-            FrontendAction::UseOrder { index_of_order_on_active_piece, cache } => {
-                RequestType::UseOrder { tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, index_of_order: *index_of_order_on_active_piece, input: match cache {
-                    ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
-                    ActionProcessCache::Ex1 => todo!(),
-                }, }
-            },
-            FrontendAction::PurchaseCard { slot } => {
-                RequestType::PurchaseCard { market_tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, slot_in_market: *slot }
-            },
-        }
-    };
+//     let request = {
+//         match action {
+//             FrontendAction::UseCard { index, cache } => {
+//                 RequestType::UseCard { inventory_index: *index, input: match cache {
+//                     ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
+//                     ActionProcessCache::Ex1 => todo!(),
+//                 },  }
+//             },
+//             FrontendAction::UseOrder { index_of_order_on_active_piece, cache } => {
+//                 RequestType::UseOrder { tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, index_of_order: *index_of_order_on_active_piece, input: match cache {
+//                     ActionProcessCache::TileAction(tile_action_process_cache) => InputData::SelectedTiles(tile_action_process_cache.selected_tiles().into()),
+//                     ActionProcessCache::Ex1 => todo!(),
+//                 }, }
+//             },
+//             FrontendAction::PurchaseCard { slot } => {
+//                 RequestType::PurchaseCard { market_tile: action_manager.active_tile().ok_or("Invalid data! An action was loaded to purchase a card from a market, without an active tile.")?, slot_in_market: *slot }
+//             },
+//         }
+//     };
 
-    match try_consume_request(
-        BackendRequest {
-            acting_player: acting_player.0,
-            request: request.clone(),
-        },
-        &mut logical_world.0,
-    ) {
-        Ok(change_log) => {
-            action_manager.try_load_action(None)?;
+//     match try_consume_request(
+//         BackendRequest {
+//             acting_player: acting_player.0,
+//             request: request.clone(),
+//         },
+//         &mut logical_world.0,
+//     ) {
+//         Ok(change_log) => {
+//             action_manager.try_load_action(None)?;
 
-            if let Some(mut client) = client {
-                client.send_message(
-                    DefaultChannel::ReliableOrdered,
-                    postcard::to_stdvec(&NetworkTransmission::ActionDone(BackendRequest {
-                        acting_player: acting_player.0,
-                        request: request.clone(),
-                    }))
-                    .unwrap(),
-                );
-            }
+//             if let Some(mut client) = client {
+//                 client.send_message(
+//                     DefaultChannel::ReliableOrdered,
+//                     postcard::to_stdvec(&NetworkTransmission::ActionDone(BackendRequest {
+//                         acting_player: acting_player.0,
+//                         request: request.clone(),
+//                     }))
+//                     .unwrap(),
+//                 );
+//             }
 
-            effects_queue
-                .0
-                .append(&mut VecDeque::from(change_log.inner()));
-        }
-        Err(e) => {
-            warn!("{}", e);
-        }
-    }
+//             effects_queue
+//                 .0
+//                 .append(&mut VecDeque::from(change_log.inner()));
+//         }
+//         Err(e) => {
+//             warn!("{}", e);
+//         }
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum NetworkTransmission {
@@ -283,79 +329,84 @@ pub enum NetworkTransmission {
     ActionDone(BackendRequest),
 }
 
-pub const HOST_CLIENT_ID: u64 = 2144552;
+// pub const HOST_CLIENT_ID: u64 = 2144552;
 
-fn server_receive_in_game_messages(
-    mut server: If<ResMut<RenetServer>>,
-    mut logical_world: ResMut<LogicalWorld>,
-    mut effects_queue: ResMut<EffectsQueue>,
-) {
-    for id in server.clients_id() {
-        while let Some(message) = server.receive_message(id, DefaultChannel::ReliableOrdered) {
-            if let NetworkTransmission::ActionDone(action) =
-                postcard::from_bytes::<NetworkTransmission>(&message).unwrap()
-            {
-                if id == HOST_CLIENT_ID {
-                    server.broadcast_message(DefaultChannel::ReliableOrdered, message);
-                } else {
-                    if let Ok(change_log) = try_consume_request(action, &mut logical_world.0) {
-                        effects_queue
-                            .0
-                            .append(&mut VecDeque::from(change_log.inner()));
+// fn server_receive_in_game_messages(
+//     mut server: If<ResMut<RenetServer>>,
+//     mut logical_world: ResMut<LogicalWorld>,
+//     mut effects_queue: ResMut<EffectsQueue>,
+// ) {
+//     for id in server.clients_id() {
+//         while let Some(message) = server.receive_message(id, DefaultChannel::ReliableOrdered) {
+//             if let NetworkTransmission::ActionDone(action) =
+//                 postcard::from_bytes::<NetworkTransmission>(&message).unwrap()
+//             {
+//                 if id == HOST_CLIENT_ID {
+//                     server.broadcast_message(DefaultChannel::ReliableOrdered, message);
+//                 } else {
+//                     if let Ok(change_log) = try_consume_request(action, &mut logical_world.0) {
+//                         effects_queue
+//                             .0
+//                             .append(&mut VecDeque::from(change_log.inner()));
 
-                        server.broadcast_message_except(
-                            id,
-                            DefaultChannel::ReliableOrdered,
-                            message,
-                        );
-                    } else {
-                        panic!("Desync occured between client {} and the server.", id)
-                    }
-                }
-            }
-        }
-    }
-}
+//                         server.broadcast_message_except(
+//                             id,
+//                             DefaultChannel::ReliableOrdered,
+//                             message,
+//                         );
+//                     } else {
+//                         panic!("Desync occured between client {} and the server.", id)
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
 
-fn client_receive_in_game_message(
-    mut client: If<ResMut<RenetClient>>,
-    networking_mode: Res<MultiplayerNetworkingMode>,
-    mut logical_world: ResMut<LogicalWorld>,
-    mut effects_queue: ResMut<EffectsQueue>,
-    mut action_input_manager: ResMut<ActionInputManager>,
-) {
-    while let Some(message) = client.0.receive_message(DefaultChannel::ReliableOrdered) {
-        if let NetworkTransmission::ActionDone(action) =
-            postcard::from_bytes::<NetworkTransmission>(&message).unwrap()
-        {
-            if *networking_mode == MultiplayerNetworkingMode::Host {
-                continue;
-            }
+// fn client_receive_in_game_message(
+//     mut client: If<ResMut<RenetClient>>,
+//     networking_mode: Res<MultiplayerNetworkingMode>,
+//     mut logical_world: ResMut<LogicalWorld>,
+//     mut effects_queue: ResMut<EffectsQueue>,
+//     mut action_input_manager: ResMut<ActionInputManager>,
+// ) {
+//     while let Some(message) = client.0.receive_message(DefaultChannel::ReliableOrdered) {
+//         if let NetworkTransmission::ActionDone(action) =
+//             postcard::from_bytes::<NetworkTransmission>(&message).unwrap()
+//         {
+//             if *networking_mode == MultiplayerNetworkingMode::Host {
+//                 continue;
+//             }
 
-            if let Ok(change_log) = try_consume_request(action, &mut logical_world.0) {
-                effects_queue
-                    .0
-                    .append(&mut VecDeque::from(change_log.inner()));
+//             if let Ok(change_log) = try_consume_request(action, &mut logical_world.0) {
+//                 effects_queue
+//                     .0
+//                     .append(&mut VecDeque::from(change_log.inner()));
 
-                action_input_manager
-                    .try_load_action(None)
-                    .expect("It should always be possible to load an action of Option::None.");
-            } else {
-                warn!("Received Action failed validation. Players may be out of sync.");
-            }
-        }
-    }
-}
+//                 action_input_manager
+//                     .try_load_action(None)
+//                     .expect("It should always be possible to load an action of Option::None.");
+//             } else {
+//                 warn!("Received Action failed validation. Players may be out of sync.");
+//             }
+//         }
+//     }
+// }
 
 #[derive(Debug, Resource, Default)]
 pub struct EffectsQueue(VecDeque<ActionEffect>);
 impl EffectsQueue {
+    #[inline]
     pub fn new(log: ChangeLog) -> Self {
         Self(VecDeque::from(log.inner()))
     }
-
+    #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+    #[inline]
+    pub fn append(&mut self, log: ChangeLog) {
+        self.0.append(&mut VecDeque::from(log.inner()));
     }
 }
 

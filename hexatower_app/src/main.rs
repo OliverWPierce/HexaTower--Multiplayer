@@ -19,6 +19,7 @@ mod cameras;
 mod functional_assets;
 mod inputs_interface;
 mod main_menu;
+mod multiplayer;
 mod ui_panels;
 mod vis_effect_reactions;
 mod vis_markets;
