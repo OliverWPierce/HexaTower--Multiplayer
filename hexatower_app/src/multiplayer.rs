@@ -19,6 +19,9 @@ impl Plugin for MultiplayerPlugin {
         app.add_observer(sd_execute_action.run_if(resource_exists_and_equals(
             MultiplayerNetworkingMode::SingleDevice,
         )));
+        app.add_observer(sd_end_turn.run_if(resource_exists_and_equals(
+            MultiplayerNetworkingMode::SingleDevice,
+        )));
     }
 }
 
@@ -43,6 +46,9 @@ pub enum NetworkTransmission {
 
 #[derive(Event, Debug)]
 pub struct TryExecuteLoadedAction;
+
+#[derive(Debug, Event)]
+pub struct TryEndTurn;
 
 fn sd_execute_action(
     _: On<TryExecuteLoadedAction>,
@@ -69,5 +75,28 @@ fn sd_execute_action(
             effects_queue.append(log);
         }
         Err(err) => warn!("Action execution error: {}", err),
+    }
+}
+
+fn sd_end_turn(
+    _: On<TryEndTurn>,
+    mut loaded_action: ResMut<ActionInputManager>,
+    actor: ResMut<OperatingPlayer>,
+    mut log_world: ResMut<LogicalWorld>,
+    mut effects_queue: ResMut<crate::inputs_interface::EffectsQueue>,
+) {
+    match try_consume_request(
+        BackendRequest {
+            acting_player: actor.0,
+            request: RequestType::EndTurn,
+        },
+        &mut log_world.0,
+    ) {
+        Ok(log) => {
+            actor.into_inner().0 = log_world.0.resource::<ActivePlayer>().0;
+            loaded_action.clear_action();
+            effects_queue.append(log);
+        }
+        Err(err) => warn!("Could not end turn: {}", err),
     }
 }

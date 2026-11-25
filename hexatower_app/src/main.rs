@@ -5,7 +5,7 @@ use core_game_logic::players::PlayerId;
 
 use crate::{
     cameras::CameraManagementPlugin, inputs_interface::InputInterfacePlugin,
-    main_menu::MainMenuAndLobbyPluggin, ui_panels::UiPanelsPlugin,
+    main_menu::MainMenuAndLobbyPluggin, multiplayer::MultiplayerPlugin, ui_panels::UiPanelsPlugin,
     vis_effect_reactions::VisEffectReactions, vis_markets::VisMarketsPlugin,
     vis_pieces::VisPiecesPlugin, vis_tiles::VisTilesPlugin,
 };
@@ -51,6 +51,7 @@ fn main() {
             #[cfg(feature = "steam")]
             bevy_renet::steam::SteamServerPlugin,
         ))
+        .add_plugins(MultiplayerPlugin)
         .init_state::<AppState>()
         .run();
 }

@@ -28,10 +28,10 @@ use crate::cameras::{MainMenuCam, spawn_main_menu_cam};
 use crate::functional_assets::{LOGICAL_MARKETS, create_board};
 #[cfg(not(feature = "steam"))]
 use crate::inputs_interface::HOST_CLIENT_ID;
-use crate::inputs_interface::NetworkTransmission;
+use crate::multiplayer::NetworkTransmission;
 use crate::{
     AppState,
-    inputs_interface::MultiplayerNetworkingMode,
+    multiplayer::MultiplayerNetworkingMode,
     ui_panels::{self, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER_WIDTH},
 };
 

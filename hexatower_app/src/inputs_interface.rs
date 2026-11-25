@@ -27,15 +27,6 @@ impl Plugin for InputInterfacePlugin {
     }
 }
 
-#[derive(Debug, Resource, PartialEq, Clone, Copy)]
-pub enum MultiplayerNetworkingMode {
-    SingleDevice,
-    Host,
-    Client,
-}
-#[derive(Debug, Event)]
-pub struct TryEndTurn;
-
 // fn end_turn(
 //     _trigger: On<TryEndTurn>,
 //     mut logical_world: ResMut<LogicalWorld>,
@@ -247,10 +238,6 @@ mod loaded_action_invariance {
         }
     }
 }
-
-#[derive(Event, Debug)]
-pub struct TryExecuteLoadedAction;
-
 // fn try_execute_loaded_action(
 //     _trigger: On<TryExecuteLoadedAction>,
 //     mut action_manager: ResMut<ActionInputManager>,
@@ -316,18 +303,6 @@ pub struct TryExecuteLoadedAction;
 
 //     Ok(())
 // }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum NetworkTransmission {
-    InitialConnectionMessage {
-        name: String,
-        is_spectator: bool,
-        version_number: u64,
-    },
-    ConnectionConfirmationMessage,
-    StartGame(BoardSetupInstructions),
-    ActionDone(BackendRequest),
-}
 
 // pub const HOST_CLIENT_ID: u64 = 2144552;
 

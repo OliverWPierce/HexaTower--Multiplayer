@@ -360,7 +360,7 @@ mod execution_button {
     use crate::{
         OperatingPlayer,
         functional_assets::LogicalWorld,
-        inputs_interface::{ActionInputManager, FrontendAction, TryExecuteLoadedAction},
+        inputs_interface::{ActionInputManager, FrontendAction},
         ui_panels::LEFT_SIDE_HEADER_PARAMS,
     };
 
@@ -686,7 +686,7 @@ mod execution_button {
         {
             warn!(message);
         } else {
-            commands.trigger(TryExecuteLoadedAction);
+            commands.trigger(crate::multiplayer::TryExecuteLoadedAction);
         }
 
         Ok(())

@@ -6,7 +6,8 @@ use core_game_logic::{
 use crate::{
     AppState, OperatingPlayer,
     functional_assets::{LogicalWorld, PlayerNames, VisCardDirectory, VisMarketDirectory},
-    inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn, TryEndTurn},
+    inputs_interface::{EffectToDisplay, EffectsQueue, NextEffectStartsIn},
+    multiplayer::TryEndTurn,
     ui_panels::{
         MidPanelLower, MidPanelUpper, UNIVERSAL_BACKGROUND, UNIVERSAL_BORDER, add_description,
         spawn_basic_ui_layout,
