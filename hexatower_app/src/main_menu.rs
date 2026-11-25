@@ -28,7 +28,7 @@ use crate::cameras::{MainMenuCam, spawn_main_menu_cam};
 use crate::functional_assets::{LOGICAL_MARKETS, create_board};
 #[cfg(not(feature = "steam"))]
 use crate::inputs_interface::HOST_CLIENT_ID;
-use crate::multiplayer::NetworkTransmission;
+use crate::multiplayer::{ConnectedClients, NetworkTransmission};
 use crate::{
     AppState,
     multiplayer::MultiplayerNetworkingMode,
@@ -164,7 +164,7 @@ fn render_main_menu(mut commands: Commands, camera: Single<Entity, With<MainMenu
             |_: On<Pointer<Click>>,
              mut commands: Commands,
              mut state: ResMut<NextState<AppState>>| {
-                commands.insert_resource(MultiplayerNetworkingMode::Host);
+                commands.insert_resource(MultiplayerNetworkingMode::HostPlayer);
                 state.set(AppState::ParametersScreen);
             },
         );
@@ -208,7 +208,7 @@ fn render_parameters_screen_if_not_joining_game(
 
     match *networking_mode {
         MultiplayerNetworkingMode::SingleDevice => todo!(),
-        MultiplayerNetworkingMode::Host => {
+        MultiplayerNetworkingMode::HostPlayer => {
             commands.spawn((
                 ChildOf(background_node.entity()),
                 Text::new("Host Game"),
@@ -455,7 +455,7 @@ fn render_parameters_screen_if_not_joining_game(
                     let Ok(initial_message) = postcard::to_stdvec::<NetworkTransmission>(
                         &NetworkTransmission::InitialConnectionMessage {
                             name: user_info.friends().name(),
-                            is_spectator: false,
+                            prefer_spectator: false,
                             version_number: VERSION_NUMBER,
                         },
                     ) else {
@@ -814,7 +814,7 @@ fn render_parameters_screen_if_not_joining_game(
                                     let Ok(initial_message) = postcard::to_stdvec(
                                         &NetworkTransmission::InitialConnectionMessage {
                                             name: user_info.0.friends().name(),
-                                            is_spectator: false,
+                                            prefer_spectator: false,
                                             version_number: VERSION_NUMBER,
                                         },
                                     ) else {
@@ -888,7 +888,7 @@ fn render_parameters_screen_if_not_joining_game(
                                 let Ok(initial_message) = postcard::to_stdvec(
                                     &NetworkTransmission::InitialConnectionMessage {
                                         name: user_info.0.friends().name(),
-                                        is_spectator: false,
+                                        prefer_spectator: false,
                                         version_number: VERSION_NUMBER,
                                     },
                                 ) else {
@@ -1065,18 +1065,9 @@ pub fn display_clickthrough_selectors<C: ClickThroughSelector>(commands: &mut Co
     overall_box
 }
 
-#[derive(Debug)]
-struct FullyConnectedClient {
-    name: String,
-    client_id: u64,
-    is_spectator: bool,
-}
-#[derive(Debug, Resource)]
-struct InfoForConnectedClients(Vec<FullyConnectedClient>);
-
 fn render_pregame_if_server(
     mut commands: Commands,
-    client_info: Res<InfoForConnectedClients>,
+    client_info: Res<ConnectedClients>,
     background_node: Single<Entity, With<MenusBackgroundNode>>,
 ) {
     commands.entity(background_node.entity()).despawn_children();
@@ -1113,11 +1104,11 @@ fn render_pregame_if_server(
         ))
         .id();
 
-    let fully_connected_clients = client_info.0.iter();
+    let fully_connected_clients = client_info.slice();
 
     let mut player_count = 0;
 
-    for FullyConnectedClient {
+    for &FullyConnectedClient {
         name, is_spectator, ..
     } in fully_connected_clients
     {
@@ -1159,17 +1150,17 @@ fn render_pregame_if_server(
             .observe(
                 |_: On<Pointer<Click>>,
                  mut server: ResMut<RenetServer>,
-                 client_info: Res<InfoForConnectedClients>,
+                 client_info: Res<ConnectedClients>,
                  board_size: Res<PresetBoardSizes>,
                  mut commands: Commands| {
                     let mut player_names = Vec::new();
                     let mut player_client_ids = Vec::new();
 
-                    for FullyConnectedClient {
+                    for &FullyConnectedClient {
                         name,
                         client_id,
                         is_spectator,
-                    } in client_info.0.iter()
+                    } in client_info.slice()
                     {
                         if !is_spectator {
                             player_names.push(name.clone());
@@ -1242,7 +1233,7 @@ fn get_client_info(
             {
                 let Ok(NetworkTransmission::InitialConnectionMessage {
                     name,
-                    is_spectator,
+                    prefer_spectator: is_spectator,
                     version_number,
                 }) = postcard::from_bytes::<NetworkTransmission>(&message)
                 else {
@@ -1311,7 +1302,7 @@ fn render_client_connection_status_during_pregame(
         if let Ok(transmission) = postcard::from_bytes::<NetworkTransmission>(&message) {
             match transmission {
                 NetworkTransmission::ConnectionConfirmationMessage => {
-                    if *networking_mode == MultiplayerNetworkingMode::Host {
+                    if *networking_mode == MultiplayerNetworkingMode::HostPlayer {
                         println!("Host player/spectator is connected.");
                         continue;
                     }
@@ -1338,7 +1329,7 @@ fn render_client_connection_status_during_pregame(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BoardSetupInstructions {
     pub board_size: PresetBoardSizes,
     pub player_names: Box<[String]>,

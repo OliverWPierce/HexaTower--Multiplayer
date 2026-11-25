@@ -27,6 +27,28 @@ impl Plugin for InputInterfacePlugin {
     }
 }
 
+#[derive(Debug, Resource)]
+pub struct RequestLog {
+    starting_state: BoardSetupInstructions,
+    actions: Vec<BackendRequest>,
+}
+
+impl RequestLog {
+    #[inline]
+    pub fn write(&mut self, request: BackendRequest) {
+        self.actions.push(request);
+    }
+
+    #[inline]
+    pub fn slice(&self) -> &[BackendRequest] {
+        &self.actions
+    }
+
+    #[inline]
+    pub fn starting_state(&self) -> &BoardSetupInstructions {
+        &self.starting_state
+    }
+}
 // fn end_turn(
 //     _trigger: On<TryEndTurn>,
 //     mut logical_world: ResMut<LogicalWorld>,
